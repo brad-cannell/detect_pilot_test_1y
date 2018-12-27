@@ -4,12 +4,30 @@ Author: Brad Cannell
 Created: 2018-07-23
 ==============================================================================*/
 
+/* Change horizontal rule to light blue */
+hr {
+    background-color: #66b3ff;
+    height: 1px;
+}
+
+/* Space out ordered lists a little bit */
+li {
+  padding: 2.5px;
+}
+
+/* Style Block Quotes */
+blockquote {
+  font-size: 12pt;
+  font-style: italic;
+  border-left: 4px solid #66b3ff;
+  margin-left: 20pt;
+}
+
 /* Add spacing before all H1 tags and underline them in light blue */
 h1 {
   margin-top: 2cm;
   padding-bottom: 0.25cm;
   border-bottom: 1px solid #66b3ff;
-  text-transform: capitalize;
 }
 
 /* 
@@ -20,26 +38,9 @@ H3, H4, etc.), but can more easily be distinguished from H1 in output.
 */
 h2 {
   margin-top: 1cm;
-  font-size: 14pt;
-}
-
-/* 
-Adjust the font size to 11pt so that I can still use H3 (as opposed to 
-H3, H4, etc.), but can more easily be distinguished from H1 in output.
-*/
-h3 {
-  font-size: 11pt;
-}
-
-h4 {
-  margin-top: 25px;
-}
-
-/* Change horizontal rule to light blue */
-hr {
-  background-color: #66b3ff;
-  height: 1px;
+  margin-bottom: 0;
+  font-size: 12pt; /*  */
 }
 
 
-/* ========================================================================= */
+/*============================================================================*/
