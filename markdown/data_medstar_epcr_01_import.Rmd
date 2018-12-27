@@ -1,0 +1,308 @@
+---
+title: "Importing MedStar Data For Analysis"
+date: "Created: 2018-12-18 <br> Updated: `r Sys.Date()`"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+    css: custom-css.css
+---
+
+# Overview
+
+In this file we read-in the raw data we received from MedStar on 2018-03-01
+
+
+# Load packages and data {#load}
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = NA)
+Sys.setenv(TZ = "US/Central")
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(bfuncs)
+```
+
+```{r}
+medstar_epcr <- readxl::read_excel("/Volumes/DETECT/phase_two/medstar_epcr.xlsx")
+```
+
+```{r}
+about_data(medstar_epcr) # 36,304 observations and 33 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Deduplicate rows
+
+```{r}
+medstar_epcr %>% 
+  group_by_all() %>% 
+  filter(n() > 1) %>% 
+  count() %>% 
+  ungroup() %>% 
+  select(n) # 596 groups of duplicates
+```
+
+I manually inspected the duplicate rows. They appear to be genuine duplicates. Below I will drop the duplicate rows.
+
+```{r}
+medstar_epcr <- distinct(medstar_epcr)
+```
+
+```{r}
+about_data(medstar_epcr) # 35,557 observations and 33 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Clean column names
+
+Make column names easier to work with
+
+```{r}
+names(medstar_epcr)
+```
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  rename(
+    "arrival_time" = "Incident Unit Arrived On Scene Date Time (eTimes.06)",
+    "response_num" = "Response Number (eResponse.04)",
+    "incident_pcr" = "PCR (eRecord.01)",
+    "incident_complaint" = "Incident Complaint Reported By Dispatch (eDispatch.01)",
+    "age" = "Patient Age In Years (ePatient.15)",
+    "name_full" = "Patient Full Name (ePatient.03 - ePatient.04 - ePatient.02)",
+    "dob" = "Patient Date Of Birth (ePatient.17)",
+    "address_street" = "Patient Home Street Address (ePatient.05)",
+    "address_city" = "Patient Home City Name (ePatient.06)",
+    "address_state" = "Patient Home State Name (ePatient.08)",
+    "address_zip" = "Patient Home Postal Code (ePatient.09)",
+    "gender" = "Patient Gender (ePatient.13)",
+    "age_2" = "Patient Age (ePatient.15)",
+    "race" = "Patient Race List (ePatient.14)",
+    "symptoms" = "Situation Other Associated Symptoms List (eSituation.10)",
+    "crew_sig" = "Signature EMS Crew Member Full Name (eOther.21 - eOther.20)",
+    "disposition" = "Disposition Incident Patient Disposition (eDisposition.12)",
+    "aps_report_num" = "WS System DETECT Worksheet DETECT STUDY APS Report Number:",
+    "aps_report" = "WS System DETECT Worksheet DETECT STUDY Did you report elder abuse / neglect to APS?",
+    "detect_emo_distress" = "WS System DETECT Worksheet DETECT STUDY Does the older adult appear depressed, anxious, or emotionally distressed for reasons other than their immediate medical condition",
+    "detect_saving_meds" = "WS System DETECT Worksheet DETECT STUDY Does the older adult appear to be hoarding / saving old medications",
+    "detect_taking_meds" = "WS System DETECT Worksheet DETECT STUDY Does the older adult have difficulties taking their prescribed medications as directed",
+    "detect_poor_hygiene" = "WS System DETECT Worksheet DETECT STUDY Does the older adult have poor personal hygiene (including soiled in urine or feces)",
+    "detect_adls" = "WS System DETECT Worksheet DETECT STUDY Does the patient / older adult have unmet needs for assistance with eating, toileting, transferring, dressing, or bathing",
+    "detect_cg_frustrated" = "WS System DETECT Worksheet DETECT STUDY If caregiver(s) present, they appear frustrated, tired, angry, or burdened by the patient / older adult",
+    "detect_cg_too_conerned" = "WS System DETECT Worksheet DETECT STUDY If caregiver(s) present, they appear overly concerned (e.g., anxious, hovering)",
+    "detect_cg_lack_know" = "WS System DETECT Worksheet DETECT STUDY If caregiver(s) present, they appear to lack knowledge of the patient / older adultís medical needs",
+    "detect_cg_unengaged" = "WS System DETECT Worksheet DETECT STUDY If caregiver(s) present, they appear unengaged and inattentive in caring for the patient / older adult",
+    "detect_hoarding" = "WS System DETECT Worksheet DETECT STUDY Inside of home is in extreme disarray / hoarding",
+    "detect_clothing" = "WS System DETECT Worksheet DETECT STUDY Is the older adult inadequately clothed or wearing dirty, torn, or soiled clothing",
+    "detect_isolated" = "WS System DETECT Worksheet DETECT STUDY Is the older adult isolated in the home",
+    "detect_safe_env" = "WS System DETECT Worksheet DETECT STUDY Living environment poses a health or safety concern (e.g., fire hazard, insect or rodent infestation, urine or feces present)",
+    "detect_unusual_odor" = "WS System DETECT Worksheet DETECT STUDY Unusual odor (e.g., urine, feces)"
+  )
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Clean column types
+
+Change selected column types
+
+```{r}
+for (i in seq_along(names(medstar_epcr))) {
+  print(paste(names(medstar_epcr)[[i]], class(medstar_epcr[[i]]), sep = " = "))
+}
+rm(i)
+```
+
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  mutate(
+    response_num = as.character(response_num),
+    address_zip = as.character(address_zip)
+  )
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Drop unneeded columns
+
+For some reason there were two age columns. I believe they are identical. If so, we will drop the second one.
+
+```{r}
+medstar_epcr %>% 
+  mutate(check_age = age - age_2) %>% 
+  select(age, age_2, check_age) %>% 
+  filter(check_age != 0)
+```
+
+Both columns are identical. Dropping age_2
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  select(-age_2)
+```
+
+```{r}
+about_data(medstar_epcr) # 35,557 observations and 32 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Standardize character strings
+
+Because we will merge this data with other data sets in the future based on character strings (e.g., name), we need to go ahead and standardize their formats here. This will prevent mismatches during the merges. Specifically, we:
+
+1. Transform all characters to lower case   
+2. Remove any special characters (e.g., hyphens, periods)   
+3. Remove trailing spaces (e.g., "John Smith ")   
+4. Remove double spaces (e.g., "John  Smith")   
+
+```{r}
+vars <- quos(name_full, address_street, address_city, address_state)
+
+medstar_epcr <- medstar_epcr %>% 
+  mutate_at(vars(!!! vars), tolower) %>% 
+  mutate_at(vars(!!! vars), stringr::str_replace_all, "[^a-zA-Z\\d\\s]", " ") %>%
+  mutate_at(vars(!!! vars), stringr::str_replace, "[[:blank:]]$", "") %>% 
+  mutate_at(vars(!!! vars), stringr::str_replace_all, "[[:blank:]]{2,}", " ")
+
+rm(vars)
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+## Remove "city of" from city value 
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  mutate(address_city = stringr::str_replace(address_city, "city of ", ""))
+```
+
+```{r}
+about_data(medstar_epcr) # 36,304 observations and 32 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Separate names, dob's, and street addresses
+
+* Some names have three parts (e.g., Mary Jo Blake). Here, we split up full name into first name and last name. For now, we ignore middle name(s). We may need to change this later.
+
+* We also separate dob into its component parts: month, day, year.
+
+* We also separate the street address into the number part and the street name part
+
+```{r}
+medstar_epcr <- medstar_epcr %>%
+  mutate(
+    name_first     = stringr::str_extract(name_full, "\\w+(?=[[:blank:]])"),
+    name_last      = stringr::str_extract(name_full, "\\S*$"),
+    birth_mnth     = lubridate::month(dob),
+    birth_day      = lubridate::day(dob),
+    birth_year     = lubridate::year(dob),
+    address_num    = stringr::str_extract(address_street, "^\\d{1,5}"),
+    address_street = stringr::str_trim(str_replace(address_street, "^\\d{1,5}", ""))
+  )
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Save cleaned data
+
+```{r}
+feather::write_feather(medstar_epcr, "/Volumes/DETECT/phase_two/medstar_epcr.feather")
+```
+
+
+## Clean up 
+
+```{r}
+rm(list = ls())
+```
+
+[top](#top)
+
+&nbsp;
+
+-------------------------------------------------------------------------------
+
+```{r echo=FALSE}
+sessionInfo()
+```
