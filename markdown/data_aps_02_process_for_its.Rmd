@@ -182,6 +182,12 @@ about_data(aps_its) # 18,080 observations and 4 variables
 feather::write_feather(aps_its, "/Volumes/sph_research/Detect/phase_two/aps_its.feather")
 ```
 
+Save in CSV format for Doug
+
+```{r}
+readr::write_csv(aps_its, "/Volumes/sph_research/Detect/phase_two/aps_its.csv")
+```
+
 [top](#top)
 
 
