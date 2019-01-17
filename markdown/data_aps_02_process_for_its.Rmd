@@ -1,0 +1,204 @@
+---
+title: "Processing Data For ITS Analysis"
+date: "Created: 2019-01-17 <br> Updated: `r Sys.Date()`"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+    css: custom-css.css
+---
+
+# Overview
+
+Preparing APS investigations data for Dr. Livingston's ITS analysis.
+
+**Some notes from APS about administrative variables:**
+
+* Each unique "Intake Stage #" (Column M) may be thought of as a unique report of ANE made on a particular date at a particular time. Each unique intake will generate a unique investigation, designated by an Investigation Stage # (Column L). So, each unique intake # is paired with an investigation #. With this a case is opened, assigned a case # (Column K)
+
+* Each row of data in this file may be best understood as a unique "reporter" which is the person making a report of abuse, neglect or exploitation (ANE) about a particular victim, on a particular date and time. The name and DOB and address information in the first several columns are that of the victim, not the reporter. The only information provided about the reporter is column O, reporter type. 
+
+* As already noted, each unique "Intake #" may be thought of as a unique report of ANE. However, there may be two reporters on the same intake, which appears as two rows with the same intake number. This reflects that two different people made the report at the same time, most likely in the way that one person speaks to the intake worker, then hands the phone to the other reporter. You may see a different reporter type in each row which is common when the victim is calling with a family member. Also common is the victim or a family member calling along with someone providing services or other assistance, maybe a health care provider, a community organization, or a law enforcement officer.  They are making the call together, hence together they are making the report of ANE. Two people, one report. 
+
+* In contrast to the above, you may see two rows with the same case number but different intake numbers which are on the same date.  This represents two different reports called in independently by two different people. Thus, they have different intake numbers, and they are regarded as two different reports of the same abuse. And again, as mentioned above, they have the same case numbers because it was determined that after the initial report was made, the subsequent report concerned the same mistreatment or self-neglect and therefore was merged into the already-created case.
+
+* For the ITS analysis, we are interested in changes in the number of individual "reports" of EA. So, each row should be a unique reporter/intake stage number combination.
+
+
+# Load packages and data
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = NA)
+Sys.setenv(TZ = "US/Central")
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(bfuncs)
+```
+
+aps.feather was created in data_aps_01_import.Rmd
+
+```{r}
+aps <- feather::read_feather("/Volumes/sph_research/Detect/phase_two/aps.feather")
+```
+
+```{r}
+about_data(aps) # 18,080 observations and 47 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Check duplicate rows
+
+For the ITS analysis, we are interested in changes in the number of individual "reports" of EA. So, each row should be a unique reporter/intake stage number combination. Results are hidden to protect participant privacy.
+
+```{r eval=FALSE}
+aps %>% 
+  group_by(intake_stage_num, reporter) %>% 
+  filter(n() > 1)
+```
+
+So, there are 10 rows (5 reports to APS) where a report was made to APS (intake stage number) by two people at the same time, but both individuals were the same type of reporter (i.e., both family members or both healthcare professionals). For the ITS analysis, we will keep these rows in the data.
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Create week
+
+Create a week number variable.
+
+```{r}
+aps_its <- aps %>% 
+  mutate(
+    intake_year = format(intake_date, "%y"),
+    year_add = case_when(
+      intake_year == "14" ~ (0 * 52),
+      intake_year == "15" ~ (1 * 52),
+      intake_year == "16" ~ (2 * 52),
+      intake_year == "17" ~ (3 * 52),
+      intake_year == "18" ~ (4 * 52)
+    ),
+    week = lubridate::week(intake_date),
+    study_week = week + year_add,
+    study_week = study_week - 52 # To make it base 1
+  ) %>% 
+  arrange(intake_date)
+```
+
+```{r}
+# Data checks
+# aps_its %>% select(intake_date, intake_year, year_add, week, study_week)
+```
+
+Drop unneeded variables
+
+```{r}
+aps_its <- aps_its %>% 
+  select(-intake_date, -intake_year, -year_add, -week)
+```
+
+```{r}
+about_data(aps_its) # 18,080 observations and 47 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Create dummy variable for EMS reporter
+
+```{r}
+aps_its <- aps_its %>% 
+  mutate(ems = if_else(reporter == "Health Care Providers/Staff -- EMS/EMT", 1, 0))
+```
+
+```{r}
+about_data(aps_its) # 18,080 observations and 48 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Subset columns
+
+Subset the data to include only the columns needed for the ITS analysis
+
+```{r}
+aps_its <- aps_its %>% 
+  select(study_week, county, reporter, ems)
+```
+
+```{r}
+about_data(aps_its) # 18,080 observations and 4 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Save the data
+
+```{r}
+feather::write_feather(aps_its, "/Volumes/sph_research/Detect/phase_two/aps_its.feather")
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Session information
+
+```{r echo=FALSE}
+rm(list = ls())
+```
+
+```{r echo=FALSE}
+sessionInfo()
+```
