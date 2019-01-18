@@ -79,7 +79,7 @@ col_info <- c(
 
 ```{r}
 medstar_epcr <- readxl::read_excel(
-  path = "/Volumes/DETECT/phase_two/medstar_epcr.xlsx",
+  path = "/Volumes/sph_research/Detect/phase_two/medstar_epcr.xlsx",
   col_names = col_info[seq(1, length(col_info), 2)],
   col_types = col_info[seq(2, length(col_info), 2)],
   skip = 1
@@ -139,7 +139,7 @@ about_data(medstar_epcr) # 35,557 observations and 33 variables
 # Save imported data
 
 ```{r}
-feather::write_feather(medstar_epcr, "/Volumes/DETECT/phase_two/medstar_epcr.feather")
+feather::write_feather(medstar_epcr, "/Volumes/sph_research/DETECT/phase_two/medstar_epcr_01_import.feather")
 ```
 
 [top](#top)
