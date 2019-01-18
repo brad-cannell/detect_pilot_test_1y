@@ -1,0 +1,285 @@
+---
+title: "Manage Variables in MedStar EPCR Data"
+date: "Created: 2018-12-26 <br> Updated: `r Sys.Date()`"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+    css: custom-css.css
+---
+
+# Overview
+
+* The raw MedStar epcr data was imported in data_medstar_epcr_01_import.Rmd
+
+* In this file we prepare the data for analysis
+
+
+# Load packages and data
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = NA)
+Sys.setenv(TZ = "US/Central")
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(bfuncs)
+```
+
+medstar_epcr.feather was created in data_medstar_epcr_01_import.Rmd
+
+```{r}
+medstar_epcr <- feather::read_feather("/Volumes/sph_research/DETECT/phase_two/medstar_epcr_01_import.feather")
+```
+
+```{r}
+about_data(medstar_epcr) # 35,557 observations and 32 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Standardize character strings
+
+Because we will merge this data with other data sets in the future based on character strings (e.g., name), we need to go ahead and standardize their formats here. This will prevent mismatches during the merges. Specifically, we:
+
+1. Transform all characters to lower case   
+2. Remove any special characters (e.g., hyphens, periods)   
+3. Remove trailing spaces (e.g., "John Smith ")   
+4. Remove double spaces (e.g., "John  Smith")   
+
+```{r}
+vars <- quos(name_full, address_street, address_city, address_state)
+
+medstar_epcr <- medstar_epcr %>% 
+  mutate_at(vars(!!! vars), tolower) %>% 
+  mutate_at(vars(!!! vars), stringr::str_replace_all, "[^a-zA-Z\\d\\s]", " ") %>%
+  mutate_at(vars(!!! vars), stringr::str_replace, "[[:blank:]]$", "") %>% 
+  mutate_at(vars(!!! vars), stringr::str_replace_all, "[[:blank:]]{2,}", " ")
+
+rm(vars)
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Remove "city of" from address_city value 
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  mutate(address_city = stringr::str_replace(address_city, "city of ", ""))
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Separate names, dob's, and street addresses
+
+* Some names have three parts (e.g., Mary Jo Blake). Here, we split up full name into first name and last name. For now, we ignore middle name(s). We may need to change this later.
+
+* We also separate dob into its component parts: month, day, year.
+
+* We also separate the street address into the number part and the street name part
+
+```{r}
+medstar_epcr <- medstar_epcr %>%
+  mutate(
+    name_first          = stringr::str_extract(name_full, "\\w+(?=[[:blank:]])"),
+    name_last           = stringr::str_extract(name_full, "\\S*$"),
+    birth_mnth          = lubridate::month(dob),
+    birth_day           = lubridate::day(dob),
+    birth_year          = lubridate::year(dob),
+    address_num         = stringr::str_extract(address_street, "^\\d{1,5}") %>% as.numeric(),
+    address_street_name = stringr::str_trim(str_replace(address_street, "^\\d{1,5}", ""))
+  )
+```
+
+```{r}
+about_data(medstar_epcr) # 35,557 observations and 39 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Recode categories
+
+* For select variables, recode variants of missing data (e.g. "Unknown") to NA
+
+* For select variables collapse categories
+
+## Missing
+
+```{r}
+medstar_epcr <- medstar_epcr %>%
+  mutate(
+    gender = case_when(
+      gender == "Unknown (Unable to Determine)" ~ NA_character_,
+      gender == "Not Applicable"                ~ NA_character_,
+      TRUE                                      ~ gender
+    ),
+    race = case_when(
+      race == "Not Applicable" ~ NA_character_,
+      race == "Not Recorded"   ~ NA_character_,
+      TRUE                     ~ race
+    )
+  ) %>% 
+  mutate_at(
+    vars(starts_with("detect")),
+    funs(
+      if_else(. == "N/A", NA_character_, .)
+    )
+  )
+```
+
+
+## Collapse categories
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  mutate(
+    race_8cat = case_when(
+      race == "American Indian or Alaska Native"          ~ "American Indian or Alaska Native - non-Hispanic",
+      race == "Asian"                                     ~ "Asian - non-Hispanic",
+      race == "Black or African American"                 ~ "Black or African American - non-Hispanic",
+      race == "Hispanic or Latino"                        ~ "Hispanic or Latino",
+      race == "Native Hawaiian or Other Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander - non-Hispanic",
+      race == "White"                                     ~ "White - non-Hispanic",
+      stringr::str_detect(race, "Hispanic")               ~ "Hispanic or Latino, Any Race",
+      is.na(race)                                         ~ NA_character_,
+      TRUE                                                ~ "Other Race - non-Hispanic"
+    )
+  )
+```
+
+```{r}
+about_data(medstar_epcr) # 35,557 observations and 40 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Create indicator for completed DETECT screening
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  mutate_at(
+    .vars = vars(starts_with("detect_")),
+    .funs = funs(answered = !is.na(.))
+  ) %>% 
+  mutate(
+    answered_count = select(., ends_with("answered")) %>% rowSums()
+  ) %>% 
+  mutate(
+    screened = answered_count > 0
+  )
+```
+
+```{r}
+about_data(medstar_epcr) # 35,557 observations and 56 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Process numeric variables
+
+All numerical variables must be class numeric -- as opposed to integer -- to work in fastLink below.
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  mutate_if(is.integer, as.numeric)
+```
+
+```{r}
+about_data(medstar_epcr) # 35,557 observations and 56 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Save data
+
+```{r}
+feather::write_feather(
+  medstar_epcr, 
+  "/Volumes/sph_research/Detect/phase_two/medstar_epcr_02_variable_management.feather"
+)
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Session information
+
+```{r echo=FALSE, eval=FALSE}
+rm(list = ls())
+```
+
+```{r echo=FALSE}
+sessionInfo()
+```
