@@ -1,0 +1,6 @@
+path <- file.path("Documents", "Research Projects", "DETECT Research", "DETECT Data", "symptoms.feather")
+library("feather", lib.loc="/Library/Frameworks/R.framework/Versions/3.5/Resources/library")
+feather(path)
+Incident <- read_feather(path)
+View(Incident)
+table(incident_complaint)
