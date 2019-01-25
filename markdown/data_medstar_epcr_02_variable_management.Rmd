@@ -174,7 +174,7 @@ medstar_epcr <- medstar_epcr %>%
       race == "American Indian or Alaska Native"          ~ "American Indian or Alaska Native - non-Hispanic",
       race == "Asian"                                     ~ "Asian - non-Hispanic",
       race == "Black or African American"                 ~ "Black or African American - non-Hispanic",
-      race == "Hispanic or Latino"                        ~ "Hispanic or Latino",
+      race == "Hispanic or Latino"                        ~ "Hispanic or Latino, Any Race",
       race == "Native Hawaiian or Other Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander - non-Hispanic",
       race == "White"                                     ~ "White - non-Hispanic",
       stringr::str_detect(race, "Hispanic")               ~ "Hispanic or Latino, Any Race",
