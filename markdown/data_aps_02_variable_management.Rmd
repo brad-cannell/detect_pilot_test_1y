@@ -185,6 +185,71 @@ about_data(aps) # 18,080 observations and 52 variables
 
 
 
+# MedStar service area
+
+According to [MedStar's website](http://www.medstar911.org/service-area), the cities they serve include: Blue Mound, Burleson, Edgecliff Village, Forest Hill, Fort Worth, Haltom City, Haslet, Lakeside, Lake Worth, River Oaks, Saginaw, Sansom Park, Westover Hills, Westworth Village, White Settlement.
+
+What cities appear in the data?
+
+```{r eval=FALSE}
+aps %>% 
+  group_by(city) %>% 
+  freq_table()
+```
+
+There are a lot of cities included in this data that our outside of MedStar's service area. Create a dummy variable to indicate cities included in MedStar's coverage area.
+
+
+
+```{r}
+aps <- aps %>% 
+  mutate(medstar_service_area = if_else(city %in% c(
+    "blue mound", "burleson", "edgecliff village", "forest hill", "fort worth", 
+    "haltom city", "haslet", "lake worth", "lakeside", "river oaks", "saginaw", 
+    "sansom park", "westover hills", "westworth village", "white settlement"
+    ), 1, 0, NA_real_
+  ))
+```
+
+Note: There are no APS investigations with a city address of Edgecliff Village or Westover Hills.
+
+```{r}
+about_data(aps) # 18,080 observations and 53 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Create city_fw
+
+```{r}
+aps <- aps %>% 
+  mutate(city_fw = if_else(city == "fort worth", 1, 0))
+```
+
+```{r}
+about_data(aps) # 8,927 observations and 62 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
 # Create DETECT identifier
 
 Create a dummy variable corresponding to the dates when MedStar was using the DETECT tool.
@@ -201,7 +266,7 @@ aps <- aps %>%
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 53 variables
+about_data(aps) # 18,080 observations and 55 variables
 ```
 
 [top](#top)
@@ -261,7 +326,7 @@ aps <- aps %>%
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 55 variables
+about_data(aps) # 18,080 observations and 57 variables
 ```
 
 [top](#top)
@@ -283,7 +348,7 @@ aps <- aps %>%
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 56 variables
+about_data(aps) # 18,080 observations and 58 variables
 ```
 
 [top](#top)
@@ -310,11 +375,6 @@ To do that, we will create a new variable called "any_valid" that is equal to 1 
 * If all dispositions are invalid, then any valid equals 0   
 * If all dispositions are other, then any valid equals NA
 * If one disposition is other, and the rest are invalid, then any valid equals NA   
-
-```{r}
-aps %>% 
-  select(closure_reason:total_other_dispositions)
-```
 
 ```{r}
 aps <- aps %>% 
@@ -350,7 +410,7 @@ aps <- aps %>%
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 61 variables
+about_data(aps) # 18,080 observations and 63 variables
 ```
 
 [top](#top)
