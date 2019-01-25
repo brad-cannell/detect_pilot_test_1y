@@ -1,0 +1,325 @@
+---
+title: "Manage Variables in APS Data"
+date: "Created: 2019-01-25 <br> Updated: `r Sys.Date()`"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+    css: custom-css.css
+---
+
+# Overview
+
+* The raw APS data was imported in data_aps_01_import.Rmd
+
+* In this file we prepare the data for analysis
+
+
+# Load packages and data
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = NA)
+Sys.setenv(TZ = "US/Central")
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(bfuncs)
+```
+
+aps_01_import.feather was created in data_aps_01_import.Rmd
+
+```{r}
+aps <- feather::read_feather("/Volumes/sph_research/Detect/one_year_data/aps_01_import.feather")
+```
+
+```{r}
+about_data(aps) # 18,080 observations and 47 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Standardize character strings
+
+Because we will merge this data with other data sets in the future based on character strings (e.g., name), we need to go ahead and standardize their formats here. This will prevent mismatches during the merges. Specifically, we:
+
+1. Transform all characters to lower case   
+2. Remove trailing spaces (e.g., "John Smith ")   
+3. Remove double spaces (e.g., "John  Smith")
+
+```{r}
+aps <- aps %>% 
+  mutate_if(is.character, tolower) %>% 
+  mutate_if(is.character, stringr::str_replace, "[[:blank:]]$", "") %>%
+  mutate_if(is.character, stringr::str_replace_all, "[[:blank:]]{2,}", " ")
+```
+
+4. Remove any special characters (e.g., hyphens, periods)   
+
+```{r}
+vars <- quos(name_last, name_first, name_full)
+
+aps <- aps %>% 
+  mutate_at(vars(!!! vars), stringr::str_replace_all, "[^a-zA-Z\\d\\s]", " ")
+
+rm(vars)
+```
+
+```{r}
+about_data(aps) # 18,080 observations and 47 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Clean city
+
+View current values for city
+
+```{r eval=FALSE}
+aps %>%
+  group_by(city) %>%
+  freq_table()
+```
+
+Need to move city value to street. Need to do so without using identifiers in the code. Therefore, adding a temporary row variable.
+
+```{r}
+aps <- aps %>% 
+  mutate(row = row_number()) %>% 
+  select(row, everything())
+```
+
+```{r}
+aps <- aps %>% 
+  mutate(
+    street = if_else(row == 9868, city, street),
+    city = if_else(row == 9868, NA_character_, city)
+  )
+```
+
+Correct misspellings
+
+```{r}
+aps <- aps %>% 
+  mutate(
+    city = case_when(
+      city == "cleburn" ~ "cleburne",
+      city == "dalworthington garde" ~ "dalworthington garden",
+      city == "ft worth" ~ "fort worth",
+      city == "n richland hills" ~ "north richland hills",
+      city == "unknown" ~ NA_character_,
+      city == "wht settlemt" ~ "white settlement",
+      TRUE ~ city
+    )
+  )
+```
+
+Drop row
+
+```{r}
+aps <- select(aps, -row)
+```
+
+```{r}
+about_data(aps) # 18,080 observations and 47 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Separate dob's and street addresses
+
+* We also separate dob into its component parts: month, day, year.
+
+* We also separate the street address into the number part and the street name part
+
+```{r}
+aps <- aps %>%
+  mutate(
+    birth_mnth          = lubridate::month(dob),
+    birth_day           = lubridate::day(dob),
+    birth_year          = lubridate::year(dob),
+    address_num         = stringr::str_extract(street, "^\\d{1,5}") %>% as.numeric(),
+    address_street_name = stringr::str_trim(str_replace(street, "^\\d{1,5}", ""))
+  )
+```
+
+```{r}
+about_data(aps) # 18,080 observations and 52 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Create DETECT identifier
+
+Create a dummy variable corresponding to the dates when MedStar was using the DETECT tool.
+
+```{r}
+aps <- aps %>% 
+  mutate(
+    detect = case_when(
+      as.Date(intake_date) >= "2015-09-17" & as.Date(intake_date) <= "2015-10-26" ~ 1,
+      as.Date(intake_date) >= "2017-02-01"                                        ~ 1,
+      TRUE                                                                        ~ 0
+    )
+  )
+```
+
+```{r}
+about_data(aps) # 18,080 observations and 53 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Create week
+
+Create a week number variable.
+
+```{r}
+aps <- aps %>% 
+  mutate(
+    intake_year = format(intake_date, "%y"),
+    year_add = case_when(
+      intake_year == "14" ~ (0 * 52),
+      intake_year == "15" ~ (1 * 52),
+      intake_year == "16" ~ (2 * 52),
+      intake_year == "17" ~ (3 * 52),
+      intake_year == "18" ~ (4 * 52)
+    ),
+    week = lubridate::week(intake_date),
+    study_week = week + year_add,
+    study_week = study_week - 52 # To make it base 1
+  ) %>% 
+  arrange(intake_date)
+```
+
+```{r}
+# Data checks
+# aps_its %>% select(intake_date, intake_year, year_add, week, study_week, detect)
+```
+
+During which study weeks did DETECT screening occur?
+
+```{r}
+aps %>% 
+  filter(detect == 1) %>% 
+  # For data checking
+  # select(intake_date, study_week)
+  pull(study_week) %>% 
+  unique()
+```
+
+Drop unneeded variables
+
+```{r}
+aps <- aps %>% 
+  select(-year_add, -week)
+```
+
+```{r}
+about_data(aps) # 18,080 observations and 55 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Create dummy variable for EMS reporter
+
+```{r}
+aps <- aps %>% 
+  mutate(ems = if_else(reporter == "Health Care Providers/Staff -- EMS/EMT", 1, 0))
+```
+
+```{r}
+about_data(aps) # 18,080 observations and 56 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Save data
+
+```{r}
+feather::write_feather(aps, "/Volumes/sph_research/Detect/one_year_data/aps_02_variable_management.feather")
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Session information
+
+```{r echo=FALSE}
+rm(list = ls())
+```
+
+```{r echo=FALSE}
+sessionInfo()
+```
