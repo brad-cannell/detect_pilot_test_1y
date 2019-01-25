@@ -67,7 +67,8 @@ aps %>%
   filter(n() > 1) %>% 
   count() %>% 
   ungroup() %>% 
-  select(`Duplicate Rows` = n) # 72 groups of duplicates
+  select(`Duplicate Rows` = n) %>% 
+  nrow() # 72 groups of duplicates
 ```
 
 I manually inspected the duplicate rows. They appear to be genuine duplicates. Below I will drop the duplicate rows.
@@ -96,7 +97,7 @@ about_data(aps) # 18,080 observations and 47 variables
 # Save imported data
 
 ```{r}
-feather::write_feather(aps, "/Volumes/sph_research/Detect/one_year_data/aps.feather")
+feather::write_feather(aps, "/Volumes/sph_research/Detect/one_year_data/aps_01_import.feather")
 ```
 
 [top](#top)

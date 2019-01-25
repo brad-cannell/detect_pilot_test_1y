@@ -321,21 +321,18 @@ library(bfuncs)</code></pre>
 <h1>Deduplicate rows</h1>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuYXBzICU+JSBcbiAgZ3JvdXBfYnlfYWxsKCkgJT4lIFxuICBmaWx0ZXIobigpID4gMSkgJT4lIFxuICBjb3VudCgpICU+JSBcbiAgdW5ncm91cCgpICU+JSBcbiAgc2VsZWN0KGBEdXBsaWNhdGUgUm93c2AgPSBuKSAjIDcyIGdyb3VwcyBvZiBkdXBsaWNhdGVzXG5gYGAifQ== -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuYXBzICU+JSBcbiAgZ3JvdXBfYnlfYWxsKCkgJT4lIFxuICBmaWx0ZXIobigpID4gMSkgJT4lIFxuICBjb3VudCgpICU+JSBcbiAgdW5ncm91cCgpICU+JSBcbiAgc2VsZWN0KGBEdXBsaWNhdGUgUm93c2AgPSBuKSAlPiUgXG4gIG5yb3coKSMgNzIgZ3JvdXBzIG9mIGR1cGxpY2F0ZXNcbmBgYCJ9 -->
 <pre class="r"><code>aps %&gt;% 
   group_by_all() %&gt;% 
   filter(n() &gt; 1) %&gt;% 
   count() %&gt;% 
   ungroup() %&gt;% 
-  select(`Duplicate Rows` = n) # 72 groups of duplicates</code></pre>
+  select(`Duplicate Rows` = n) %&gt;% 
+  nrow()# 72 groups of duplicates</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbInRibF9kZiIsInRibCIsImRhdGEuZnJhbWUiXSwibmNvbCI6MSwibnJvdyI6NzJ9LCJyZGYiOiJINHNJQUFBQUFBQUFBKzFST3c3Q01BeDFVNkFpRWgrSkMzQUJPaUNPd01ETXhCcENnSW8wcWRKVU1ISXNUa2R4MmdaQkJrN0FZTWQyL0o3czUrMTZ0NlE3Q2dBRTRuNEVKTWF3UjlCRjBJT2hlMjhBOGF3cEFJelFOazN6MzM3WWw0Qjl4WEpSWWpEOUtJN1hWU0V6enF5WWIvVzFEQ0JEbzYrcGh6bk55UjFkWGRlUGtKdExWb2JjOU1Bc1M0OEc4Wmc5QTBpaUM1dHBoU0RpcnBxMExWOEVrWEVzM2NraCtKeFV5azEyV1BCenBTNkxWZEE2NnVMTlJ4eTFJNUM2bzByOEtGem51VkMyU3dkQ25USWwvR3JDR0cxOEl0bGVTSzhkcXRPSWt4WW1lNk1wVnN2VWFzdDhIK1ZhK2txNzVQTUY3bHVqWis4Q0FBQT0ifQ== -->
-<div data-pagedtable="false">
-<script data-pagedtable-source type="application/json">
-{"columns":[{"label":["Duplicate Rows"],"name":[1],"type":["int"],"align":["right"]}],"data":[{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"},{"1":"2"}],"options":{"columns":{"min":{},"max":[10],"total":[1]},"rows":{"min":[10],"max":[10],"total":[72]},"pages":{}}}
-  </script>
-</div>
-<!-- rnb-frame-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDcyXG4ifQ== -->
+<pre><code>[1] 72</code></pre>
+<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>I manually inspected the duplicate rows. They appear to be genuine duplicates. Below I will drop the duplicate rows.</p>
@@ -363,8 +360,8 @@ library(bfuncs)</code></pre>
 <h1>Save imported data</h1>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZmVhdGhlcjo6d3JpdGVfZmVhdGhlcihhcHMsIFwiL1ZvbHVtZXMvc3BoX3Jlc2VhcmNoL0RldGVjdC9vbmVfeWVhcl9kYXRhL2Fwcy5mZWF0aGVyXCIpXG5gYGAifQ== -->
-<pre class="r"><code>feather::write_feather(aps, &quot;/Volumes/sph_research/Detect/one_year_data/aps.feather&quot;)</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZmVhdGhlcjo6d3JpdGVfZmVhdGhlcihhcHMsIFwiL1ZvbHVtZXMvc3BoX3Jlc2VhcmNoL0RldGVjdC9vbmVfeWVhcl9kYXRhL2Fwc18wMV9pbXBvcnQuZmVhdGhlclwiKVxuYGBgIn0= -->
+<pre class="r"><code>feather::write_feather(aps, &quot;/Volumes/sph_research/Detect/one_year_data/aps_01_import.feather&quot;)</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
@@ -408,7 +405,7 @@ loaded via a namespace (and not attached):
 <!-- rnb-chunk-end -->
 </div>
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiSW1wb3J0aW5nIEFQUyBEYXRhIEZvciBBbmFseXNpcyIKZGF0ZTogIkNyZWF0ZWQ6IDIwMTktMDEtMTcgPGJyPiBVcGRhdGVkOiBgciBTeXMuRGF0ZSgpYCIKb3V0cHV0OiAKICBodG1sX25vdGVib29rOgogICAgdG9jOiB0cnVlCiAgICB0b2NfZmxvYXQ6IHRydWUKICAgIGNzczogY3VzdG9tLWNzcy5jc3MKLS0tCgojIE92ZXJ2aWV3CgpJbiB0aGlzIGZpbGUgd2UgcmVhZC1pbiB0aGUgcmF3IGRhdGEgd2UgcmVjZWl2ZWQgZnJvbSBBUFMgb24gMjAxOC0wOS0yNiB0aHJvdWdoIEtpdGV3b3Jrcy4KCgojIExvYWQgcGFja2FnZXMKCmBgYHtyIHNldHVwLCBpbmNsdWRlPUZBTFNFfQprbml0cjo6b3B0c19jaHVuayRzZXQoY29tbWVudCA9IE5BKQpTeXMuc2V0ZW52KFRaID0gIlVTL0NlbnRyYWwiKQpgYGAKCmBgYHtyIG1lc3NhZ2U9RkFMU0V9CmxpYnJhcnkodGlkeXZlcnNlKQpsaWJyYXJ5KGJmdW5jcykKYGBgCgpbdG9wXSgjdG9wKQoKCgoKCgoKCgoKIyBSZWFkLWluIGRhdGEKCmBgYHtyfQphcHMgPC0gcmVhZHhsOjpyZWFkX2V4Y2VsKAogIHBhdGggPSAiL1ZvbHVtZXMvc3BoX3Jlc2VhcmNoL0RldGVjdC9vbmVfeWVhcl9kYXRhL2Fwc19kYXRhLnhsc3giCikKYGBgCgpgYGB7cn0KYWJvdXRfZGF0YShhcHMpICMgMTgsMTUyIG9ic2VydmF0aW9ucyBhbmQgNDcgdmFyaWFibGVzCmBgYAoKW3RvcF0oI3RvcCkKCgoKCgoKCgoKCiMgRGVkdXBsaWNhdGUgcm93cwoKYGBge3J9CmFwcyAlPiUgCiAgZ3JvdXBfYnlfYWxsKCkgJT4lIAogIGZpbHRlcihuKCkgPiAxKSAlPiUgCiAgY291bnQoKSAlPiUgCiAgdW5ncm91cCgpICU+JSAKICBzZWxlY3QoYER1cGxpY2F0ZSBSb3dzYCA9IG4pICMgNzIgZ3JvdXBzIG9mIGR1cGxpY2F0ZXMKYGBgCgpJIG1hbnVhbGx5IGluc3BlY3RlZCB0aGUgZHVwbGljYXRlIHJvd3MuIFRoZXkgYXBwZWFyIHRvIGJlIGdlbnVpbmUgZHVwbGljYXRlcy4gQmVsb3cgSSB3aWxsIGRyb3AgdGhlIGR1cGxpY2F0ZSByb3dzLgoKYGBge3J9CmFwcyA8LSBkaXN0aW5jdChhcHMpCmBgYAoKYGBge3J9CmFib3V0X2RhdGEoYXBzKSAjIDE4LDA4MCBvYnNlcnZhdGlvbnMgYW5kIDQ3IHZhcmlhYmxlcwpgYGAKCjcyIGR1cGxpY2F0ZSByb3dzIHdlcmUgZHJvcHBlZCBmcm9tIHRoZSBkYXRhLgoKW3RvcF0oI3RvcCkKCgoKCgoKCgoKCiMgU2F2ZSBpbXBvcnRlZCBkYXRhCgpgYGB7cn0KZmVhdGhlcjo6d3JpdGVfZmVhdGhlcihhcHMsICIvVm9sdW1lcy9zcGhfcmVzZWFyY2gvRGV0ZWN0L29uZV95ZWFyX2RhdGEvYXBzLmZlYXRoZXIiKQpgYGAKClt0b3BdKCN0b3ApCgoKCgoKCgoKCgojIFNlc3Npb24gaW5mb3JtYXRpb24KCmBgYHtyIGVjaG89RkFMU0V9CnJtKGxpc3QgPSBscygpKQpgYGAKCmBgYHtyIGVjaG89RkFMU0V9CnNlc3Npb25JbmZvKCkKYGBg</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiSW1wb3J0aW5nIEFQUyBEYXRhIEZvciBBbmFseXNpcyIKZGF0ZTogIkNyZWF0ZWQ6IDIwMTktMDEtMTcgPGJyPiBVcGRhdGVkOiBgciBTeXMuRGF0ZSgpYCIKb3V0cHV0OiAKICBodG1sX25vdGVib29rOgogICAgdG9jOiB0cnVlCiAgICB0b2NfZmxvYXQ6IHRydWUKICAgIGNzczogY3VzdG9tLWNzcy5jc3MKLS0tCgojIE92ZXJ2aWV3CgpJbiB0aGlzIGZpbGUgd2UgcmVhZC1pbiB0aGUgcmF3IGRhdGEgd2UgcmVjZWl2ZWQgZnJvbSBBUFMgb24gMjAxOC0wOS0yNiB0aHJvdWdoIEtpdGV3b3Jrcy4KCgojIExvYWQgcGFja2FnZXMKCmBgYHtyIHNldHVwLCBpbmNsdWRlPUZBTFNFfQprbml0cjo6b3B0c19jaHVuayRzZXQoY29tbWVudCA9IE5BKQpTeXMuc2V0ZW52KFRaID0gIlVTL0NlbnRyYWwiKQpgYGAKCmBgYHtyIG1lc3NhZ2U9RkFMU0V9CmxpYnJhcnkodGlkeXZlcnNlKQpsaWJyYXJ5KGJmdW5jcykKYGBgCgpbdG9wXSgjdG9wKQoKCgoKCgoKCgoKIyBSZWFkLWluIGRhdGEKCmBgYHtyfQphcHMgPC0gcmVhZHhsOjpyZWFkX2V4Y2VsKAogIHBhdGggPSAiL1ZvbHVtZXMvc3BoX3Jlc2VhcmNoL0RldGVjdC9vbmVfeWVhcl9kYXRhL2Fwc19kYXRhLnhsc3giCikKYGBgCgpgYGB7cn0KYWJvdXRfZGF0YShhcHMpICMgMTgsMTUyIG9ic2VydmF0aW9ucyBhbmQgNDcgdmFyaWFibGVzCmBgYAoKW3RvcF0oI3RvcCkKCgoKCgoKCgoKCiMgRGVkdXBsaWNhdGUgcm93cwoKYGBge3J9CmFwcyAlPiUgCiAgZ3JvdXBfYnlfYWxsKCkgJT4lIAogIGZpbHRlcihuKCkgPiAxKSAlPiUgCiAgY291bnQoKSAlPiUgCiAgdW5ncm91cCgpICU+JSAKICBzZWxlY3QoYER1cGxpY2F0ZSBSb3dzYCA9IG4pICU+JSAKICBucm93KCkgIyA3MiBncm91cHMgb2YgZHVwbGljYXRlcwpgYGAKCkkgbWFudWFsbHkgaW5zcGVjdGVkIHRoZSBkdXBsaWNhdGUgcm93cy4gVGhleSBhcHBlYXIgdG8gYmUgZ2VudWluZSBkdXBsaWNhdGVzLiBCZWxvdyBJIHdpbGwgZHJvcCB0aGUgZHVwbGljYXRlIHJvd3MuCgpgYGB7cn0KYXBzIDwtIGRpc3RpbmN0KGFwcykKYGBgCgpgYGB7cn0KYWJvdXRfZGF0YShhcHMpICMgMTgsMDgwIG9ic2VydmF0aW9ucyBhbmQgNDcgdmFyaWFibGVzCmBgYAoKNzIgZHVwbGljYXRlIHJvd3Mgd2VyZSBkcm9wcGVkIGZyb20gdGhlIGRhdGEuCgpbdG9wXSgjdG9wKQoKCgoKCgoKCgoKIyBTYXZlIGltcG9ydGVkIGRhdGEKCmBgYHtyfQpmZWF0aGVyOjp3cml0ZV9mZWF0aGVyKGFwcywgIi9Wb2x1bWVzL3NwaF9yZXNlYXJjaC9EZXRlY3Qvb25lX3llYXJfZGF0YS9hcHNfMDFfaW1wb3J0LmZlYXRoZXIiKQpgYGAKClt0b3BdKCN0b3ApCgoKCgoKCgoKCgojIFNlc3Npb24gaW5mb3JtYXRpb24KCmBgYHtyIGVjaG89RkFMU0V9CnJtKGxpc3QgPSBscygpKQpgYGAKCmBgYHtyIGVjaG89RkFMU0V9CnNlc3Npb25JbmZvKCkKYGBg</div>
 
 
 </div>
