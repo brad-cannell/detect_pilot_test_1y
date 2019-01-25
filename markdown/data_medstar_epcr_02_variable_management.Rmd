@@ -30,7 +30,7 @@ library(bfuncs)
 medstar_epcr.feather was created in data_medstar_epcr_01_import.Rmd
 
 ```{r}
-medstar_epcr <- feather::read_feather("/Volumes/sph_research/DETECT/phase_two/medstar_epcr_01_import.feather")
+medstar_epcr <- feather::read_feather("/Volumes/sph_research/DETECT/one_year_data/medstar_epcr_01_import.feather")
 ```
 
 ```{r}
@@ -258,8 +258,6 @@ about_data(medstar_epcr) # 35,557 observations and 56 variables
 
 There were some rows with the same pcr number and only differed by whether or not DETECT screenings were completed.
 
-We should probably go ahead and get those rows out too.
-
 ```{r}
 # Data checks
 # Multiple pcr's per response? Yes
@@ -470,7 +468,7 @@ about_data(medstar_epcr) # 28,228 observations and 56 variables
 ```{r}
 feather::write_feather(
   medstar_epcr, 
-  "/Volumes/sph_research/Detect/phase_two/medstar_epcr_02_variable_management.feather"
+  "/Volumes/sph_research/Detect/one_year_data/medstar_epcr_02_variable_management.feather"
 )
 ```
 
@@ -487,7 +485,7 @@ feather::write_feather(
 
 # Session information
 
-```{r echo=FALSE, eval=FALSE}
+```{r}
 rm(list = ls())
 ```
 

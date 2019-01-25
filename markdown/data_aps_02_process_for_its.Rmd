@@ -46,7 +46,7 @@ library(bfuncs)
 aps.feather was created in data_aps_01_import.Rmd
 
 ```{r}
-aps <- feather::read_feather("/Volumes/sph_research/Detect/phase_two/aps.feather")
+aps <- feather::read_feather("/Volumes/sph_research/Detect/one_year_data/aps.feather")
 ```
 
 ```{r}
@@ -226,13 +226,13 @@ about_data(aps_its) # 18,080 observations and 5 variables
 # Save the data
 
 ```{r}
-feather::write_feather(aps_its, "/Volumes/sph_research/Detect/phase_two/aps_its.feather")
+feather::write_feather(aps_its, "/Volumes/sph_research/Detect/one_year_data/aps_its.feather")
 ```
 
 Save in CSV format for Doug
 
 ```{r}
-readr::write_csv(aps_its, "/Volumes/sph_research/Detect/phase_two/aps_its.csv")
+readr::write_csv(aps_its, "/Volumes/sph_research/Detect/one_year_data/aps_its.csv")
 ```
 
 [top](#top)

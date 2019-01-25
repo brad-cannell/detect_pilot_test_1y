@@ -40,7 +40,7 @@ library(bfuncs)
 
 ```{r}
 aps <- readxl::read_excel(
-  path = "/Volumes/sph_research/Detect/phase_two/aps_data.xlsx"
+  path = "/Volumes/sph_research/Detect/one_year_data/aps_data.xlsx"
 )
 ```
 
@@ -96,7 +96,7 @@ about_data(aps) # 18,080 observations and 47 variables
 # Save imported data
 
 ```{r}
-feather::write_feather(aps, "/Volumes/sph_research/Detect/phase_two/aps.feather")
+feather::write_feather(aps, "/Volumes/sph_research/Detect/one_year_data/aps.feather")
 ```
 
 [top](#top)
