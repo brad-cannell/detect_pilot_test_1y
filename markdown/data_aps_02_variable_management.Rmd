@@ -297,6 +297,73 @@ about_data(aps) # 18,080 observations and 56 variables
 
 
 
+# Valid/Invalid summary
+
+Create a new variable that summarizes the results of APS investigations
+
+It is possible for there to be more than one allegation associated with each APS investigation.
+
+We want a single outcome per investigation/pcr combination in order to create a confusion matrix for each screening item.
+
+To do that, we will create a new variable called "any_valid" that is equal to 1 if the disposition of _any_ allegation was valid, and 0 if the disposition of _all_ allegations were invalid.   
+* If even one disposition is valid, then any valid equals 1   
+* If all dispositions are invalid, then any valid equals 0   
+* If all dispositions are other, then any valid equals NA
+* If one disposition is other, and the rest are invalid, then any valid equals NA   
+
+```{r}
+aps %>% 
+  select(closure_reason:total_other_dispositions)
+```
+
+```{r}
+aps <- aps %>% 
+  mutate(
+    total_valid   = select(., starts_with("valid")) %>% rowSums(),
+    total_invalid = select(., starts_with("invalid")) %>% rowSums(),
+    any_valid     = as.numeric(total_valid > 0),
+    all_invalid   = as.numeric(total_valid == 0 & total_invalid > 0)
+  )
+```
+
+Create 3-level summary variable
+
+1. Any valid finding    
+2. All invalid findings    
+3. Unable to determine or other finding
+
+```{r}
+aps <- aps %>% 
+  mutate(
+    valid_3cat = case_when(
+      any_valid == 1 ~ 1,
+      all_invalid == 1 ~ 2,
+      TRUE ~ 3
+    )
+  )
+```
+
+```{r}
+# Data checks
+# check <- aps %>% 
+#   select(closure_reason:total_other_dispositions, total_valid:valid_3cat)
+```
+
+```{r}
+about_data(aps) # 18,080 observations and 61 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
 # Save data
 
 ```{r}
