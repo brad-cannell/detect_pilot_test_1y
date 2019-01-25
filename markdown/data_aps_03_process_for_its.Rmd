@@ -43,14 +43,14 @@ library(tidyverse)
 library(bfuncs)
 ```
 
-aps.feather was created in data_aps_01_import.Rmd
+aps_02_variable_management.feather was created in data_aps_02_variable_management.Rmd
 
 ```{r}
-aps <- feather::read_feather("/Volumes/sph_research/Detect/one_year_data/aps.feather")
+aps <- feather::read_feather("/Volumes/sph_research/Detect/one_year_data/aps_02_variable_management.feather")
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 47 variables
+about_data(aps) # 18,080 observations and 63 variables
 ```
 
 [top](#top)
@@ -74,119 +74,7 @@ aps %>%
   filter(n() > 1)
 ```
 
-So, there are 10 rows (5 reports to APS) where a report was made to APS (intake stage number) by two people at the same time, but both individuals were the same type of reporter (i.e., both family members or both healthcare professionals). For the ITS analysis, we will keep these rows in the data.
-
-[top](#top)
-
-
-
-
-
-
-
-
-
-
-# Create DETECT identifier
-
-Create a dummy variable corresponding to the dates when MedStar was using the DETECT tool.
-
-```{r}
-aps_its <- aps %>% 
-  mutate(
-    detect = case_when(
-      as.Date(intake_date) >= "2015-09-17" & as.Date(intake_date) <= "2015-10-26" ~ 1,
-      as.Date(intake_date) >= "2017-02-01"                                        ~ 1,
-      TRUE                                                                        ~ 0
-    )
-  )
-```
-
-```{r}
-about_data(aps_its) # 18,080 observations and 48 variables
-```
-
-[top](#top)
-
-
-
-
-
-
-
-
-
-
-# Create week
-
-Create a week number variable.
-
-```{r}
-aps_its <- aps_its %>% 
-  mutate(
-    intake_year = format(intake_date, "%y"),
-    year_add = case_when(
-      intake_year == "14" ~ (0 * 52),
-      intake_year == "15" ~ (1 * 52),
-      intake_year == "16" ~ (2 * 52),
-      intake_year == "17" ~ (3 * 52),
-      intake_year == "18" ~ (4 * 52)
-    ),
-    week = lubridate::week(intake_date),
-    study_week = week + year_add,
-    study_week = study_week - 52 # To make it base 1
-  ) %>% 
-  arrange(intake_date)
-```
-
-```{r}
-# Data checks
-# aps_its %>% select(intake_date, intake_year, year_add, week, study_week, detect)
-```
-
-During which study weeks did DETECT screening occur?
-
-```{r}
-aps_its %>% 
-  filter(detect == 1) %>% 
-  # For data checking
-  # select(intake_date, study_week)
-  pull(study_week) %>% 
-  unique()
-```
-
-Drop unneeded variables
-
-```{r}
-aps_its <- aps_its %>% 
-  select(-intake_date, -intake_year, -year_add, -week)
-```
-
-```{r}
-about_data(aps_its) # 18,080 observations and 48 variables
-```
-
-[top](#top)
-
-
-
-
-
-
-
-
-
-
-# Create dummy variable for EMS reporter
-
-```{r}
-aps_its <- aps_its %>% 
-  mutate(ems = if_else(reporter == "Health Care Providers/Staff -- EMS/EMT", 1, 0))
-```
-
-```{r}
-about_data(aps_its) # 18,080 observations and 49 variables
-```
+So, there are 10 rows (5 reports to APS) where a report was made to APS (intake stage number) by two people at the same time, but both individuals were the same type of reporter (both health care providers/staff or both family members and relatives). For the ITS analysis, we will keep these rows in the data.
 
 [top](#top)
 
@@ -204,12 +92,16 @@ about_data(aps_its) # 18,080 observations and 49 variables
 Subset the data to include only the columns needed for the ITS analysis
 
 ```{r}
-aps_its <- aps_its %>% 
-  select(study_week, county, reporter, ems, detect)
+aps_its <- aps %>% 
+  select(
+    study_week, detect, reporter, ems, medstar_service_area, city_fw, 
+    any_valid, all_invalid, valid_3cat, closure_reason,
+    valid_emotional_abuse:total_other_dispositions, total_valid, total_invalid
+  )
 ```
 
 ```{r}
-about_data(aps_its) # 18,080 observations and 5 variables
+about_data(aps_its) # 18,080 observations and 42 variables
 ```
 
 [top](#top)
