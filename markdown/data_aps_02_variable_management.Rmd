@@ -344,7 +344,7 @@ about_data(aps) # 18,080 observations and 57 variables
 
 ```{r}
 aps <- aps %>% 
-  mutate(ems = if_else(reporter == "Health Care Providers/Staff -- EMS/EMT", 1, 0))
+  mutate(ems = if_else(reporter == "health care providers/staff -- ems/emt", 1, 0))
 ```
 
 ```{r}
