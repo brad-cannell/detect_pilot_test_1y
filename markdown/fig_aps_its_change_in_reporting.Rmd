@@ -1,0 +1,207 @@
+---
+title: "Figure: Change in Reporting Over Time"
+date: "Created: 2019-01-29 <br> Updated: `r Sys.Date()`"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+    css: custom-css.css
+---
+
+# Overview
+
+In this file we visualize the changes in reporting to APS over time for EMS and non-EMS reporters.
+
+
+# Load packages and data
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = NA)
+Sys.setenv(TZ = "US/Central")
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(bfuncs)
+library(gridExtra)
+```
+
+```{r}
+source("../r/theme_bfuncs.r")
+```
+
+aps_its.feather was created in data_aps_03_process_for_its.Rmd.
+
+```{r}
+aps_its <- feather::read_feather("/Volumes/sph_research/Detect/one_year_data/aps_its.feather")
+```
+
+```{r}
+about_data(aps_its) # 18,080 observations and 42 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Data management
+
+* Looks like we have incomplete informtion for week 165. Let's drop it from the ITS analysis.
+
+* Create groups to plot by
+
+```{r}
+aps_its_w_groups <- aps_its %>% 
+  # Looks like we have incomplete informtion for week 165
+  filter(study_week < 165) %>% 
+  # Create groups
+  mutate(
+    group = case_when(
+      ems == 0 & medstar_service_area == 0 ~ "Non-medics, Outside MedStar Service Area",
+      ems == 1 & medstar_service_area == 0 ~ "Medics, Outside MedStar Service Area",
+      ems == 0 & medstar_service_area == 1 ~ "Non-medics, Inside MedStar Service Area",
+      ems == 1 & medstar_service_area == 1 ~ "Medics, Inside MedStar Service Area"
+    ) %>% 
+      as.factor()
+  )
+```
+
+
+## Calculate number of reports by group
+
+```{r}
+weekly_reports_by_group <- aps_its_w_groups %>%
+  group_by(study_week, group) %>% 
+  summarise(reports = n()) %>% 
+  ungroup()
+```
+
+
+## Add zero report weeks
+
+Any combinations of study_week and group that didn't occur in the data are non-existant. Really we want them to be 0.
+
+Add week/group combinations that had zero reports
+
+```{r}
+weekly_reports_by_group <- data.frame(
+    # Create data frame with all weeks and groups
+    study_week = seq(
+      min(aps_its_w_groups$study_week), 
+      max(aps_its_w_groups$study_week)
+    ) %>% 
+      rep(each = 4),
+    group = levels(aps_its_w_groups$group),
+    reports = 0
+  ) %>% 
+  
+  # Which week/group combinations are not in the data?
+  anti_join(weekly_reports_by_group, by = c("study_week", "group")) %>% 
+  
+  # Merge those rows into the data
+  full_join(weekly_reports_by_group, by = c("study_week", "group", "reports")) %>% 
+  
+  # Arrange the data
+  arrange(study_week, group)
+```
+
+```{r}
+weekly_reports_by_group %>% 
+  group_by(group) %>% 
+  mean_table(reports)
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Create plots
+
+Create plot function that can be used on subsets of the data
+
+```{r}
+its_plot <- function(grouped_df) {
+  
+  ggplot(data = grouped_df, aes(study_week, reports)) +
+    
+    # Add DETECT study periods
+    geom_rect(aes(xmin = 38, xmax = 43, ymin = -Inf, ymax = Inf), fill = "gray95") +
+    annotate("text", x = (38 + 43) / 2, y = Inf, label = "5-Week Pilot Study",
+             size = 3.5, vjust = 1) +
+    geom_rect(aes(xmin = 109, xmax = 164, ymin = -Inf, ymax = Inf), fill = "gray95") +
+    annotate("text", x = (109 + 164) / 2, y = Inf, label = "1-Year Observational Study",
+             size = 3.5, vjust = 1) +
+    
+    # Add reports by week
+    geom_point(size = 0.2) +
+    geom_line(group = 1) +
+  
+    # Adjust theme
+    theme_bfuncs()
+}
+
+# Test
+# weekly_reports_by_group %>%
+#   group_by(study_week) %>%
+#   summarise(reports = sum(reports)) %>%
+#   its_plot()
+```
+
+Create a list of ggplot objects - left off here. I don't think the groups are right.
+
+```{r}
+plot_list <- weekly_reports_by_group %>% 
+  split(.$group) %>% 
+  map(its_plot)
+```
+
+Plot them with gridExtra
+
+```{r}
+gridExtra::grid.arrange(
+  plot_list[["Non-medics, Inside MedStar Service Area"]],
+  plot_list[["Medics, Inside MedStar Service Area"]],
+  nrow = 2
+)
+```
+
+Save the results
+
+```{r}
+
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Session information
+
+```{r echo=FALSE}
+rm(list = ls())
+```
+
+```{r echo=FALSE}
+sessionInfo()
+```
