@@ -162,23 +162,23 @@ its_plot <- function(grouped_df, group) {
 }
 
 # Test
-weekly_reports_by_group %>% 
-  filter(group == "Medics, Inside MedStar Service Area") %>% 
-  its_plot(group = "Medics, Inside MedStar Service Area")
+# weekly_reports_by_group %>% 
+#   filter(group == "Medics, Inside MedStar Service Area") %>% 
+#   its_plot(group = "Medics, Inside MedStar Service Area")
 ```
 
 Create a list of ggplot objects - left off here. I don't think the groups are right.
 
 ```{r}
-plot_list <- weekly_reports_by_group %>% 
-  split(.$group) %>% 
-  map(its_plot)
+# plot_list <- weekly_reports_by_group %>% 
+#   split(.$group) %>% 
+#   map(its_plot)
 ```
 
 ```{r}
-weekly_reports_by_group %>% 
-  filter(group == "Medics, Inside MedStar Service Area") %>% 
-  its_plot() + ggtitle("Medics, Inside MedStar Service Area")
+# weekly_reports_by_group %>% 
+#   filter(group == "Medics, Inside MedStar Service Area") %>% 
+#   its_plot() + ggtitle("Medics, Inside MedStar Service Area")
 ```
 
 
@@ -197,7 +197,7 @@ gridExtra::grid.arrange(
 Save the results
 
 ```{r}
-
+# ggsave()
 ```
 
 [top](#top)
@@ -238,15 +238,16 @@ weekly_reports_by_group %>%
     facet_wrap(aes(group), scales = "free") +
   
     # Adjust theme
-    theme_bfuncs()
+    theme_bfuncs() +
   
     
-    
     # Adjust labels
-    # labs(
-    #   title = group,
-    #   subtitle = "Shaded areas indicate DETECT screening tool use"
-    # )
+    labs(
+      title = "", 
+      subtitle = "Shaded areas indicate DETECT screening tool use",
+      caption = "Caption",
+      tag = "Tag"
+    )
 ```
 
 [top](#top)
