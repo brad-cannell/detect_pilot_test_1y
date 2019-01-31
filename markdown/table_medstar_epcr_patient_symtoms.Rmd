@@ -46,10 +46,6 @@ about_data(symptoms) # 28,228 observations and 2 variables
 
 # Find all symptoms
 
-```{r}
-unique(symptoms$symptoms)
-```
-
 * Figure out how to break character stings into component symptoms   
 * Get list of all unique symptoms   
 * Turn symptoms into binary variables   
@@ -57,8 +53,24 @@ unique(symptoms$symptoms)
 * Create two-way table of symptoms by incident complaint   
 
 ```{r}
-stringr::str_split(symptoms$symptoms[11], ")") 
+new <- stringr::str_replace_all("''Nausea (R11.0)'',''Vomiting, unspecified (R11.10)'',''Weakness (R53.1)'',''Other malaise (R53.81)''", "'", "") 
 ```
+
+```{r}
+stringr::str_split(
+  "''Nausea (R11.0)'',''Vomiting, unspecified (R11.10)'',''Weakness (R53.1)'',''Other malaise (R53.81)''", 
+  "(?<=\\))'',''"
+) 
+```
+
+```{r}
+unique(symptoms$symptoms) %>% 
+  stringr::str_split("(?<=\\))'',''") %>% 
+  unlist() %>% 
+  unique() %>% 
+  stringr::str_remove_all("'")
+```
+
 
 [top](#top)
 
