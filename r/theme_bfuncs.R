@@ -111,7 +111,7 @@ theme_bfuncs <- function(base_size = 11, base_family = "",
     panel.spacing.y =    NULL,
     panel.ontop    =     FALSE,
     
-    strip.background =   ggplot2::element_rect(fill = "grey85", colour = NA),
+    strip.background =   ggplot2::element_rect(fill = "white", colour = NA),
     strip.text =         ggplot2::element_text(
                            colour = "grey10",
                            size = rel(0.8),
