@@ -33,7 +33,7 @@ source("../r/theme_bfuncs.r")
 aps_its.feather was created in data_aps_03_process_for_its.Rmd.
 
 ```{r}
-aps_its <- feather::read_feather("/Volumes/sph_research/Detect/one_year_data/aps_its.feather")
+aps_its <- feather::read_feather("/Volumes/SPH/Research/Detect/one_year_data/aps_its.feather")
 ```
 
 ```{r}
