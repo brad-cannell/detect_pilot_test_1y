@@ -112,10 +112,24 @@ weekly_reports_by_group <- data.frame(
   arrange(study_week, group)
 ```
 
+
+## Add detect study periods
+
+Also add mean reports in each period
+
 ```{r}
-weekly_reports_by_group %>% 
-  group_by(group) %>% 
-  mean_table(reports)
+weekly_reports_by_group <- weekly_reports_by_group %>% 
+  mutate(
+    period = case_when(
+      between(study_week, 1,  37)  ~ 1, # Pre-DETECT
+      between(study_week, 38, 43)  ~ 2, # DETECT 5-week
+      between(study_week, 44, 108) ~ 3, # Washout
+      study_week > 108             ~ 4  # DETECT 1-year
+    )
+  ) %>% 
+  group_by(group, period) %>%
+  mutate(mean_reports = mean(reports)) %>% 
+  ungroup()
 ```
 
 [top](#top)
@@ -131,40 +145,55 @@ weekly_reports_by_group %>%
 
 # Create plots
 
-* fix axis labels
-* Add title and subtitle
-* Add mean lines
-
 ```{r}
-weekly_reports_by_group %>% 
-  # filter(group == "Medics, Inside MedStar Service Area") %>% 
+fig_aps_its_change_in_reporting <- weekly_reports_by_group %>% 
   ggplot(aes(study_week, reports)) +
     
     # Add DETECT study periods
-    geom_rect(aes(xmin = 38, xmax = 43, ymin = -Inf, ymax = Inf), fill = "gray95") +
-    # annotate("text", x = (38 + 43) / 2, y = Inf, label = "5-Week Pilot Study",
-    #          size = 3.5, vjust = 1) +
-    geom_rect(aes(xmin = 109, xmax = 164, ymin = -Inf, ymax = Inf), fill = "gray95") +
-    # annotate("text", x = (109 + 164) / 2, y = Inf, label = "1-Year Observational Study",
-    #          size = 3.5, vjust = 1) +
+    geom_rect(aes(xmin = 38, xmax = 43, ymin = -Inf, ymax = Inf), fill = "lightyellow") +
+    geom_rect(aes(xmin = 109, xmax = 164, ymin = -Inf, ymax = Inf), fill = "lightyellow") +
     
     # Add reports by week
     geom_point(size = 0.2) +
-    geom_line(group = 1) +
+    geom_line(group = 1, color = "gray70") +
+  
+    # Add mean lines
+    geom_line(aes(y = mean_reports, group = period), color = "red", size = 2) +
+    geom_smooth(aes(y = reports), se = FALSE, method = 'loess', formula = 'y ~ x') +
   
     # Add facets
     facet_wrap(aes(group), scales = "free") +
   
     # Adjust theme
     theme_bfuncs() +
+    theme(panel.border = element_rect(fill = NA, colour = "black")) +
     
     # Adjust labels
     labs(
-      title = "", 
-      subtitle = "Shaded areas indicate DETECT screening tool use",
-      caption = "Caption",
-      tag = "Tag"
+      x = "Study Week", 
+      y = "Number of Reports",
+      caption = paste(
+        "Shaded areas indicate DETECT screening tool use\n", 
+        "Red lines indicate mean number of reports in each period\n",
+        "Blue line is a locally weighted trend line"
+      )
     )
+```
+
+```{r}
+fig_aps_its_change_in_reporting
+```
+
+```{r}
+ggsave(
+  filename = "../images/fig_aps_its_change_in_reporting.png",
+  plot     = fig_aps_its_change_in_reporting,
+  device   = "png",
+  width    = 11.43,
+  # height   = 6.858,
+  # units    = "cm",
+  # dpi      = 300
+)
 ```
 
 [top](#top)
