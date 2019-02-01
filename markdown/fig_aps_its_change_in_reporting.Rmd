@@ -131,88 +131,6 @@ weekly_reports_by_group %>%
 
 # Create plots
 
-Create plot function that can be used on subsets of the data
-
-```{r}
-# For use with gridExtra
-its_plot <- function(grouped_df, group) {
-  
-  ggplot(data = grouped_df, aes(study_week, reports)) +
-    
-    # Add DETECT study periods
-    geom_rect(aes(xmin = 38, xmax = 43, ymin = -Inf, ymax = Inf), fill = "gray95") +
-    # annotate("text", x = (38 + 43) / 2, y = Inf, label = "5-Week Pilot Study",
-    #          size = 3.5, vjust = 1) +
-    geom_rect(aes(xmin = 109, xmax = 164, ymin = -Inf, ymax = Inf), fill = "gray95") +
-    # annotate("text", x = (109 + 164) / 2, y = Inf, label = "1-Year Observational Study",
-    #          size = 3.5, vjust = 1) +
-    
-    # Add reports by week
-    geom_point(size = 0.2) +
-    geom_line(group = 1) +
-  
-    # Adjust theme
-    theme_bfuncs() +
-    
-    # Adjust labels
-    labs(
-      title = group,
-      subtitle = "Shaded areas indicate DETECT screening tool use"
-    )
-}
-
-# Test
-# weekly_reports_by_group %>% 
-#   filter(group == "Medics, Inside MedStar Service Area") %>% 
-#   its_plot(group = "Medics, Inside MedStar Service Area")
-```
-
-Create a list of ggplot objects - left off here. I don't think the groups are right.
-
-```{r}
-# plot_list <- weekly_reports_by_group %>% 
-#   split(.$group) %>% 
-#   map(its_plot)
-```
-
-```{r}
-# weekly_reports_by_group %>% 
-#   filter(group == "Medics, Inside MedStar Service Area") %>% 
-#   its_plot() + ggtitle("Medics, Inside MedStar Service Area")
-```
-
-
-Plot them with gridExtra
-
-```{r}
-gridExtra::grid.arrange(
-  plot_list[["Non-medics, Inside MedStar Service Area"]],
-  plot_list[["Medics, Inside MedStar Service Area"]],
-  plot_list[["Non-medics, Outside MedStar Service Area"]],
-  plot_list[["Medics, Outside MedStar Service Area"]],
-  nrow = 2
-)
-```
-
-Save the results
-
-```{r}
-# ggsave()
-```
-
-[top](#top)
-
-
-
-
-
-
-
-
-
-
-# Using facets instead of gridExtra
-
 * fix axis labels
 * Add title and subtitle
 * Add mean lines
@@ -239,7 +157,6 @@ weekly_reports_by_group %>%
   
     # Adjust theme
     theme_bfuncs() +
-  
     
     # Adjust labels
     labs(
