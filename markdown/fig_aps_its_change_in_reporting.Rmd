@@ -145,6 +145,8 @@ weekly_reports_by_group <- weekly_reports_by_group %>%
 
 # Create plots
 
+* Add dashed lines that go between the mean lines, but not all the way to the top of the plot area.
+
 ```{r}
 fig_aps_its_change_in_reporting <- weekly_reports_by_group %>% 
   ggplot(aes(study_week, reports)) +
@@ -159,7 +161,6 @@ fig_aps_its_change_in_reporting <- weekly_reports_by_group %>%
   
     # Add mean lines
     geom_line(aes(y = mean_reports, group = period), color = "red", size = 2) +
-    geom_smooth(aes(y = reports), se = FALSE, method = 'loess', formula = 'y ~ x') +
   
     # Add facets
     facet_wrap(aes(group), scales = "free") +
@@ -171,12 +172,7 @@ fig_aps_its_change_in_reporting <- weekly_reports_by_group %>%
     # Adjust labels
     labs(
       x = "Study Week", 
-      y = "Number of Reports",
-      caption = paste(
-        "Shaded areas indicate DETECT screening tool use\n", 
-        "Red lines indicate mean number of reports in each period\n",
-        "Blue line is a locally weighted trend line"
-      )
+      y = "Number of Reports"
     )
 ```
 
@@ -189,10 +185,7 @@ ggsave(
   filename = "../images/fig_aps_its_change_in_reporting.png",
   plot     = fig_aps_its_change_in_reporting,
   device   = "png",
-  width    = 11.43,
-  # height   = 6.858,
-  # units    = "cm",
-  # dpi      = 300
+  width    = 11.43
 )
 ```
 
