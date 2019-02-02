@@ -1,0 +1,209 @@
+---
+title: "Figure: Change in Reporting Over Time"
+date: "Created: 2019-01-29 <br> Updated: `r Sys.Date()`"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+    css: custom-css.css
+---
+
+# Overview
+
+In this file we visualize the changes in reporting to APS over time for EMS and non-EMS reporters.
+
+
+# Load packages and data
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = NA)
+Sys.setenv(TZ = "US/Central")
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(bfuncs)
+library(gridExtra)
+```
+
+```{r}
+source("../r/theme_bfuncs.r")
+```
+
+aps_its.feather was created in data_aps_03_process_for_its.Rmd.
+
+```{r}
+aps_its <- feather::read_feather("/Volumes/SPH/Research/Detect/one_year_data/aps_its.feather")
+```
+
+```{r}
+about_data(aps_its) # 18,080 observations and 42 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Data management
+
+* Looks like we have incomplete informtion for week 165. Let's drop it from the ITS analysis.
+
+* Create groups to plot by
+
+```{r}
+aps_its_w_groups <- aps_its %>% 
+  # Looks like we have incomplete informtion for week 165
+  filter(study_week < 165) %>% 
+  # Create groups
+  mutate(
+    group = case_when(
+      ems == 0 & medstar_service_area == 0 ~ "Non-medics, Outside MedStar Service Area",
+      ems == 1 & medstar_service_area == 0 ~ "Medics, Outside MedStar Service Area",
+      ems == 0 & medstar_service_area == 1 ~ "Non-medics, Inside MedStar Service Area",
+      ems == 1 & medstar_service_area == 1 ~ "Medics, Inside MedStar Service Area"
+    ) %>% 
+      as.factor()
+  )
+```
+
+
+## Calculate number of reports by group
+
+```{r}
+weekly_reports_by_group <- aps_its_w_groups %>%
+  group_by(study_week, group) %>% 
+  summarise(reports = n()) %>% 
+  ungroup()
+```
+
+
+## Add zero report weeks
+
+Any combinations of study_week and group that didn't occur in the data are non-existant. Really we want them to be 0.
+
+Add week/group combinations that had zero reports
+
+```{r}
+weekly_reports_by_group <- data.frame(
+    # Create data frame with all weeks and groups
+    study_week = seq(
+      min(aps_its_w_groups$study_week), 
+      max(aps_its_w_groups$study_week)
+    ) %>% 
+      rep(each = 4),
+    group = levels(aps_its_w_groups$group),
+    reports = 0
+  ) %>% 
+  
+  # Which week/group combinations are not in the data?
+  anti_join(weekly_reports_by_group, by = c("study_week", "group")) %>% 
+  
+  # Merge those rows into the data
+  full_join(weekly_reports_by_group, by = c("study_week", "group", "reports")) %>% 
+  
+  # Arrange the data
+  arrange(study_week, group)
+```
+
+
+## Add detect study periods
+
+Also add mean reports in each period
+
+```{r}
+weekly_reports_by_group <- weekly_reports_by_group %>% 
+  mutate(
+    period = case_when(
+      between(study_week, 1,  37)  ~ 1, # Pre-DETECT
+      between(study_week, 38, 43)  ~ 2, # DETECT 5-week
+      between(study_week, 44, 108) ~ 3, # Washout
+      study_week > 108             ~ 4  # DETECT 1-year
+    )
+  ) %>% 
+  group_by(group, period) %>%
+  mutate(mean_reports = mean(reports)) %>% 
+  ungroup()
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Create plots
+
+```{r}
+fig_aps_its_change_in_reporting <- weekly_reports_by_group %>% 
+  ggplot(aes(study_week, reports)) +
+    
+    # Add DETECT study periods
+    geom_rect(aes(xmin = 38, xmax = 43, ymin = -Inf, ymax = Inf), fill = "lightyellow") +
+    geom_rect(aes(xmin = 109, xmax = 164, ymin = -Inf, ymax = Inf), fill = "lightyellow") +
+    
+    # Add reports by week
+    geom_point(size = 0.2) +
+    geom_line(group = 1, color = "gray70") +
+  
+    # Add mean lines
+    geom_line(aes(y = mean_reports, group = period), color = "red", size = 2) +
+  
+    # Add facets
+    facet_wrap(aes(group), scales = "free") +
+  
+    # Adjust theme
+    theme_bfuncs() +
+    theme(panel.border = element_rect(fill = NA, colour = "black")) +
+    
+    # Adjust labels
+    labs(
+      x = "Study Week", 
+      y = "Number of Reports"
+    )
+```
+
+```{r}
+fig_aps_its_change_in_reporting
+```
+
+```{r}
+ggsave(
+  filename = "../images/fig_aps_its_change_in_reporting.png",
+  plot     = fig_aps_its_change_in_reporting,
+  device   = "png",
+  width    = 11.43
+)
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Session information
+
+```{r echo=FALSE}
+rm(list = ls())
+```
+
+```{r echo=FALSE}
+sessionInfo()
+```
