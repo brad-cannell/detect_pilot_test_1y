@@ -145,8 +145,6 @@ weekly_reports_by_group <- weekly_reports_by_group %>%
 
 # Create plots
 
-* Add dashed lines that go between the mean lines, but not all the way to the top of the plot area.
-
 ```{r}
 fig_aps_its_change_in_reporting <- weekly_reports_by_group %>% 
   ggplot(aes(study_week, reports)) +
