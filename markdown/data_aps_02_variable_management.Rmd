@@ -30,7 +30,7 @@ library(bfuncs)
 aps_01_import.feather was created in data_aps_01_import.Rmd
 
 ```{r}
-aps <- feather::read_feather("/Volumes/sph_research/Detect/one_year_data/aps_01_import.feather")
+aps <- feather::read_feather("/Volumes/SPH/Research/Detect/one_year_data/aps_01_import.feather")
 ```
 
 ```{r}
@@ -280,9 +280,21 @@ about_data(aps) # 18,080 observations and 55 variables
 
 
 
-# Create week
+# Create study week variable
 
-Create a week number variable.
+## Data time period
+
+What time period does the APS data cover?
+
+```{r}
+aps %>% 
+  summarise(
+    `Earliest Date` = min(intake_date),
+    `Latest Date` = max(intake_date)
+  )
+```
+
+## Create a week number variable.
 
 ```{r}
 aps <- aps %>% 
