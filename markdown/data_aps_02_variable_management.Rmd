@@ -221,16 +221,26 @@ Add a little information about the area this data covers
 
 What counties are represented in this data?
 
-```{r}
+```{r echo=FALSE}
 aps %>% 
-  pull(county) %>% 
-  unique() %>% 
-  tibble(`Unique Counties in APS Data` = .)
+  mutate(
+    `Medstar Service Area` = if_else(
+      medstar_service_area == 0,
+      "Outside MedStar's Service Area",
+      "Inside MedStar's Service Area",
+      NA_character_
+    )
+  ) %>% 
+  group_by(`Medstar Service Area`) %>% 
+  summarise(
+    Counties = unique(county) %>% sort() %>% paste(collapse = ", ")
+  )
 ```
+
 
 How many cities are inside and outside of the MedStar Service Area?
 
-```{r}
+```{r echo=FALSE}
 aps %>% 
   mutate(
     `Medstar Service Area` = if_else(
@@ -315,7 +325,7 @@ about_data(aps) # 18,080 observations and 55 variables
 
 What time period does the APS data cover?
 
-```{r}
+```{r echo=FALSE}
 aps %>% 
   summarise(
     `Earliest Date` = min(intake_date),
@@ -350,7 +360,7 @@ aps <- aps %>%
 
 During which study weeks did DETECT screening occur?
 
-```{r}
+```{r echo=FALSE}
 aps %>% 
   filter(detect == 1) %>% 
   # For data checking
