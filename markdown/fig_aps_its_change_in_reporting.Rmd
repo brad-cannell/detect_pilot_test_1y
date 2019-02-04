@@ -165,7 +165,10 @@ fig_aps_its_change_in_reporting <- weekly_reports_by_group %>%
   
     # Adjust theme
     theme_bfuncs() +
-    theme(panel.border = element_rect(fill = NA, colour = "black")) +
+    theme(
+      panel.border = element_rect(fill = NA, colour = "black"),
+      strip.text = element_text(size = rel(1.))
+    ) +
     
     # Adjust labels
     labs(
