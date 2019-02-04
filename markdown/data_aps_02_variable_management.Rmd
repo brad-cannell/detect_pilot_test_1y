@@ -217,6 +217,35 @@ Note: There are no APS investigations with a city address of Edgecliff Village o
 about_data(aps) # 18,080 observations and 53 variables
 ```
 
+Add a little information about the area this data covers
+
+What counties are represented in this data?
+
+```{r}
+aps %>% 
+  pull(county) %>% 
+  unique() %>% 
+  tibble(`Unique Counties in APS Data` = .)
+```
+
+How many cities are inside and outside of the MedStar Service Area?
+
+```{r}
+aps %>% 
+  mutate(
+    `Medstar Service Area` = if_else(
+      medstar_service_area == 0,
+      "Outside MedStar's Service Area",
+      "Inside MedStar's Service Area",
+      NA_character_
+    )
+  ) %>% 
+  group_by(`Medstar Service Area`) %>% 
+  summarise(
+    `Number of Cities` = unique(city) %>% length()
+  )
+```
+
 [top](#top)
 
 
