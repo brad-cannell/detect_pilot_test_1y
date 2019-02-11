@@ -10,7 +10,7 @@ output:
 
 # Overview
 
-Creating patient symptom table.... Jared can fill in
+Details on the construction of the MedStar EPCR Patient symptom table.   126 unique symptoms were recorded for 2853 calls.  A total of 4086 symptoms were recorded among the calls.
 
 
 # Load packages and data
@@ -26,7 +26,7 @@ library(bfuncs)
 ```
 
 ```{r}
-symptoms <- feather::read_feather("/Volumes/SPH/Research/Detect/one_year_data/symptoms.feather")
+symptoms <- feather::read_feather("/Users/jaredwiegand/Desktop/DETECT Repository/symptoms.feather")
 ```
 
 ```{r}
@@ -34,15 +34,6 @@ about_data(symptoms) # 28,228 observations and 2 variables
 ```
 
 [top](#top)
-
-
-
-
-
-
-
-
-
 
 # Find all symptoms
 
@@ -63,19 +54,50 @@ stringr::str_split(
 ) 
 ```
 
+# Create List of Unique Symptoms
+
 ```{r}
-unique(symptoms$symptoms) %>% 
+symptom_list <- unique(symptoms$symptoms) %>% 
   stringr::str_split("(?<=\\))'',''") %>% 
   unlist() %>% 
   unique() %>% 
-  stringr::str_remove_all("'")
+  stringr::str_remove_all("'") %>% 
+  unique()
 ```
 
+Remove NA from symptom list
 
-[top](#top)
+```{r}
+symptom_list <- symptom_list[!is.na(symptom_list)]
+```
 
+# Create dummy variables for each symptom, by the same name
 
+```{r}
+# symptoms %>%
+#   mutate(Missing = if_else(is.na(symptoms),1,0))
 
+```
+
+```{r}
+for (i in seq_along(symptom_list)) {
+  symptoms[symptom_list[i]] <- NA
+}
+```
+
+# Assign values for each symptom dummy variable
+
+* Still having issues with assigning values
+
+```{r}
+for (i in seq_along(symptom_list)) {
+  symptoms[symptom_list[i]] <- if_else(stringr::str_detect(symptoms$symptoms, symptom_list[i]), 1, 0)
+}
+```
+
+```{r}
+View(symptoms)
+```
 
 
 
@@ -84,6 +106,8 @@ unique(symptoms$symptoms) %>%
 
 
 # Session information
+
+[top](#top)
 
 ```{r echo=FALSE}
 rm(list = ls())
