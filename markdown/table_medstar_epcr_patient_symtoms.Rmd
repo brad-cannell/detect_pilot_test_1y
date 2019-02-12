@@ -157,6 +157,24 @@ about_data(symptoms) # 28,228 observations and 129 variables
 
 [top](#top)
 
+#Frequency Table of Incident Complaint
+```{r}
+symptoms %>%
+  group_by(incident_complaint) %>%
+  freq_table()
+```
+
+
+#Cross Tabulation of Incident Complaint by Symptoms
+* I am having a hard time creating this table, because the symptoms are binary columns and not just one column.  This is the code I have thus far.
+
+
+```{r}
+symptoms %>%
+  group_by(incident_complaint, symptoms_simplified) %>%
+  freq_table() 
+
+```
 
 
 
