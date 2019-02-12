@@ -1,0 +1,25 @@
+---
+title: "Example Embedded R Code Chunk"
+author: "Brad Cannell"
+date: "Created: 2019-XX-XX <br> Updated: `r Sys.Date()`"
+output: 
+  html_document:
+    self_contained: false
+---
+
+```{r, include=FALSE}
+tutorial::go_interactive()
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+By default, `tutorial` will convert all R chunks.
+
+```{r}
+a <- 2
+b <- 3
+
+a + b
+```
