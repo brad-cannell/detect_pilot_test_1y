@@ -25,8 +25,15 @@ library(tidyverse)
 library(bfuncs)
 ```
 
-```{r}
+```{r eval=FALSE}
 symptoms <- feather::read_feather("/Users/jaredwiegand/Desktop/DETECT Repository/symptoms.feather")
+```
+
+* Adding file path for DETECT data server.    
+* Brad emailed Chris Harvey on 2019-02-11 to make Jared an authorized user.
+
+```{r}
+symptoms <- feather::read_feather("/Volumes/DETECT/one_year_data/symptoms.feather")
 ```
 
 ```{r}
@@ -34,6 +41,60 @@ about_data(symptoms) # 28,228 observations and 2 variables
 ```
 
 [top](#top)
+
+
+
+
+
+
+
+
+
+
+# Simplify symptom list
+
+Currently, the symptom list includes upper and lower case letters, spaces, and special characters. These are not characteristics we want on our variable names, and they make matching with regular expressions more difficult. We want to do both of those things below. So, here we will:
+
+* Convert all letters to lower case   
+* Replace spaces with underscores   
+* Replace parentheses with underscores   
+* Replace periods with underscores  
+* Replace commas with underscores  
+* Replace all instances of 2 or more consecutive underscores we created in the process with single underscores   
+* Remove trailing underscores   
+
+```{r}
+simplify_symptom_strings <- function(x) {
+  x %>% 
+    tolower() %>% 
+    stringr::str_replace_all(pattern = "\\s", replacement = "_") %>% # white space
+    stringr::str_replace_all(pattern = "[\\(|\\)]", replacement = "_") %>% # parentheses
+    stringr::str_replace_all(pattern = "\\.", replacement = "_") %>% # periods
+    stringr::str_replace_all(pattern = "\\,(?=\\_)", replacement = "_") %>% # commas - not separating symptoms
+    stringr::str_replace_all(pattern = "\\_{2,}", replacement = "_") %>% # multiple underscores
+    stringr::str_replace_all(pattern = "\\_(?=\\')", replacement = "") # trailing underscores
+}
+```
+
+```{r}
+symptoms <- symptoms %>% 
+  mutate(symptoms_simplified = simplify_symptom_strings(symptoms))
+```
+
+```{r}
+about_data(symptoms) # 28,228 observations and 3 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
 
 # Find all symptoms
 
@@ -43,61 +104,61 @@ about_data(symptoms) # 28,228 observations and 2 variables
 * Create new table of symptoms   
 * Create two-way table of symptoms by incident complaint   
 
-```{r}
-new <- stringr::str_replace_all("''Nausea (R11.0)'',''Vomiting, unspecified (R11.10)'',''Weakness (R53.1)'',''Other malaise (R53.81)''", "'", "") 
-```
+
+## Create List of Unique Symptoms
 
 ```{r}
-stringr::str_split(
-  "''Nausea (R11.0)'',''Vomiting, unspecified (R11.10)'',''Weakness (R53.1)'',''Other malaise (R53.81)''", 
-  "(?<=\\))'',''"
-) 
+symptom_list <- symptoms %>% 
+  filter(!is.na(symptoms_simplified)) %>% # Remove NA
+  pull(symptoms_simplified) %>% # Coerce to vector 
+  unique() %>% # Gets unique groups of symptoms
+  stringr::str_split(pattern = "'',''") %>% # Splits character string at '',''
+  unlist() %>% # Coerce from list to vector
+  stringr::str_remove_all("'") %>% # Remove remaining single quotes
+  unique() # Get unique symptoms
 ```
 
-# Create List of Unique Symptoms
 
-```{r}
-symptom_list <- unique(symptoms$symptoms) %>% 
-  stringr::str_split("(?<=\\))'',''") %>% 
-  unlist() %>% 
-  unique() %>% 
-  stringr::str_remove_all("'") %>% 
-  unique()
-```
-
-Remove NA from symptom list
-
-```{r}
-symptom_list <- symptom_list[!is.na(symptom_list)]
-```
-
-# Create dummy variables for each symptom, by the same name
-
-```{r}
-# symptoms %>%
-#   mutate(Missing = if_else(is.na(symptoms),1,0))
-
-```
+## Create dummy variables for each symptom, by the same name
 
 ```{r}
 for (i in seq_along(symptom_list)) {
   symptoms[symptom_list[i]] <- NA
 }
+rm(i)
 ```
 
-# Assign values for each symptom dummy variable
+```{r}
+about_data(symptoms) # 28,228 observations and 129 variables
+```
 
-* Still having issues with assigning values
+
+## Assign values for each symptom dummy variable
 
 ```{r}
 for (i in seq_along(symptom_list)) {
-  symptoms[symptom_list[i]] <- if_else(stringr::str_detect(symptoms$symptoms, symptom_list[i]), 1, 0)
+  # For each variable in symptoms that shares the name of the i'th value in symptom_list
+  symptoms[symptom_list[i]] <- if_else( 
+    # If the name of the variable is found anywhere in symptoms_simplified
+    # Set the value of that variable to 1 in that row
+    # Otherwise set it to 0
+    stringr::str_detect(
+      string = symptoms$symptoms_simplified, 
+      pattern = symptom_list[i]
+    ), 1, 0
+  )
 }
+rm(i)
 ```
 
 ```{r}
-View(symptoms)
+about_data(symptoms) # 28,228 observations and 129 variables
 ```
+
+[top](#top)
+
+
+
 
 
 
@@ -106,8 +167,6 @@ View(symptoms)
 
 
 # Session information
-
-[top](#top)
 
 ```{r echo=FALSE}
 rm(list = ls())
