@@ -157,24 +157,190 @@ about_data(symptoms) # 28,228 observations and 129 variables
 
 [top](#top)
 
-#Frequency Table of Incident Complaint
-```{r}
-symptoms %>%
-  group_by(incident_complaint) %>%
-  freq_table()
+
+
+
+
+
+
+
+
+
+# Frequency Tables
+
+
+## Incident complaints
+
+In descending order of occurrence
+
+```{r echo=FALSE}
+symptoms %>% 
+  group_by(incident_complaint) %>% 
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  arrange(desc(n)) %>% 
+  mutate(percent = n / max(cumsum(n)) * 100)
 ```
 
 
-#Cross Tabulation of Incident Complaint by Symptoms
-* I am having a hard time creating this table, because the symptoms are binary columns and not just one column.  This is the code I have thus far.
+## Incident symptoms
 
+In descending order of occurrence
+
+```{r echo=FALSE}
+symptoms %>% 
+  select(-incident_complaint, -symptoms, -symptoms_simplified) %>% 
+  summarise_all(funs(sum(., na.rm = TRUE))) %>% 
+  tidyr::gather(key = "symptom", value = "n") %>% 
+  arrange(desc(n)) %>% 
+  mutate(percent = n / max(cumsum(n)) * 100)
+```
+
+
+## Cross Tabulation of Incident Complaint by Symptoms
+
+```{r echo=FALSE}
+complaint_symptoms_cross <- symptoms %>% 
+  select(-symptoms, -symptoms_simplified) %>% 
+  group_by(incident_complaint) %>% 
+  summarise_if(
+    .predicate = is.numeric,
+    .funs = funs(sum(., na.rm = TRUE))
+  ) %>% 
+  print()
+```
+
+This table is so large that it is difficult to digest. Let's make a heat map
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Heat maps
+
+Reorient the table above so that each row is a combination of incident complaint and symptom
 
 ```{r}
-symptoms %>%
-  group_by(incident_complaint, symptoms_simplified) %>%
-  freq_table() 
-
+complaint_symptoms_cross_gathered <- complaint_symptoms_cross %>% 
+  
+  # Gather symptom columns for heatmap
+  group_by(incident_complaint) %>% 
+  gather(key = symptom, value = n, -incident_complaint) %>% 
+  
+  # Make the symptoms shorter/easier to read by removing everything
+  # including and after "_r53_1, _k59_00, etc."
+  mutate(symptom_short = stringr::str_replace_all(
+    string = symptom,
+    pattern = "_[a-z]\\d+\\S*",
+    replacement = ''
+  )) %>% 
+  
+  # Improve readability
+  arrange(incident_complaint, desc(n)) %>% 
+  select(incident_complaint, symptom_short, n) %>%  
+  print()
 ```
+
+Some incident complaints, no symptoms are ever recorded. They are:
+
+```{r echo=FALSE}
+complaint_symptoms_cross_gathered %>% 
+  mutate(cum_n = max(cumsum(n))) %>% 
+  filter(cum_n == 0) %>% 
+  pull(incident_complaint) %>% 
+  unique()
+```
+
+We will drop these incident complaints from the data becasue they will add no information to the heatmaps below.
+
+```{r}
+complaint_symptoms_cross_gathered <- complaint_symptoms_cross_gathered %>% 
+  mutate(cum_n = max(cumsum(n))) %>% 
+  filter(cum_n > 0)
+```
+
+
+## Absolute occurrence
+
+Here we are plotting the number of times that given compliant/symptom pair occurred in the data.
+
+```{r}
+complaint_symptoms_heatmap <- complaint_symptoms_cross_gathered %>% 
+  ggplot() +
+    geom_tile(aes(incident_complaint, symptom_short, fill = n)) + 
+    theme(
+      axis.text.y = element_text(size = 9),
+      axis.text.x = element_text(size = 10, hjust = 1, vjust = 0.5, angle = 90)
+    )
+```
+
+Hard to read in this limited space.    
+* Save as image file.   
+* Add image to the html page   
+
+```{r}
+ggsave(
+  filename = "fig_complain_symptom_heatmap.png",
+  plot = complaint_symptoms_heatmap,
+  device = "png",
+  path = "../images",
+  width = 15,
+  height = 20,
+  units = "in"
+)
+```
+
+![](../images/fig_complain_symptom_heatmap.png)
+
+
+## Relative observation of symptoms
+
+For each incident complaint, what was the proportion of times a given symptom was recorded when any symptoms were recorded?
+
+```{r}
+relative_symptoms_heatmap <- complaint_symptoms_cross_gathered %>% 
+
+  # Calculate propotions
+  mutate(
+    prop = n / max(cumsum(n))
+  ) %>% 
+  
+  # Plot heatmap
+  ggplot() +
+    geom_tile(aes(incident_complaint, symptom_short, fill = prop)) +
+    theme(
+      axis.text.y = element_text(size = 9),
+      axis.text.x = element_text(size = 10, hjust = 1, vjust = 0.5, angle = 90)
+    )
+```
+
+Hard to read in this limited space.    
+* Save as image file.   
+* Add image to the html page   
+
+```{r}
+ggsave(
+  filename = "fig_relative_symptoms_heatmap.png",
+  plot = relative_symptoms_heatmap,
+  device = "png",
+  path = "../images",
+  width = 15,
+  height = 20,
+  units = "in"
+)
+```
+
+![](../images/fig_relative_symptoms_heatmap.png)
+
+[top](#top)
+
 
 
 
@@ -193,3 +359,5 @@ rm(list = ls())
 ```{r echo=FALSE}
 sessionInfo()
 ```
+
+<script src="script.js"></script>
