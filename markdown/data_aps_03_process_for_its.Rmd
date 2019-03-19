@@ -29,6 +29,7 @@ Preparing APS investigations data for Dr. Livingston's ITS analysis.
 
 * The initial 5-week pilot study took place between 2015-09-17 and 2015-10-26     
 * The 1-year pilot study began on 2017-02-01 and continues to this day.    
+* The APS data used for the ITS analysis spans 2014-12-31 to 2018-02-28.    
 
 
 # Load packages and data
@@ -46,7 +47,7 @@ library(bfuncs)
 aps_02_variable_management.feather was created in data_aps_02_variable_management.Rmd
 
 ```{r}
-aps <- feather::read_feather("/Volumes/sph_research/Detect/one_year_data/aps_02_variable_management.feather")
+aps <- feather::read_feather("/Volumes/DETECT/one_year_data/aps_02_variable_management.feather")
 ```
 
 ```{r}
@@ -75,6 +76,29 @@ aps %>%
 ```
 
 So, there are 10 rows (5 reports to APS) where a report was made to APS (intake stage number) by two people at the same time, but both individuals were the same type of reporter (both health care providers/staff or both family members and relatives). For the ITS analysis, we will keep these rows in the data.
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Dates included
+
+Check to see the minimum and maximum dates included in this data.
+
+```{r}
+aps %>% 
+  summarise(
+    `Earliest date in data` = min(intake_date) %>% as.Date(),
+    `Latest date in data` = max(intake_date) %>% as.Date()
+  )
+```
 
 [top](#top)
 
