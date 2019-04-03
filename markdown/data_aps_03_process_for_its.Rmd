@@ -51,7 +51,31 @@ aps <- feather::read_feather("/Volumes/DETECT/one_year_data/aps_02_variable_mana
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 63 variables
+about_data(aps) # 18,080 observations and 64 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Deidentify case numbers
+
+I want a case number identifier in the data that can't be linked back to APS records.
+
+```{r}
+aps <- aps %>% 
+  mutate(case = group_indices(aps, case_num))
+```
+
+```{r}
+about_data(aps) # 18,080 observations and 65 variables
 ```
 
 [top](#top)
