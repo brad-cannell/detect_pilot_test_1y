@@ -30,7 +30,7 @@ library(bfuncs)
 aps_01_import.feather was created in data_aps_01_import.Rmd
 
 ```{r}
-aps <- feather::read_feather("/Volumes/SPH/Research/Detect/one_year_data/aps_01_import.feather")
+aps <- feather::read_feather("/Volumes/DETECT/one_year_data/aps_01_import.feather")
 ```
 
 ```{r}
@@ -304,8 +304,22 @@ aps <- aps %>%
   )
 ```
 
+Also, create a 4-level study period identifier
+
 ```{r}
-about_data(aps) # 18,080 observations and 55 variables
+aps <- aps %>% 
+  mutate(
+    study_period = case_when(
+      as.Date(intake_date) < "2015-09-17" ~ 1,
+      as.Date(intake_date) >= "2015-09-17" & as.Date(intake_date) <= "2015-10-26" ~ 2,
+      as.Date(intake_date) >= "2015-10-27" & as.Date(intake_date) < "2017-02-01" ~ 3,
+      as.Date(intake_date) >= "2017-02-01" ~ 4
+    )
+  )
+```
+
+```{r}
+about_data(aps) # 18,080 observations and 56 variables
 ```
 
 [top](#top)
@@ -377,7 +391,7 @@ aps <- aps %>%
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 57 variables
+about_data(aps) # 18,080 observations and 58 variables
 ```
 
 [top](#top)
@@ -399,7 +413,7 @@ aps <- aps %>%
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 58 variables
+about_data(aps) # 18,080 observations and 59 variables
 ```
 
 [top](#top)
@@ -461,7 +475,7 @@ aps <- aps %>%
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 63 variables
+about_data(aps) # 18,080 observations and 64 variables
 ```
 
 [top](#top)
@@ -478,7 +492,7 @@ about_data(aps) # 18,080 observations and 63 variables
 # Save data
 
 ```{r}
-feather::write_feather(aps, "/Volumes/sph_research/Detect/one_year_data/aps_02_variable_management.feather")
+feather::write_feather(aps, "/Volumes/DETECT/one_year_data/aps_02_variable_management.feather")
 ```
 
 [top](#top)
