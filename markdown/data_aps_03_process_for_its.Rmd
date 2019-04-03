@@ -137,19 +137,19 @@ aps %>%
 
 # Subset columns
 
-Subset the data to include only the columns needed for the ITS analysis
+Subset the data to include only the columns needed for the DDD analysis
 
 ```{r}
-aps_its <- aps %>% 
+aps_ddd <- aps %>% 
   select(
-    study_week, detect, reporter, ems, medstar_service_area, city_fw, 
-    any_valid, all_invalid, valid_3cat, closure_reason,
+    case, study_week, study_period, detect, reporter, ems, medstar_service_area, 
+    city_fw, any_valid, all_invalid, valid_3cat, closure_reason,
     valid_emotional_abuse:total_other_dispositions, total_valid, total_invalid
   )
 ```
 
 ```{r}
-about_data(aps_its) # 18,080 observations and 42 variables
+about_data(aps_ddd) # 18,080 observations and 44 variables
 ```
 
 [top](#top)
@@ -166,13 +166,13 @@ about_data(aps_its) # 18,080 observations and 42 variables
 # Save the data
 
 ```{r}
-feather::write_feather(aps_its, "/Volumes/sph_research/Detect/one_year_data/aps_its.feather")
+feather::write_feather(aps_ddd, "/Volumes/DETECT/one_year_data/aps_ddd.feather")
 ```
 
-Save in CSV format for Doug
+Save in Excel format for Doug
 
 ```{r}
-readr::write_csv(aps_its, "/Volumes/sph_research/Detect/one_year_data/aps_its.csv")
+readr::write_csv(aps_ddd, "/Volumes/DETECT/one_year_data/aps_ddd.csv")
 ```
 
 [top](#top)
