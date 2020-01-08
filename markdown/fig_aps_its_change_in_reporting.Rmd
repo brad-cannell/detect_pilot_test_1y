@@ -33,7 +33,7 @@ source("../r/theme_bfuncs.r")
 aps_its.feather was created in data_aps_03_process_for_its.Rmd.
 
 ```{r}
-aps_its <- feather::read_feather("/Volumes/SPH/Research/Detect/one_year_data/aps_its.feather")
+aps_its <- feather::read_feather("/Volumes/DETECT/one_year_data/aps_its.feather")
 ```
 
 ```{r}
@@ -145,36 +145,95 @@ weekly_reports_by_group <- weekly_reports_by_group %>%
 
 # Create plots
 
+It isn't currently possible to plot different y-axis scales for the first and second row of the faceted plot using ggplot2 alone. Therefore, we have to create row 1 and row 2 of the plot separately and then combine them using grid extra.
+
 ```{r}
-fig_aps_its_change_in_reporting <- weekly_reports_by_group %>% 
-  ggplot(aes(study_week, reports)) +
+# Separate the data
+medic_weekly_reports_by_service_area <- weekly_reports_by_group %>% 
+  filter(stringr::str_detect(group, "Medics"))
+
+non_medic_weekly_reports_by_service_area <- weekly_reports_by_group %>% 
+  filter(stringr::str_detect(group, "Non-medics"))
+```
+
+```{r}
+# Create the plot function
+plot_weekly_reports <- function(.data) {
+  .data %>% 
+    ggplot(aes(study_week, reports)) +
+      
+      # Add DETECT study periods
+      geom_rect(aes(xmin = 38, xmax = 43, ymin = -Inf, ymax = Inf), fill = "lightyellow") +
+      geom_rect(aes(xmin = 109, xmax = 164, ymin = -Inf, ymax = Inf), fill = "lightyellow") +
+      
+      # Add reports by week
+      geom_point(size = 0.2) +
+      geom_line(group = 1, color = "gray70") +
     
-    # Add DETECT study periods
-    geom_rect(aes(xmin = 38, xmax = 43, ymin = -Inf, ymax = Inf), fill = "lightyellow") +
-    geom_rect(aes(xmin = 109, xmax = 164, ymin = -Inf, ymax = Inf), fill = "lightyellow") +
+      # Add mean lines
+      geom_line(aes(y = mean_reports, group = period), color = "red", size = 2) +
     
-    # Add reports by week
-    geom_point(size = 0.2) +
-    geom_line(group = 1, color = "gray70") +
-  
-    # Add mean lines
-    geom_line(aes(y = mean_reports, group = period), color = "red", size = 2) +
-  
-    # Add facets
-    facet_wrap(aes(group), scales = "free") +
-  
-    # Adjust theme
-    theme_bfuncs() +
-    theme(
-      panel.border = element_rect(fill = NA, colour = "black"),
-      strip.text = element_text(size = rel(1.))
-    ) +
+      # Add facets
+      facet_wrap(vars(group), scales = "fixed") +
     
-    # Adjust labels
-    labs(
-      x = "Study Week", 
-      y = "Number of Reports"
-    )
+      # Adjust theme
+      theme_bfuncs() +
+      theme(
+        panel.border = element_rect(fill = NA, colour = "black"),
+        strip.text = element_text(size = rel(1.))
+      ) +
+      
+      # Adjust labels
+      labs(
+        x = "Study Week", 
+        y = "Number of Reports"
+      )
+}
+```
+
+```{r}
+# Create plots
+medic_plot <- plot_weekly_reports(medic_weekly_reports_by_service_area)
+non_medic_plot <- plot_weekly_reports(non_medic_weekly_reports_by_service_area)
+```
+
+```{r}
+# Combine the two plots
+gridExtra::grid.arrange(medic_plot, non_medic_plot)
+```
+
+
+
+```{r}
+# fig_aps_its_change_in_reporting_medics <- medic_weekly_reports_by_service_area %>% 
+  # ggplot(aes(study_week, reports)) +
+  #   
+  #   # Add DETECT study periods
+  #   geom_rect(aes(xmin = 38, xmax = 43, ymin = -Inf, ymax = Inf), fill = "lightyellow") +
+  #   geom_rect(aes(xmin = 109, xmax = 164, ymin = -Inf, ymax = Inf), fill = "lightyellow") +
+  #   
+  #   # Add reports by week
+  #   geom_point(size = 0.2) +
+  #   geom_line(group = 1, color = "gray70") +
+  # 
+  #   # Add mean lines
+  #   geom_line(aes(y = mean_reports, group = period), color = "red", size = 2) +
+  # 
+  #   # Add facets
+  #   facet_wrap(vars(group), scales = "fixed") +
+  # 
+  #   # Adjust theme
+  #   theme_bfuncs() +
+  #   theme(
+  #     panel.border = element_rect(fill = NA, colour = "black"),
+  #     strip.text = element_text(size = rel(1.))
+  #   ) +
+  #   
+  #   # Adjust labels
+  #   labs(
+  #     x = "Study Week", 
+  #     y = "Number of Reports"
+  #   )
 ```
 
 ```{r}
