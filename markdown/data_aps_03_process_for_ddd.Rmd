@@ -142,14 +142,14 @@ Subset the data to include only the columns needed for the DDD analysis
 ```{r}
 aps_ddd <- aps %>% 
   select(
-    case, study_week, study_period, detect, reporter, ems, medstar_service_area, 
+    case, age, study_week, study_period, detect, reporter, ems, medstar_service_area, 
     city_fw, any_valid, all_invalid, valid_3cat, closure_reason,
     valid_emotional_abuse:total_other_dispositions, total_valid, total_invalid
   )
 ```
 
 ```{r}
-about_data(aps_ddd) # 18,080 observations and 44 variables
+about_data(aps_ddd) # 18,080 observations and 45 variables
 ```
 
 [top](#top)

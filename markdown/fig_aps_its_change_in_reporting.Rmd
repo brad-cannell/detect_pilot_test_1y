@@ -30,25 +30,17 @@ library(gridExtra)
 source("../r/theme_bfuncs.r")
 ```
 
-aps_its.feather was created in data_aps_03_process_for_its.Rmd.
+aps_ddd.feather was created in data_aps_03_process_for_ddd.Rmd.
 
 ```{r}
-aps_its <- feather::read_feather("/Volumes/DETECT/one_year_data/aps_its.feather")
+aps_ddd <- feather::read_feather("/Volumes/DETECT/one_year_data/aps_ddd.feather")
 ```
 
 ```{r}
-about_data(aps_its) # 18,080 observations and 42 variables
+dim(aps_ddd) # 118,080    45
 ```
 
 [top](#top)
-
-
-
-
-
-
-
-
 
 
 # Data management
@@ -58,7 +50,7 @@ about_data(aps_its) # 18,080 observations and 42 variables
 * Create groups to plot by
 
 ```{r}
-aps_its_w_groups <- aps_its %>% 
+aps_ddd_w_groups <- aps_ddd %>% 
   # Looks like we have incomplete informtion for week 165
   filter(study_week < 165) %>% 
   # Create groups
@@ -77,7 +69,7 @@ aps_its_w_groups <- aps_its %>%
 ## Calculate number of reports by group
 
 ```{r}
-weekly_reports_by_group <- aps_its_w_groups %>%
+weekly_reports_by_group <- aps_ddd_w_groups %>%
   group_by(study_week, group) %>% 
   summarise(reports = n()) %>% 
   ungroup()
@@ -94,11 +86,11 @@ Add week/group combinations that had zero reports
 weekly_reports_by_group <- data.frame(
     # Create data frame with all weeks and groups
     study_week = seq(
-      min(aps_its_w_groups$study_week), 
-      max(aps_its_w_groups$study_week)
+      min(aps_ddd_w_groups$study_week), 
+      max(aps_ddd_w_groups$study_week)
     ) %>% 
       rep(each = 4),
-    group = levels(aps_its_w_groups$group),
+    group = levels(aps_ddd_w_groups$group),
     reports = 0
   ) %>% 
   
@@ -199,57 +191,27 @@ non_medic_plot <- plot_weekly_reports(non_medic_weekly_reports_by_service_area)
 
 ```{r}
 # Combine the two plots
-gridExtra::grid.arrange(medic_plot, non_medic_plot)
-```
-
-
-
-```{r}
-# fig_aps_its_change_in_reporting_medics <- medic_weekly_reports_by_service_area %>% 
-  # ggplot(aes(study_week, reports)) +
-  #   
-  #   # Add DETECT study periods
-  #   geom_rect(aes(xmin = 38, xmax = 43, ymin = -Inf, ymax = Inf), fill = "lightyellow") +
-  #   geom_rect(aes(xmin = 109, xmax = 164, ymin = -Inf, ymax = Inf), fill = "lightyellow") +
-  #   
-  #   # Add reports by week
-  #   geom_point(size = 0.2) +
-  #   geom_line(group = 1, color = "gray70") +
-  # 
-  #   # Add mean lines
-  #   geom_line(aes(y = mean_reports, group = period), color = "red", size = 2) +
-  # 
-  #   # Add facets
-  #   facet_wrap(vars(group), scales = "fixed") +
-  # 
-  #   # Adjust theme
-  #   theme_bfuncs() +
-  #   theme(
-  #     panel.border = element_rect(fill = NA, colour = "black"),
-  #     strip.text = element_text(size = rel(1.))
-  #   ) +
-  #   
-  #   # Adjust labels
-  #   labs(
-  #     x = "Study Week", 
-  #     y = "Number of Reports"
-  #   )
-```
-
-```{r}
-fig_aps_its_change_in_reporting
+fig_aps_ddd_change_in_reporting <- gridExtra::grid.arrange(medic_plot, non_medic_plot)
 ```
 
 ```{r}
 ggsave(
-  filename = "../images/fig_aps_its_change_in_reporting.png",
-  plot     = fig_aps_its_change_in_reporting,
+  filename = "../images/fig_aps_ddd_change_in_reporting.png",
+  plot     = fig_aps_ddd_change_in_reporting,
   device   = "png",
   width    = 11.43
 )
 ```
 
 [top](#top)
+
+
+# Mean age
+
+```{r}
+bfuncs::mean_table(aps_ddd, age)
+```
+
 
 
 
