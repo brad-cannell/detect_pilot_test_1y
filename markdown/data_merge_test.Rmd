@@ -1,0 +1,335 @@
+---
+title: "Test Merge"
+date: "Created: 2019-10-10 <br> Updated: `r Sys.Date()`"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+    css: custom-css.css
+---
+
+# Overview
+
+Figure out the merging thing on a small subset of data. Port the methods over to the larger dataset. Delete this file when done. 
+
+# Load packages and data
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = NA)
+Sys.setenv(TZ = "US/Central")
+```
+
+```{r message=FALSE}
+library(dplyr)
+library(bfuncs)
+```
+
+```{bash}
+open 'smb://uctnascifs.uthouston.edu/sph_research/DETECT'
+```
+
+From line 617 of data_medstar_aps_merged_01_merge.Rmd.
+
+```{r}
+pairs_possible_matches <- readRDS("/Volumes/DETECT/one_year_data/pairs_possible_matches.rds")
+```
+
+```{r}
+dim(pairs_possible_matches) # 1,024,698      12
+```
+
+
+# Wrangle possible matches
+
+Make the data frame containing the pairs of potential matches easier to review.
+
+```{r}
+pairs_possible_matches <- pairs_possible_matches %>%
+  # Remove "blank" rows in between potential pairs.
+  filter(id != "") %>%
+  # Create a variable that explicitly identifies which dataset each row is from.
+  # Also, share the weight value between both rows in each pair of potential matches.
+  mutate(
+    dataset  = if_else(row_number() %% 2 == 1, "medstar", "aps"),
+    row      = id %>% as.character() %>% as.integer(),
+    pair_num = rep(seq(nrow(.) / 2), each = 2),
+    Weight   = if_else(Weight == "", lead(Weight), Weight) %>% as.character() %>% as.numeric()
+  ) %>% 
+  select(dataset, row, pair_num, everything(), -id) %>% 
+  rename(
+    "case_pcr_num" = "incident_pcr",
+    "date"         = "arrival_time"
+  ) %>% 
+  mutate(date = as.Date(date))
+```
+
+```{r}
+dim(pairs_possible_matches) # 683,132     14
+```
+
+
+# Widen the data
+
+```{r}
+pairs_possible_matches_wide <- bind_cols(
+  # MedStar rows
+  pairs_possible_matches %>% filter(dataset == "medstar"),
+  # APS rows
+  pairs_possible_matches %>% filter(dataset == "aps")
+)
+```
+
+
+# Subset the data
+
+```{r}
+set.seed(123)
+subset_wide <- pairs_possible_matches_wide %>% sample_frac(0.01, replace = FALSE) # 1% random sample
+```
+
+
+# Set a baseline
+
+The most basic way to match our two datasets is to do a simple join on name and date of birth. This would only join records with exact matches. We know that there are matches in the data with typos (e.g. John and Jon) that will be missed by this method. However, there is value in using this method to establish a baseline number of matches, i.e., we should find AT LEAST this many matches in the data.
+
+```{r}
+medstar_4_naive <- subset_wide %>% 
+  # Put them in the order they would have been in if we had sampled from 
+  # the MedStar data
+  arrange(row) %>% 
+  select(row, date, name_first, name_last, birth_mnth, birth_day, birth_year) %>% 
+  # Rename row and date to make them easier to work with in the joined data
+  rename("row_medstar" = "row", "date_medstar" = "date")
+
+aps_4_naive <- subset_wide %>% 
+  # Put them in the order they would have been in if we had sampled from 
+  # the MedStar data
+  arrange(row1) %>% 
+  select(row1, date1, name_first1, name_last1, birth_mnth1, birth_day1, birth_year1) %>% 
+  # Remove the "1" from the variable names to facilitate join
+  rename_all(~sub("1$", "", .)) %>% 
+  # Rename row and date to make them easier to work with in the joined data
+  rename("row_aps" = "row", "date_aps" = "date")
+  
+# Join on name and dob
+naive_join <- left_join(
+  medstar_4_naive, 
+  aps_4_naive, 
+  by = c("name_first", "name_last", "birth_mnth", "birth_day", "birth_year")
+) %>% 
+  select(row_medstar, row_aps, date_medstar, date_aps, everything())
+# 3,416 rows before join
+# 5,244 rows after join
+# Therefore, some MedStar rows were matched to multiple APS investigations
+
+# Keep matches only
+naive_join <- naive_join %>% filter(!is.na(row_aps))
+# 2,236 rows
+
+# Keep if screeng <= investigation, i.e., screening on or before investigation day
+naive_join <- naive_join %>% filter(date_medstar <= date_aps)
+# 526 rows
+
+# Keep only the most proximal screening
+naive_join <- naive_join %>% 
+  group_by(name_first, name_last, birth_mnth, birth_day, birth_year, date_medstar) %>% 
+  # Not necessary, but useful for data checks
+  mutate(mult_invest = row_number() > 1) %>% 
+  # Keep only the first row for each group
+  filter(!mult_invest) %>% 
+  ungroup()
+# 162 naive matches
+
+# Datacheck: One match per screening
+length(unique(naive_join$row_medstar)) # 162
+```
+
+```{r}
+# Clean up
+rm(list = ls()[grep("naive", ls())])
+```
+
+Should do better than 162 matches.
+
+
+# Create exact match dummy variables
+
+```{r}
+# Helper function
+# Test if to values are equal
+# Must use this instead of `==` because of NA
+is_exact_match <- function(x, y) {
+  out <- x == y
+  out[is.na(out)] <- FALSE
+  out
+}
+```
+
+```{r}
+subset_wide <- subset_wide %>%
+  # Does each matching element match exactly within pair_num?
+  # Using "==" doesn't get NA
+  mutate(
+    name_first_match          = is_exact_match(name_first, name_first1),
+    name_last_match           = is_exact_match(name_last, name_last1),
+    birth_mnth_match          = is_exact_match(birth_mnth,birth_mnth1),
+    birth_day_match           = is_exact_match(birth_day, birth_day1),
+    birth_year_match          = is_exact_match(birth_year, birth_year1),
+    address_num_match         = is_exact_match(address_num, address_num1),
+    address_street_name_match = is_exact_match(address_street_name, address_street_name1)
+  ) %>% 
+  
+  mutate(
+    # Does full name, dob, and address match exactly within pair_num?
+    name_full_match    = name_first_match & name_last_match,
+    birth_full_match   = birth_mnth_match & birth_day_match & birth_year_match,
+    address_full_match = address_num_match & address_street_name_match,
+    no_full_match      = !name_full_match & !birth_full_match & !address_full_match,
+    # Pairs that have matching full name and dob, but different addresses
+    # Use to keep as match below
+    diff_address_only = name_full_match & birth_full_match & !address_full_match,
+    # Pairs that have no criteria in common except for an address element
+    only_address_match = !name_first_match & !name_last_match & 
+                         !birth_mnth_match & !birth_day_match & !birth_year_match & 
+                         (address_num_match | address_street_name_match),
+    # Pairs that have no criteria in common except for an address element and a
+    # single birth element
+    only_add_1_birth_match = !name_first_match & !name_last_match & 
+                             !birth_full_match &
+                             (sum(birth_mnth_match, birth_day_match, birth_year_match == 1)) & 
+                             (address_num_match | address_street_name_match)
+  ) %>% 
+  
+  # Add Jarowinkler string similarity metric for first and last name
+  # First coerce first and last name from factor back to character
+  mutate_at(vars(starts_with("name")), as.character) %>% 
+  mutate(
+    name_first_jaro = RecordLinkage::jarowinkler(name_first, name_first1),
+    name_last_jaro  = RecordLinkage::jarowinkler(name_last, name_last1)
+  )
+```
+
+
+# Filter matches using dates 1
+
+A pair should only be valid if the date in the MedStar data (screening) precedes (less than or equal to) the date in the client data (APS investigation). We do this now to reduce the number of pairs that need to be manually reviewed. 
+
+LATER
+
+When there is more than one APS investigation date after the screening date in the MedStar data, we will keep only the most proximal in time. For now, we leave these because the most proximal match could be a false positive.
+
+```{r}
+subset_wide_date_filtered <- subset_wide %>% 
+  # date = MedStar response date
+  # date1 = APS investigation date
+  filter(date <= date1)
+```
+
+```{r}
+# Pairs dropped
+nrow(subset_wide) - nrow(subset_wide_date_filtered) # 2,750
+```
+
+2,750 potential pairs dropped because APS investigation date was prior to MedStar screening.   
+666 potential pairs remain to be reviewed.   
+
+
+# Stack the data frames again
+
+Now that the exact match dummy variables have been created, we will convert the data frame from wide back to long to make it easier to manually inspect each pair of potential matches.
+
+```{r}
+review_matches <- bind_rows(
+  # MedStar rows
+  subset_wide_date_filtered %>% 
+    select(dataset:Weight, ends_with("match"), diff_address_only:name_last_jaro), 
+  
+  # APS rows
+  subset_wide_date_filtered %>% 
+    select(dataset1:Weight1, ends_with("match"), diff_address_only:name_last_jaro) %>% 
+    # Rename variable names so they will bind
+    # if the variable name ends with 1, then delete
+    rename_all(~sub("1$", "", .)) 
+) %>% 
+  
+  # Interleave MedStar and APS rows
+  arrange(pair_num, desc(dataset))
+```
+
+```{r} 
+dim(review_matches) # 1,332   30
+```
+
+
+# Filter possible matches by weight
+
+Try lower bound values until a reasonable cutoff value is found. This involves some trial and error.
+
+```{r}
+review_matches %>% filter(Weight <= 0.80) %>% View()
+```
+
+0.6959813 appears to be the last true match. Therefore, our first filter will be to keep only potential matches that are 
+
+
+# Other filters...
+* There are quite a few pairs that are matching on name and dob, but not address. These are matches. We will set the weight to 0.99.
+
+* There are quite a few pairs that are not matches on name or dob, but only have address in common. We will drop them from possible matches set.
+
+* There are quite a few pairs that are not matches on name or dob, but have address in common and 1 single dob element. We will drop them from possible matches set.
+
+* Keep when the names look like they have a small typo and DOB matches exactly. Even if address does not match.
+
+* Do not keep when they have the same name, but different DOB and address.   
+
+* Figure out lower bound for matching weights by trial and error.
+
+```{r}
+review_matches <- review_matches %>% 
+  mutate(Weight = if_else(diff_address_only, 0.99, Weight)) %>% 
+  # Remove potential pairs with a weight value below the previously determined
+  # lower bound.
+  filter(Weight >= 0.6497735) %>%
+  # Drop pairs that only have address in common
+  filter(!only_address_match) %>% 
+  # Drop pairs that share ddress and 1 birth element only
+  filter(!only_add_1_birth_match) %>% 
+  # There are still some matches and non-matches in this range. 
+  # But, I think I will have to filter them out manually.
+  # Many of them appear to be husband and wife.
+  # There are still some matches and non-matches in this range.
+  # But, I think I will have to filter them out manually.
+  # Many of them appear to be husband and wife.
+  filter(!pair_num %in% c(
+    13315, 13316, 13678:13684, 13732, 13772:13791, 13898:13942, 13960:13961,
+    14015, 14034:14036, 14227, 14245:14246, 14365:14396, 14412:14422, 14541,
+    14594:14600, 14636:14639, 14667, 14738, 14773:14837, 14986:14996,
+    15026:15033, 15056:15057, 15058:15116, 15123:15148, 15180, 15247:15337,
+    15343:15367, 15419:15423, 15436:15442, 15454:15455, 15471:15472,
+    15480:15484, 15535:15556, 15577:15582, 15602:15604, 15619:15646,
+    15701, 15724:15727, 15749:15751, 15772:15815, 15841:15851, 15877:15932,
+    15946:15948, 15986:15990, 16005:16018, 16029:16071, 16090:16265,
+    16384:16385, 16387:16399, 16413:16418, 16420:16473, 16484:16492,
+    16501:16525, 16589:16694, 16712:16714, 16743:16827, 16844:16907,
+    16933:16950, 16962:16991, 17000:17196, 17206:17456, 17482:17530,
+    17536:17537, 17552:17714, 17737:17765, 17807:17885, 17938:18200,
+    18244:18590, 18670:18944, 18949:18964, 19040:19115, 19134:19191,
+    19230:19738
+  )) 
+```
+
+```{r} 
+dim(review_matches) # 28,846 observations and 28 variables
+```
+
+
+# Session information
+
+```{r echo=FALSE}
+rm(list = ls())
+```
+
+```{r echo=FALSE}
+sessionInfo()
+```

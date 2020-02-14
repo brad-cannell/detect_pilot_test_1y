@@ -1,42 +1,16 @@
 ---
-title: "Merge MedStar Data With APS Data"
-date: "Created: 2016-09-23 <br> Updated: `r Sys.Date()`"
-output: 
-  html_notebook:
-    toc: true
-    toc_float: true
-    css: custom-css.css
+title: "Merge MedStar Data With APS Data - Linking Datasets"
+date: "Created: 2019-06-21 <br> Updated: `r Sys.Date()`"
 ---
 
-# Table of contents
-
-* [Overview](#overview)   
-* [Load packages and data](#load)   
-* [Create helper functions](#helper-functions)   
-* [Separate MedStar data by presence of DETECT screening data](#separate)   
-* [Prepare MedStar data for record matching](#prep-medstar)    
-* [Prepare APS data for record matching](#prep-aps)    
-* [Determine which rows are likely to be matches](#find-matches)     
-* [Filter matches using dates](#filter-dates)   
-* [Add pair numbers to nested data](#add-pair)   
-* [Join MedStar and APS on pair_num](#join-medstar-aps)   
-* [Data check: Join conflicts](#data-check-join-conflicts)   
-* [Drop unneeded variables from merged data](#drop-vars)   
-* [Data check: Spot check merged values match values from original data](#data-check-join-conflicts)   
-* [Check incident call numbers reported to MedStar compliance](#check-response)     
-* [Merge with other APS data](#merge-aps)      
-* [Append unscreened MedStar data](#append)   
-* [Save merged data](#save)   
-
-
-# Overview {#overview}
+# Overview
 
 In this file, we will merge the MedStar data and the APS data that we previously cleaned.
 
 We also check the datasets below for response numbers that were submitted to MedStar's legal compliance department by medics as being associated with a patient they reported to APS for investigation.
 
 
-# Load packages and data {#load}
+# Load packages and data
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(comment = NA)
@@ -44,10 +18,13 @@ Sys.setenv(TZ = "US/Central")
 ```
 
 ```{r message=FALSE}
-library(tidyverse)
+library(dplyr)
 library(bfuncs)
 ```
 
+```{bash}
+open 'smb://uctnascifs.uthouston.edu/sph_research/DETECT'
+```
 
 ## MedStar DETECT data
 
@@ -60,7 +37,7 @@ medstar_complete <- feather::read_feather("/Volumes/DETECT/one_year_data/medstar
 ```
 
 ```{r}
-about_data(medstar_complete) # 28,228 observations and 56 variables
+dim(medstar_complete) # 28,228    56
 ```
 
 
@@ -78,11 +55,551 @@ APS [disposition](http://www.dfps.state.tx.us/handbooks/APS/Files/APS_pg_2700.as
 Data from data_aps_02_variable_management.Rmd
 
 ```{r}
-client_data <- feather::read_feather("/Volumes/DETECT/one_year_data/aps_02_variable_management.feather")
+aps <- feather::read_feather("/Volumes/DETECT/one_year_data/aps_02_variable_management.feather")
 ```
 
 ```{r}
-about_data(client_data) # 18,080 observations and 64 variables
+dim(aps) # 18,080    64
+```
+
+[top](#top)
+
+
+# Prepare MedStar data for record matching
+
+Nesting is convient for the matching process. May want to look at changing in the future. Actually, it's totally unnecisary in this case. Come back and change accordingly in the future. 
+
+Add hyphens -- move to variable management
+
+```{r}
+medstar_complete <- medstar_complete %>% 
+  mutate(
+    address_street_name = stringr::str_replace_all(address_street_name, "\\s", "_")
+  )
+```
+
+```{r message=FALSE}
+medstar_nested <- medstar_complete %>% 
+  # Nest all but the following columns - not needed for the RecordLinkage process
+  # and we want to reduce the dataset to one row per pcr.
+  # Important to use response_date instead of date_entered
+  tidyr::nest(
+    -arrival_time, -incident_pcr, -name_first, -name_last, -starts_with("birth"), 
+    -address_num, -address_street_name, .key = "medstar_nested"
+  ) %>% 
+  
+  # Ungroup
+  ungroup()
+```
+
+## Data check: How many rows are there and how many unique incident PCR numbers are there?
+
+```{r}
+medstar_nested %>% 
+  summarise(
+    Rows = n(),                                 # 28,228	
+    `Unique PCR` = length(unique(incident_pcr)) # 28,228	
+  )
+```
+
+```{r}
+dim(medstar_nested) # 28,228    10
+```
+
+At this point each screening (incident_pcr_number) is a single row that can be matched to rows in the APS data.
+
+[top](#top)
+
+
+# Prepare APS data for record matching
+
+Each time a report is made to APS about a person a unique intake stage number is generated. It's possible for multiple reports to be made about the same person/incident. So, there is also a case number assigned to the victim and the report/group of reports. If more than one victim is reported at once, each is given a separate case number. A single victim may be associated with more than one case. 
+
+Therefore, some case numbers in the client data will have multiple rows that are redundant aside from the intake stage (person who reported). When we match the APS data to the MedStar data below by name, individual people may get matched more than once (i.e., if they were treated by MedStar more than once, investigated by APS more than once, or both). We are fine with that. However, we don’t want people to be matched once per person who made a report (intake_stage).  
+
+Again, we will get around this by nesting all columns that may result in multiple rows per case number.
+
+Add hyphens -- move to variable management
+
+```{r}
+aps <- aps %>% 
+  mutate(
+    address_street_name = stringr::str_replace_all(address_street_name, "\\s", "_")
+  )
+```
+
+```{r}
+aps_nested <- aps %>% 
+  # Nest all but the following columns - not needed for the RecordLinkage process
+  # and we want to reduce the dataset to one row per case number
+  tidyr::nest(
+    -case_num, -intake_date, -name_first, -name_last, -starts_with("birth"),
+    -address_num, -address_street_name, .key = "aps_nested"
+  ) %>% 
+  
+  # Ungroup
+  ungroup()
+```
+
+
+### Data check: How many rows are there and how many unique case numbers are there?
+
+```{r}
+aps_nested %>% 
+  summarise(
+    Rows = n(),                               # 17,926
+    `Unique Cases` = length(unique(case_num)) # 15,280
+  )
+```
+
+That means that some case numbers are duplicated. Below we manually check for differences (results hidden to protect patient privacy).
+
+```{r eval=FALSE}
+bind_cols(
+  
+  # Use this part only if you want to view all records - even those that
+  # only differ by intake_start and intake_stage
+  aps_nested %>% 
+    group_by(case_num) %>% 
+    filter(max(row_number()) > 1) %>% 
+    tidyr::unnest(cols = c(aps_nested)),
+  
+  aps_nested %>% 
+    group_by(case_num) %>% 
+    filter(max(row_number()) > 1) %>% 
+    tidyr::unnest(cols = c(aps_nested)) %>% 
+    mutate_at(vars(-case_num), .funs = list(diff = ~length(unique(.)) > 1)) %>% 
+    ungroup() %>% 
+    select(ends_with("diff")) %>% 
+    mutate(diffs = rowSums(.))
+) %>%
+  
+  ungroup() %>%
+  # If a case number only differs by intake_start and intake_stage, 
+  # then I don't want to view it
+  mutate(keep = if_else(intake_date_diff == TRUE & diffs == 2,0, 1)) %>% 
+  filter(keep == 1)
+```
+
+After manual review, duplicates within case are due to different intake start dates (i.e., report dates), different spellings of names at different intakes (reports). There are also a couple differences in DOB between intakes. We should keep both spellings and DOB's for the matching process. We can filter them later as needed.
+
+[top](#top)
+
+
+# Determine which rows are likely to be matches
+
+Below, we will use various functions from the [RecordLinkage package](https://cran.r-project.org/web/packages/RecordLinkage/index.html) to find rows in the APS data that match rows in the MedStar data on name, date of birth, and address -- including non-exact matches (e.g. mispelled names, mistyped dates of birth).
+
+## Subset matching variables
+
+```{r}
+medstar_compare <- medstar_nested %>%
+  select(-medstar_nested) %>%
+  # The variables you want to compare have to appear in the same order in both datasets
+  select(incident_pcr, arrival_time, name_first, name_last, starts_with("birth"),
+         address_num, address_street_name)
+
+aps_compare <- aps_nested %>%
+  select(-aps_nested) %>%
+  # The variables you want to compare have to appear in the same order in both datasets
+  select(case_num, intake_date, name_first, name_last, starts_with("birth"), 
+         address_num, address_street_name)
+```
+
+```{r}
+ncol(medstar_compare) == ncol(aps_compare)
+```
+
+
+## Take a small random sample of both datasets for testing - delete
+
+Do a manual review to see what kinds of potential errors (false positives and false negatives) I should be looking for.
+
+```{r eval=FALSE}
+set.seed(123)
+test_medstar_compare <- sample_n(medstar_compare, 1000)
+test_aps_compare <- sample_n(aps_compare, 1000)
+
+test_rpairs_jar <- RecordLinkage::RLBigDataLinkage(
+  dataset1 = test_medstar_compare,
+  dataset2 = test_aps_compare,
+  strcmp   = c("name_first", "name_last", "address_street_name"),
+  exclude  = c("incident_pcr", "arrival_time")
+)
+test_rpairs_epiwt <- RecordLinkage::epiWeights(test_rpairs_jar)
+test_pairs_possible_matches <- RecordLinkage::getPairs(test_rpairs_epiwt)
+test_pairs_possible_matches <- test_pairs_possible_matches %>%
+  filter(id != "") %>%
+  mutate(
+    dataset  = if_else(row_number() %% 2 == 1, "medstar", "aps"),
+    row      = id %>% as.character() %>% as.integer(),
+    pair_num = rep(seq(nrow(.) / 2), each = 2),
+    Weight   = if_else(Weight == "", lead(Weight), Weight) %>% as.character() %>% as.numeric()
+  ) %>%
+  select(dataset, row, pair_num, everything(), -id) %>%
+  rename(
+    "case_pcr_num" = "incident_pcr",
+    "date"         = "arrival_time"
+  ) %>%
+  mutate(date = as.Date(date))
+```
+
+```{r eval=FALSE}
+view_test <- test_pairs_possible_matches %>% 
+  # No need to look at the 1's. They are identical matches
+  filter(Weight < 1) %>% 
+  # The zeros look like true non-matches
+  filter(Weight > 0) %>% 
+  # As does everything below 0.06
+  # In the 0.6 range, I'm noticing some people who only have address in common.
+  filter(Weight > 0.60)
+```
+
+In the 0.9s:   
+* Minor typos in names e.g. smith and smiith, but everything else matching   
+
+In the 0.8s:    
+* Minor types in dob e.g. 5/19/1925 and 5/19/2025, but everything else matching   
+
+In the 0.7s:   
+* Minor typos with differing addresses   
+* Minor typos in name and dob   
+* No typos with differing addresses   
+* These all look like legitimate matches though   
+
+In the 0.6s:    
+* Completely different names, with same address (not match)   
+* Minor typos in name with matching DOB and different address (match)   
+* Possible name typo, dob typo, and different address (Not sure)   
+* If we were going to do manual checks, it should probably be in the .60s   
+
+```{r}
+# rm(test_aps_compare, test_medstar_compare, test_pairs_possible_matches, 
+#    test_rpairs_epiwt, test_rpairs_jar, view_test)
+```
+
+
+## Add string comparators
+
+> String comparators measure the similarity between strings, usually with a similarity measure in
+the range [0, 1], where 0 denotes maximal dissimilarity and 1 equality. This allows ‘fuzzy’ comparison patterns as displayed in the following example.
+[Sariyar & Borg, 2010](https://journal.r-project.org/archive/2010/RJ-2010-017/RJ-2010-017.pdf)
+
+Below we Compares each record in data set 1 to each record in data set 2 until all records are compared. For example, id1 - id1, id1-id2, idn-idm. For each pair, a probability match is given for each variable (i.e., first name, last name, etc.). In this case, we are using the Jaro-Winkler distance as our comparison measure ( [Winkler, 1990](http://eric.ed.gov/?id=ED325505), [Wikipedia, 2018](https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance)).
+
+```{r eval=FALSE}
+# Don't run unless necessary
+start_link <- lubridate::now()
+rpairs_jar <- RecordLinkage::RLBigDataLinkage(
+  dataset1 = medstar_compare, 
+  dataset2 = aps_compare,
+  strcmp   = c("name_first", "name_last", "address_street_name"),
+  exclude  = c("incident_pcr", "arrival_time")
+)
+finish_link <- lubridate::now()
+time_link <- finish_link - start_link
+time_link # ~4.5 hours
+```
+
+```{r eval=FALSE}
+# Don't run unless necessary
+saveRDS(rpairs_jar, "rpairs_jar.rds")
+```
+
+```{r eval=FALSE}
+# Don't run unless necessary
+rpairs_jar <- readRDS("/Volumes/DETECT/one_year_data/rpairs_jar.rds")
+```
+
+
+## Stochastic record linkage
+
+> Stochastic record linkage relies on the assumption of conditional probabilities concerning comparison patterns... In RecordLinkage an EM algorithm is used as a promising method for reliable estimations. The backbone of this algorithm is described by Haber (1984). Weight calculation based on the EM algorithm
+and the method by Contiero et al. (2005) are implemented by functions emWeights and epiWeights. Both take a data set object as argument and return copy with the calculated weights stored in additional components. Calling summary on the result shows the distribution of weights in histogram style. This information can be helpful for determining classification thresholds, e.g. by identifying clusters of record pairs with high or low weights as non-matches or matches respectively.
+[Sariyar & Borg, 2010](https://journal.r-project.org/archive/2010/RJ-2010-017/RJ-2010-017.pdf)
+
+This function calculates weights for record pairs based on the approach used by Contiero et al. in the EpiLink record linkage software. [Contiero et al. (2005)](http://methods.schattauer.de/en/contents/archivepremium/manuscript/431.html)
+
+```{r eval=FALSE}
+# Don't run unless necessary
+start_weights <- lubridate::now()
+rpairs_epiwt <- RecordLinkage::epiWeights(rpairs_jar)
+finish_weights <- lubridate::now()
+time_weights <- finish_weights - start_weights
+time_weights # ~22 mins
+```
+
+```{r eval=FALSE}
+# Don't run unless necessary
+saveRDS(rpairs_epiwt, "rpairs_epiwt.rds")
+```
+
+```{r eval=FALSE}
+# Don't run unless necessary
+rpairs_epiwt <- readRDS("/Volumes/sph_research/Detect/one_year_data/rpairs_epiwt.rds")
+```
+
+
+## Manually inspect all pairs and their weights
+
+> Discernment between matches and non-matches is achieved by means of computing weight thresholds... The most common practice is to determine thresholds by clerical review, either a single threshold which separates links and non-links or separate thresholds for links and non-links which define a range of doubtable cases between them. RecordLinkage supports this by the function getPairs, which shows record pairs aligned in two consecutive lines along with their weight.
+[Sariyar & Borg, 2010](https://journal.r-project.org/archive/2010/RJ-2010-017/RJ-2010-017.pdf)
+
+Review record pairs aligned in two consecutive rows along with their weight (results hidden to protect participant privacy):
+
+```{r eval=FALSE}
+# Don't run unless necessary
+start_paring <- lubridate::now()
+pairs_possible_matches <- RecordLinkage::getPairs(rpairs_epiwt, min.weight = 0.50)
+finish_paring <- lubridate::now()
+time_paring <- finish_paring - start_paring
+time_paring # ~4 mins
+```
+
+```{r eval=FALSE}
+# Don't run unless necessary
+saveRDS(pairs_possible_matches, "pairs_possible_matches.rds")
+```
+
+
+
+
+
+
+
+# Load data here
+
+May eventually want to put here down into a separate file.
+
+```{r}
+pairs_possible_matches <- readRDS("/Volumes/DETECT/one_year_data/pairs_possible_matches.rds")
+```
+
+```{r}
+dim(pairs_possible_matches) # 1,024,698      12
+```
+
+Make the data frame containing the pairs of potential matches easier to review.
+
+```{r}
+pairs_possible_matches <- pairs_possible_matches %>%
+  # Remove "blank" rows in between potential pairs.
+  filter(id != "") %>%
+  # Create a variable that explicitly identifies which dataset each row is from.
+  # Also, share the weight value between both rows in each pair of potential matches.
+  mutate(
+    dataset  = if_else(row_number() %% 2 == 1, "medstar", "aps"),
+    row      = id %>% as.character() %>% as.integer(),
+    pair_num = rep(seq(nrow(.) / 2), each = 2),
+    Weight   = if_else(Weight == "", lead(Weight), Weight) %>% as.character() %>% as.numeric()
+  ) %>% 
+  select(dataset, row, pair_num, everything(), -id) %>% 
+  rename(
+    "case_pcr_num" = "incident_pcr",
+    "date"         = "arrival_time"
+  ) %>% 
+  mutate(date = as.Date(date))
+```
+
+```{r}
+dim(pairs_possible_matches) # 683,132     14
+```
+
+### Create exact match dummy variables
+
+* For example, is first_name an exact match between rows, etc.   
+* These will be used below to filter the data (e.g., drop all rows that share address only) and reduce the amount of manual review that needs to be done.   
+* We reshape the data from long to wide to create these variables because it significantly decreases computation time.    
+
+```{r}
+review_matches <- pairs_possible_matches
+```
+
+```{r}
+medstar_pairs <- review_matches %>% filter(dataset == "medstar")
+aps_pairs <- review_matches %>% filter(dataset == "aps")
+review_matches_wide <- bind_cols(medstar_pairs, aps_pairs)
+```
+
+```{r}
+# Helper function
+is_match <- function(x, y) {
+  out <- x == y
+  out[is.na(out)] <- FALSE
+  out
+}
+
+# # For Testing
+# pairs_possible_matches_wide %>%
+#   mutate(address_num_match = is_match(address_num, address_num1)) %>%
+#   select(address_num_match, address_num, address_num1)
+#   # filter(is.na(address_num1))
+```
+
+```{r}
+review_matches_wide <- review_matches_wide %>%
+  # Do they match within pair_num?
+  # Using "==" doesn't get NA
+  mutate(
+    name_first_match = is_match(name_first, name_first1),
+    name_last_match = is_match(name_last, name_last1),
+    birth_mnth_match = is_match(birth_mnth,birth_mnth1),
+    birth_day_match = is_match(birth_day, birth_day1),
+    birth_year_match = is_match(birth_year, birth_year1),
+    address_num_match = is_match(address_num, address_num1),
+    address_street_name_match = is_match(address_street_name, address_street_name1)
+  ) %>% 
+  # Does full name, dob, and address match within pair_num?
+  mutate(
+    name_full_match = name_first_match & name_last_match,
+    birth_full_match = birth_mnth_match & birth_day_match & birth_year_match,
+    address_full_match = address_num_match & address_street_name_match,
+    no_full_match = !name_full_match & !birth_full_match & !address_full_match,
+    # Pairs that have matching full name and dob, but different addresses
+    # Use to keep as match below
+    diff_address_only = name_full_match & birth_full_match & !address_full_match,
+    # Pairs that have no criteria in common except for an address element
+    only_address_match = !name_first_match & !name_last_match & 
+                         !birth_mnth_match & !birth_day_match & !birth_year_match & 
+                         (address_num_match | address_street_name_match),
+    # Pairs that have no criteria in common except for an address element and a
+    # single birth element
+    only_add_1_birth_match = !name_first_match & !name_last_match & 
+                             !birth_full_match &
+                             (sum(birth_mnth_match, birth_day_match, birth_year_match == 1)) & 
+                             (address_num_match | address_street_name_match)
+  )
+```
+
+### Stack the data frames again
+
+Now that the exact match dummy variables have been created, we will convert the data frame from wide back to long to make it easier to manually inspect each pair of potential matches.
+
+```{r}
+medstar_pairs <- review_matches_wide %>% 
+  select(dataset:Weight, ends_with("match"), diff_address_only)
+
+aps_pairs <- review_matches_wide %>% 
+  select(dataset1:Weight1, ends_with("match"), diff_address_only)
+
+names(aps_pairs) <- stringr::str_replace_all(names(aps_pairs), "1$", "")
+
+review_matches <- bind_rows(medstar_pairs, aps_pairs) %>% 
+  arrange(pair_num, desc(dataset))
+```
+
+```{r} 
+dim(review_matches) # 683,132     28
+```
+
+
+## Filter possible matches
+
+* There are quite a few pairs that are matching on name and dob, but not address. These are matches. We will set the weight to 0.99.
+
+* There are quite a few pairs that are not matches on name or dob, but only have address in common. We will drop them from possible matches set.
+
+* There are quite a few pairs that are not matches on name or dob, but have address in common and 1 single dob element. We will drop them from possible matches set.
+
+* Keep when the names look like they have a small typo and DOB matches exactly. Even if address does not match.
+
+* Do not keep when they have the same name, but different DOB and address.   
+
+* Figure out lower bound for matching weights by trial and error.
+
+```{r}
+# Try lower bounds values until a reasonable cutoff value is found
+# view_matches <- review_matches %>% filter(Weight <= 0.80) %>% View()
+# 0.6497735 appears to be a good cutoff
+```
+
+Keep if weight is 1.0
+
+RecordLinkage::jarowinkler("Jon", "John")
+
+```{r}
+keep_matches <- 
+```
+
+
+```{r}
+# Data checking
+# Don't delete
+
+# view_matches <- review_matches %>%
+#   mutate(Weight = if_else(diff_address_only, 0.99, Weight)) %>%
+#   filter(Weight <= 0.71 & Weight >= 0.6497735) %>%
+#   # Pairs only have address in common?
+#   filter(!only_address_match) %>%
+#   # Pairs with address and 1 birth element only
+#   filter(!only_add_1_birth_match) %>%
+# 
+#   # There are still some matches and non-matches in this range.
+#   # But, I think I will have to filter them out manually.
+#   # Many of them appear to be husband and wife.
+#   filter(!pair_num %in% c(
+#     13315, 13316, 13678:13684, 13732, 13772:13791, 13898:13942, 13960:13961,
+#     14015, 14034:14036, 14227, 14245:14246, 14365:14396, 14412:14422, 14541,
+#     14594:14600, 14636:14639, 14667, 14738, 14773:14837, 14986:14996,
+#     15026:15033, 15056:15057, 15058:15116, 15123:15148, 15180, 15247:15337,
+#     15343:15367, 15419:15423, 15436:15442, 15454:15455, 15471:15472,
+#     15480:15484, 15535:15556, 15577:15582, 15602:15604, 15619:15646,
+#     15701, 15724:15727, 15749:15751, 15772:15815, 15841:15851, 15877:15932,
+#     15946:15948, 15986:15990, 16005:16018, 16029:16071, 16090:16265,
+#     16384:16385, 16387:16399, 16413:16418, 16420:16473, 16484:16492,
+#     16501:16525, 16589:16694, 16712:16714, 16743:16827, 16844:16907,
+#     16933:16950, 16962:16991, 17000:17196, 17206:17456, 17482:17530,
+#     17536:17537, 17552:17714, 17737:17765, 17807:17885, 17938:18200,
+#     18244:18590, 18670:18944, 18949:18964, 19040:19115, 19134:19191,
+#     19230:19738
+#   )) %>% 
+#   View()
+```
+
+```{r}
+review_matches <- review_matches %>% 
+  mutate(Weight = if_else(diff_address_only, 0.99, Weight)) %>% 
+  # Remove potential pairs with a weight value below the previously determined
+  # lower bound.
+  filter(Weight >= 0.6497735) %>%
+  # Drop pairs that only have address in common
+  filter(!only_address_match) %>% 
+  # Drop pairs that share ddress and 1 birth element only
+  filter(!only_add_1_birth_match) %>% 
+  # There are still some matches and non-matches in this range. 
+  # But, I think I will have to filter them out manually.
+  # Many of them appear to be husband and wife.
+  # There are still some matches and non-matches in this range.
+  # But, I think I will have to filter them out manually.
+  # Many of them appear to be husband and wife.
+  filter(!pair_num %in% c(
+    13315, 13316, 13678:13684, 13732, 13772:13791, 13898:13942, 13960:13961,
+    14015, 14034:14036, 14227, 14245:14246, 14365:14396, 14412:14422, 14541,
+    14594:14600, 14636:14639, 14667, 14738, 14773:14837, 14986:14996,
+    15026:15033, 15056:15057, 15058:15116, 15123:15148, 15180, 15247:15337,
+    15343:15367, 15419:15423, 15436:15442, 15454:15455, 15471:15472,
+    15480:15484, 15535:15556, 15577:15582, 15602:15604, 15619:15646,
+    15701, 15724:15727, 15749:15751, 15772:15815, 15841:15851, 15877:15932,
+    15946:15948, 15986:15990, 16005:16018, 16029:16071, 16090:16265,
+    16384:16385, 16387:16399, 16413:16418, 16420:16473, 16484:16492,
+    16501:16525, 16589:16694, 16712:16714, 16743:16827, 16844:16907,
+    16933:16950, 16962:16991, 17000:17196, 17206:17456, 17482:17530,
+    17536:17537, 17552:17714, 17737:17765, 17807:17885, 17938:18200,
+    18244:18590, 18670:18944, 18949:18964, 19040:19115, 19134:19191,
+    19230:19738
+  )) 
+```
+
+```{r} 
+bfuncs::about_data(test_matches) # 28,846 observations and 28 variables
+```
+
+```{r}
+pairs_possible_matches <- test_matches
+```
+
+```{r}
+rm(test_matches, test_matches_wide)
 ```
 
 [top](#top)
@@ -96,7 +613,235 @@ about_data(client_data) # 18,080 observations and 64 variables
 
 
 
-# Create helper functions {#helper-functions}
+# Filter matches using dates
+
+A pair should only be valid if the date in the medstar data (screening) precedes (less than or equal to) the date in the client data (APS investigation)
+
+AND
+
+When there is more than one date after after date in the medstar data, it is the closest in time.
+
+(Results hidden to protect patient privacy)
+
+```{r}
+# Keep only the variables needed for filtering
+date_filter <- pairs_possible_matches %>% select(dataset, row, pair_num, date)
+
+# Reshape wide to long to decrease computation time
+medstar_pairs <- date_filter %>% 
+  filter(dataset == "medstar") %>% 
+  select(-dataset) %>% 
+  rename_all(~paste0("medstar_", .))
+
+aps_pairs <- date_filter %>% 
+  filter(dataset == "aps") %>% 
+  select(-dataset) %>% 
+  rename_all(~paste0("aps_", .))
+  
+matches_wide  <- bind_cols(medstar_pairs, aps_pairs)
+
+# Data check
+# Make sure all the pair numbers are lined up
+if (sum(matches_wide$medstar_pair_num != matches_wide$aps_pair_num) > 0) {
+  stop("One or more pair numbers do not line up")
+}
+
+# Check to make sure the Medstar date precedes the APS investigation date
+# Note on > vs. >=
+# It is unlikely that an APS investigation that occurred on the same day as a MedStar screening was started BECAUSE of that screening. However, that doesn’t really matter for our purposes. What we are trying to do is link the conditions of the older adult and their environment on day X with an APS investigation that took place on or after day X. Therefore, we will keep pairs of matches when the MedStar date is less than OR EQUAL TO the APS investigation date.
+start_matches <- nrow(matches_wide)
+n_medstar_after_aps <- sum(matches_wide$medstar_date > matches_wide$aps_date)
+matches_wide <- matches_wide %>% filter(medstar_date <= aps_date)
+after_date_filter <- nrow(matches_wide)
+
+# When there is more than one match (i.e., when a single MedStar screening is matched to multiple APS investigations), keep the closest in time only
+matches_wide <- matches_wide %>% 
+  group_by(medstar_row) %>% 
+  # Within screening, earliest date always first
+  arrange(medstar_row, aps_date) %>% 
+  # Tag multiple APS investigations
+  mutate(multiple_investigations = row_number() > 1) %>% 
+  ungroup()
+
+# For reporting
+mult_invest_stats <- matches_wide %>% 
+  group_by(medstar_row) %>% 
+  filter(multiple_investigations) %>% 
+  summarise(n = n()) %>% 
+  summarise(
+    n_screenings = length(medstar_row),
+    n_rows = sum(n),
+    min = min(n),
+    max = max(n)
+  )
+
+# Drop distal investigations
+matches_wide <- matches_wide %>% filter(!multiple_investigations)
+
+# Drop unneeded variables
+date_filter <- matches_wide %>% 
+  select(medstar_row, aps_row, aps_pair_num) %>% 
+  rename(pair_num = aps_pair_num)
+
+cat(
+  "Matches on name/DOB: ", start_matches, "\n",
+  "N dropped because MedStar date after APS date: ", n_medstar_after_aps, "\n",
+  "Remaining matches: ", after_date_filter, "\n",
+  "Screenings matched to multiple APS investigations: ", mult_invest_stats$n_screenings, "\n",
+  "N matches dropped because not closest in time: ", mult_invest_stats$n_rows, "\n",
+  "Remaining matches: ", nrow(date_filter)
+)
+
+rm(medstar_pairs, aps_pairs, matches_wide, start_matches, n_medstar_after_aps, 
+   after_date_filter, mult_invest_stats)
+```
+
+
+
+```{r}
+# # Old way - slow
+# date_filter <- pairs_possible_matches %>% 
+#   group_by(pair_num) %>% 
+#   
+#   # Reshape wide to long
+#   mutate(
+#     row_aps     = row[dataset == "aps"],
+#     case_num    = case_pcr_num[dataset == "aps"],
+#     intake_date = date[dataset == "aps"]
+#   ) %>% 
+#   ungroup() %>% 
+#   filter(row_number() %% 2 == 1) %>% 
+#   
+#   # To be more explicit
+#   rename(
+#     row_medstar         = row, 
+#     incident_pcr_number = case_pcr_num,
+#     response_date       = date
+#   ) %>% 
+# 
+#   # Check Medstar data precedes the date in the client data
+#   filter(response_date <= intake_date) %>%
+#   
+#   # Keep earliest APS investigation
+#   group_by(incident_pcr_number) %>% 
+#   filter(intake_date == min(intake_date)[1]) %>% 
+#   ungroup() %>% 
+#   
+#   # Keep variables of interest
+#   select(starts_with("row"), pair_num)
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Add pair numbers to nested data
+
+* Join identifiers with pair number back to nested data
+
+* Just keep pair_num and the row identifier (incident_pcr_number/case_num). All other variables are already in the nested data frame.
+
+```{r}
+medstar_complete_w_pair <- medstar_nested %>% 
+  mutate(medstar_row = row_number()) %>%
+  left_join(date_filter, by = "medstar_row") %>% 
+  
+  # Clean up
+  select(pair_num, everything(), -ends_with("_row")) %>% 
+  
+  # Go ahead an unnest now
+  tidyr::unnest(cols = c(medstar_nested))
+```
+
+```{r}
+aps_w_pair <- aps_nested %>% 
+  mutate(aps_row = row_number()) %>%
+  left_join(date_filter, by = "aps_row") %>% 
+  
+  # Clean up
+  select(pair_num, everything(), -ends_with("row")) %>% 
+  
+  # Go ahead an unnest now
+  tidyr::unnest(cols = c(aps_nested))
+```
+
+
+## Drop unneeded variables that create join conflicts below
+
+```{r}
+medstar_complete_w_pair <- medstar_complete_w_pair %>% 
+  select(
+    -dob # Just use individual dob parts
+  )
+```
+
+```{r}
+about_data(medstar_complete_w_pair) # 28,228 observations and 56 variables
+```
+
+```{r}
+aps_w_pair <- aps_w_pair %>% 
+  select(
+    -dob # Just use individual dob parts
+  )
+```
+
+```{r}
+about_data(aps_w_pair) # 19,600 observations and 64 variables
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Join MedStar and APS on pair_num
+
+```{r}
+medstar_aps_merged <- medstar_complete_w_pair %>% 
+  full_join(
+    aps_w_pair, 
+    by = "pair_num",
+    suffix = c(".medstar", ".aps"),
+    na_matches = "never") %>% 
+  ungroup()
+```
+
+
+## Clean up
+
+```{r}
+rm(aps_compare, aps_nested, aps_w_pair, date_filter, 
+   medstar_compare, medstar_complete_w_pair, medstar_nested, pairs_possible_matches)
+```
+
+[top](#top)
+
+
+
+
+
+
+
+
+
+
+# Data check: Join conflicts
+
+## Helper functions
 
 Used for data checks below
 
@@ -312,454 +1057,55 @@ final_check <- function(merged, original) {
 
 [top](#top)
 
+## Baseline naive matches
 
-
-
-
-
-
-
-
-
-# Separate MedStar data by presence of DETECT screening data {#separate}
-
-We cannot merge the complete MedStar data (including rows from the demographics and health data) with the APS data because the demographics and health data does not include date of birth. 
-
-We considered matching records using name and age, but felt like that presented risk of false positive matches. We also considered using name, age, and address. But, everyone that is missing date of birth is also missing address.
-
-Therefore, we are going to separate the MedStar complete data back into two datasets: Rows with a DETECT screening and those without.
-
-Below we will we will merge the MedStar data that included DETECT screenings with the APS data.
-
-Later, we will append the MedStar data that does include DETECT screenings back to the merged MedStar/APS data
+Add explanation. When we use fuzzy matching we should do better than this. May also want to try the Stata way.
 
 ```{r}
-screenings <- medstar_complete %>% filter(detect_data == 1)
-```
+matching_vars <- c("name_first", "name_last", "birth_mnth", "birth_day", "birth_year")
 
-```{r}
-about_data(screenings) # 64,059 observations and 57 variables
-```
+medstar_4_naive <- medstar_complete %>% 
+  mutate(medstar_date = as.Date(arrival_time)) %>% 
+  select(matching_vars, medstar_date)
 
-```{r}
-no_screenings <- medstar_complete %>% filter(detect_data == 0)
-```
-
-```{r}
-about_data(no_screenings) # 35,250 observations and 57 variables
-```
-
-[top](#top)
-
-
-
-
-
-
-
-
-
-
-# Prepare MedStar data for record matching {#prep-medstar}
-
-The MedStar data currently has multiple rows for each screening (incident pcr number). This is redundant for the purpose of merging records and slows down RecordLinkage considerably. So, here we are going to reduce the MedStar data to one row for each incident pcr number by nesting all other variables.
-
-We are also ONLY going to attempt to pair rows where there is a completed DETECT screening. This this link for an explanation: https://github.com/brad-cannell/detect_pilot_test/issues/17.
-
-```{r}
-medstar_nested <- screenings %>% 
+aps_4_naive <- aps %>% 
+  mutate(aps_date = as.Date(intake_date)) %>% 
+  select(matching_vars, aps_date)
   
-  # Separate DOB into its component parts
-  mutate(
-    birth_mnth = lubridate::month(dob),
-    birth_day  = lubridate::day(dob),
-    birth_year = lubridate::year(dob)
-  ) %>% 
-  
-  # Nest all but the following columns - not needed for the RecordLinkage process
-  # and we want to reduce the dataset to one row per pcr.
-  # Important to use response_date instead of date_entered
-  nest(-response_date, -incident_pcr_number, -first_name, -last_name, -starts_with("birth"), 
-       -address_street, .key = "medstar_nested") %>% 
-  
-  # Ungroup
-  ungroup()
-```
-
-## Data check: How many rows are there and how many unique incident PCR numbers are there?
-
-```{r}
-medstar_nested %>% 
-  summarise(
-    Rows = n(),                                        # 1,248
-    `Unique PCR` = length(unique(incident_pcr_number)) # 1,247
-  )
-```
-
-```{r}
-about_data(medstar_nested) # 1,247 observations and 9 variables
-```
-
-At this point each screening (incident_pcr_number) is a single row that can be matched to rows in the APS data.
-
-[top](#top)
-
-
-
-
-
-
-
-
-
-
-# Prepare APS data for record matching {#prep-aps}
-
-Each time a report is made to APS about a person by phone or email a unique intake stage number is generated. It's possible for multiple reports to be made about the same person/incident. So, there is also a case number assigned to the victim and the report/group of reports. If more than one victim is reported at once, each is given a separate case number. A single victim may be associated with more than one case. 
-
-Therefore, some case numbers in the client data will have multiple rows that are redundant aside from the intake stage (person who reported). When we match the APS data to the MedStar data below by name, individual people may get matched more than once (i.e., if they were treated by MedStar more than once, investigated by APS more than once, or both). We are fine with that. However, we don’t want people to be matched once per person who made a report (intake_stage).  
-
-Again, we will get around this by nesting all columns that may result in multiple rows per case number.
-
-```{r}
-client_data_nested <- client_data %>% 
-  
-  # Separate DOB and address into its component parts
-  mutate(
-    birth_mnth = lubridate::month(dob),
-    birth_day  = lubridate::day(dob),
-    birth_year = lubridate::year(dob),
-    address_num = stringr::str_extract(address, "^\\d{1,5}"),
-    address_street = stringr::str_trim(str_replace(address, "^\\d{1,5}", ""))
-  ) %>% 
-  
-  # Nest all but the following columns - not needed for the RecordLinkage process
-  # and we want to reduce the dataset to one row per case number
-  nest(-case_num, -intake_start, -first_name, -last_name, -starts_with("birth"),
-       -address_street, .key = "aps_nested") %>% 
-  
-  # Ungroup
-  ungroup()
-```
-
-
-### Data check: How many rows are there and how many unique case numbers are there?
-
-```{r}
-client_data_nested %>% 
-  summarise(
-    Rows = n(),                               # 730
-    `Unique Cases` = length(unique(case_num)) # 679
-  )
-```
-
-That means that some case numbers are duplicated. Below we manually check for differences (results hidden to protect patient privacy).
-
-```{r eval=FALSE}
-bind_cols(
-  
-  # Use this part only if you want to view all records - even those that
-  # only differ by intake_start and intake_stage
-  client_data_nested %>% 
-    group_by(case_num) %>% 
-    filter(max(row_number()) > 1) %>% 
-    unnest(),
-  
-  client_data_nested %>% 
-    group_by(case_num) %>% 
-    filter(max(row_number()) > 1) %>% 
-    unnest() %>% 
-    mutate_all(.funs = funs(diff = length(unique(.)) > 1)) %>% 
-    ungroup() %>% 
-    select(ends_with("diff")) %>% 
-    mutate(diffs = rowSums(.))
-) %>%
-  
-  ungroup() %>%
-  # If a case number only differs by intake_start and intake_stage, 
-  # then I don't want to view it
-  mutate(keep = if_else(intake_start_diff == TRUE & intake_stage_diff == TRUE & diffs == 2,0, 1)) %>% 
-  filter(keep == 1)
-```
-
-After manual review, duplicates within case are due to different intake start dates (i.e., report dates), different spellings of names at different intakes (reports). There are also a couple differences in DOB between intakes. We should keep both spellings and DOB's for the matching process. We can filter them later as needed.
-
-[top](#top)
-
-
-
-
-
-
-
-
-
-
-# Determine which rows are likely to be matches {#find-matches}
-
-Below, we will use various functions from the [RecordLinkage package](https://cran.r-project.org/web/packages/RecordLinkage/index.html) to find rows in the client data that match rows in the medstar detect data on name and date of birth -- including non-exact matches (e.g. mispelled names, mistyped dates of birth).
-
-## Subset matching variables
-
-```{r}
-medstar_compare <- medstar_nested %>%
-  select(-medstar_nested) %>%
-  # The variables you want to compare have to appear in the same order in both datasets
-  select(incident_pcr_number, response_date, first_name, last_name, starts_with("birth"), 
-         address_street)
-
-client_data_compare <- client_data_nested %>%
-  select(-aps_nested) %>%
-  # The variables you want to compare have to appear in the same order in both datasets
-  select(case_num, intake_start, first_name, last_name, starts_with("birth"), address_street)
-```
-
-```{r}
-ncol(medstar_compare) == ncol(client_data_compare)
-```
-
-
-## Add string comparators
-
-> String comparators measure the similarity between strings, usually with a similarity measure in
-the range [0, 1], where 0 denotes maximal dissimilarity and 1 equality. This allows ‘fuzzy’ comparison patterns as displayed in the following example.
-[Sariyar & Borg, 2010](https://journal.r-project.org/archive/2010/RJ-2010-017/RJ-2010-017.pdf)
-
-Below we Compares each record in data set 1 to each record in data set 2 until all records are compared. For example, id1 - id1, id1-id2, idn-idm. For each pair, a probability match is given for each variable (i.e., first name, last name, etc.). In this case, we are using the Jaro-Winkler distance as our comparison measure ( [Winkler, 1990](http://eric.ed.gov/?id=ED325505), [Wikipedia, 2018](https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance)).
-
-```{r}
-rpairs_jar <- RecordLinkage::compare.linkage(
-  dataset1  = medstar_compare, 
-  dataset2  = client_data_compare,
-  strcmp  = c("first_name", "last_name", "address_street"),
-  exclude = c("incident_pcr_number", "response_date")
+# Join on name and dob
+naive_join <- left_join(
+  medstar_4_naive, 
+  aps_4_naive, 
+  by = matching_vars
 )
-```
-
-
-## Stochastic record linkage
-
-> Stochastic record linkage relies on the assumption of conditional probabilities concerning comparison patterns... In RecordLinkage an EM algorithm is used as a promising method for reliable estimations. The backbone of this algorithm is described by Haber (1984). Weight calculation based on the EM algorithm
-and the method by Contiero et al. (2005) are implemented by functions emWeights and epiWeights. Both take a data set object as argument and return copy with the calculated weights stored in additional components. Calling summary on the result shows the distribution of weights in histogram style. This information can be helpful for determining classification thresholds, e.g. by identifying clusters of record pairs with high or low weights as non-matches or matches respectively.
-[Sariyar & Borg, 2010](https://journal.r-project.org/archive/2010/RJ-2010-017/RJ-2010-017.pdf)
-
-This function calculates weights for record pairs based on the approach used by Contiero et al. in the EpiLink record linkage software. [Contiero et al. (2005)](http://methods.schattauer.de/en/contents/archivepremium/manuscript/431.html)
-
-```{r}
-rpairs_epiwt <- RecordLinkage::epiWeights(rpairs_jar)
-```
-
-
-## Manually inspect all pairs and their weights
-
-> Discernment between matches and non-matches is achieved by means of computing weight thresholds... The most common practice is to determine thresholds by clerical review, either a single threshold which separates links and non-links or separate thresholds for links and non-links which define a range of doubtable cases between them. RecordLinkage supports this by the function getPairs, which shows record pairs aligned in two consecutive lines along with their weight.
-[Sariyar & Borg, 2010](https://journal.r-project.org/archive/2010/RJ-2010-017/RJ-2010-017.pdf)
-
-Review record pairs aligned in two consecutive rows along with their weight (results hidden to protect participant privacy):
-
-```{r}
-pairs_possible_matches <- RecordLinkage::getPairs(rpairs_epiwt)
-```
-
-```{r}
-pairs_possible_matches <- pairs_possible_matches %>%
-  filter(id != "") %>% 
-  mutate(
-    dataset  = if_else(row_number() %% 2 == 1, "medstar", "client_data"),
-    row      = id %>% as.character() %>% as.integer(),
-    pair_num = rep(seq(nrow(.) / 2), each = 2),
-    Weight   = if_else(Weight == "", lead(Weight), Weight) %>% as.character() %>% as.numeric()
-  ) %>% 
-  select(dataset, row, pair_num, everything(), -id) %>% 
-  rename(
-    "case_pcr_num" = "incident_pcr_number",
-    "date"         = "date_entered"
-  ) %>% 
-  mutate(
-    case_pcr_num = case_pcr_num %>% as.character() %>% as.numeric(),
-    date         = as.Date(date)
-  )
-```
-
-When the weight dips below 0.7640929, the matches begin to break down.
-
-```{r}
-max_weight <- 0.7640929 - .0001 # Because threshold below is not inclusive
-```
-
-
-## Keep matches
-
-```{r}
-pairs_possible_matches <- pairs_possible_matches %>% 
-  filter(Weight >= max_weight)
-```
-
-[top](#top)
-
-
-
-
-
-
-
-
-
-
-# Filter matches using dates {#filter-dates}
-
-A pair should only be valid if the date in the medstar data (screening) precedes (less than or equal to) the date in the client data (APS investigation)
-
-AND
-
-When there is more than one date after after date in the medstar data, it is the closest in time.
-
-Results hidden to protect patient privacy
-
-```{r}
-date_filter <- pairs_possible_matches %>% 
-  group_by(pair_num) %>% 
-  
-  # Reshape wide to long
-  mutate(
-    row_client_data = row[dataset == "client_data"],
-    case_num        = case_pcr_num[dataset == "client_data"],
-    intake_date     = date[dataset == "client_data"]
-  ) %>% 
-  ungroup() %>% 
-  filter(row_number() %% 2 == 1) %>% 
-  
-  # To be more explicit
-  rename(
-    row_medstar         = row, 
-    incident_pcr_number = case_pcr_num,
-    response_date       = date
-  ) %>% 
-
-  # Check Medstar data precedes the date in the client data
-  filter(response_date <= intake_date) %>%
-  
-  # Keep earliest APS investigation
-  group_by(incident_pcr_number) %>% 
-  filter(intake_date == min(intake_date)[1]) %>% 
-  ungroup() %>% 
-  
-  # Keep variables of interest
-  select(starts_with("row"), pair_num)
-```
-
-[top](#top)
-
-
-
-
-
-
-
-
-
-
-# Add pair numbers to nested data {#add-pair}
-
-* Join identifiers with pair number back to nested data
-
-* Just keep pair_num and the row identifier (incident_pcr_number/case_num). All other variables are already in the nested data frame.
-
-```{r}
-medstar_complete_w_pair <- medstar_nested %>% 
-  mutate(row_medstar = row_number()) %>%
-  left_join(date_filter, by = "row_medstar") %>% 
-  
-  # Clean up
-  select(pair_num, everything(), -starts_with("row")) %>% 
-  
-  # Go ahead an unnest now
-  unnest()
-```
-
-```{r}
-client_data_w_pair <- client_data_nested %>% 
-  mutate(row_client_data = row_number()) %>%
-  left_join(date_filter, by = "row_client_data") %>% 
-  
-  # Clean up
-  select(pair_num, everything(), -starts_with("row")) %>% 
-  
-  # Go ahead an unnest now
-  unnest()
-```
-
-
-## Drop unneeded variables that create join conflicts below
-
-```{r}
-medstar_complete_w_pair <- medstar_complete_w_pair %>% 
-  select(
-    -full_name, # Just use individual name parts
-    -dob        # Just use individual dob parts
-  )
-```
-
-```{r}
-about_data(medstar_complete_w_pair) # 64,059 observations and 56 variables
-```
-
-```{r}
-client_data_w_pair <- client_data_w_pair %>% 
-  select(
-    -full_name, # Just use individual name parts
-    -dob        # Just use individual dob parts
-  )
-```
-
-```{r}
-about_data(client_data_w_pair) # 752 observations and 15 variables
-```
-
-[top](#top)
-
-
-
-
-
-
-
-
-
-
-# Join MedStar and APS on pair_num {#join-medstar-aps}
-
-```{r}
-medstar_aps_merged <- medstar_complete_w_pair %>% 
-  full_join(
-    client_data_w_pair, 
-    by = "pair_num",
-    suffix = c(".medstar", ".aps"),
-    na_matches = "never") %>% 
+# 35,290 obs
+
+# Keep matching rows only
+naive_join <- naive_join %>% filter(!is.na(aps_date))
+# 11,098 obs
+
+# Keep if screeng <= investigation
+naive_join <- naive_join %>% filter(medstar_date <= aps_date)
+# 3,630
+
+# Keep only the most proximal screening
+naive_join <- naive_join %>% 
+  group_by(name_first, name_last, birth_mnth, birth_day, birth_year, medstar_date) %>% 
+  # Not necessary, but useful for data checks
+  mutate(mult_invest = row_number() > 1) %>% 
+  # Keep only the first row for each group
+  filter(!mult_invest) %>% 
   ungroup()
+# 2,035 naive matches
 ```
-
-
-## Clean up
 
 ```{r}
-rm(client_data_compare, client_data_nested, client_data_w_pair, date_filter, 
-   medstar_compare, medstar_complete_w_pair, medstar_nested, pairs_possible_matches,
-   rpairs_epiwt, rpairs_jar, max_weight)
+# Clean up
+rm(list = ls()[grep("naive", ls())])
 ```
 
-[top](#top)
+Should do better than 2,035 matches.
 
-
-
-
-
-
-
-
-
-
-# Data check: Join conflicts {#data-check-join-conflicts}
 
 ## Which variables were non-joined duplicate variables?
 
@@ -779,27 +1125,70 @@ To make sure that the names and birth dates actually appear to match (results hi
 set.seed(123)
 
 medstar_aps_merged %>% 
-  group_by(incident_pcr_number) %>% 
-  filter(row_number() == 1) %>% # Keep one row per incident pcr - 1,248
+  group_by(incident_pcr) %>% 
+  filter(row_number() == 1) %>% # Keep one row per incident pcr - 28,229
   ungroup() %>% 
   sample_frac(0.10, replace = FALSE) %>% # 10% random sample
   
   mutate(
-    first_name = merge_like_variables(., first_name),
-    last_name  = merge_like_variables(., last_name),
+    name_first = merge_like_variables(., name_first),
+    name_last  = merge_like_variables(., name_last),
     birth_mnth = merge_like_variables(., birth_mnth),
     birth_day  = merge_like_variables(., birth_day),
     birth_year = merge_like_variables(., birth_year)
-  )%>%
+  ) %>%
   
   # Arrange columns for easier comparison
-  select(incident_pcr_number, case_num, pair_num, starts_with("first_name"),
-         starts_with("last_name"), starts_with("birth_mnth"), 
-         starts_with("birth_day"), starts_with("birth_year"),
-         -first_name_02)
+  select(
+    pair_num, starts_with("name_first"),
+    starts_with("name_last"), starts_with("birth_mnth"), 
+    starts_with("birth_day"), starts_with("birth_year")
+  ) %>% 
+  
+  # View rows with a pair number
+  filter(!is.na(pair_num))
 ```
 
 When people exist in both datasets (MedStar and APS), their names and dates of birth appear to match in the merged dataset.
+
+2019-10-10: There are still some mismatches...
+
+```{r}
+check_mismatches <- medstar_aps_merged %>% 
+  mutate(
+    name_first          = merge_like_variables(., name_first),
+    name_last           = merge_like_variables(., name_last),
+    birth_mnth          = merge_like_variables(., birth_mnth),
+    birth_day           = merge_like_variables(., birth_day),
+    birth_year          = merge_like_variables(., birth_year),
+    address_num         = merge_like_variables(., address_num),
+    address_street_name = merge_like_variables(., address_street_name)
+  ) %>%
+  # Arrange columns for easier comparison
+  select(
+    pair_num, starts_with("name_first"),
+    starts_with("name_last"), starts_with("birth_mnth"), 
+    starts_with("birth_day"), starts_with("birth_year"),
+    starts_with("address_num"), starts_with("address_street_name")
+  )
+```
+
+Check first names
+
+```{r}
+view_mismatches <- check_mismatches %>% filter(name_first == "conflict")
+View(view_mismatches)
+```
+
+Rules:
+
+
+
+Go back and remove: 9138, 9856, 9216, 9217, 10002, 10006, 9769
+
+Up top
+
+Drop: 10439, 9984, 
 
 
 ## Investigate and resolve conflicting values
@@ -1369,7 +1758,7 @@ In order for the merged and original datasets to be comparable, they each includ
 There are people in the merged data that were were screened using the DETECT tool, but an investigation was never done by APS. Those people must be removed in order to compare the datasets as well.
 
 ```{r}
-vars_to_keep <- client_data %>% 
+vars_to_keep <- aps %>% 
   select(-intake_stage, -full_name, -middle_name, -dob, -county, -address) %>% 
   names()
 ```
@@ -1380,7 +1769,7 @@ merged_cases   <- medstar_aps_merged %>%
   filter(!is.na(case_num)) %>% # Drop people that APS didn't investigate
   distinct()                   # Drop duplicate rows
 
-original_cases <- client_data %>% 
+original_cases <- aps %>% 
   select(vars_to_keep) %>% # Compare the same vars in both datasets
   distinct()
 ```

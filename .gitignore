@@ -6,3 +6,9 @@ data/
 development
 NOTES.sh
 packrat/lib*/
+
+markdown/pairs_possible_matches.rds
+
+markdown/rpairs_epiwt.rds
+
+markdown/rpairs_jar.rds
