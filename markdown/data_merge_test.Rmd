@@ -21,7 +21,6 @@ Sys.setenv(TZ = "US/Central")
 
 ```{r message=FALSE}
 library(dplyr)
-library(bfuncs)
 ```
 
 ```{bash}
@@ -67,8 +66,20 @@ pairs_possible_matches <- pairs_possible_matches %>%
 dim(pairs_possible_matches) # 683,132     14
 ```
 
+Remove the is_match variable. It is NA in every row and causes problems below.
+
+```{r}
+pairs_possible_matches <- select(pairs_possible_matches, -is_match)
+```
+
+```{r}
+dim(pairs_possible_matches) # 683,132     13
+```
+
 
 # Widen the data
+
+Put the MedStar data next to the APS data. This makes it faster and easier to 
 
 ```{r}
 pairs_possible_matches_wide <- bind_cols(
@@ -257,7 +268,7 @@ review_matches <- bind_rows(
 ```
 
 ```{r} 
-dim(review_matches) # 1,332   30
+dim(review_matches) # 1,332   29
 ```
 
 
