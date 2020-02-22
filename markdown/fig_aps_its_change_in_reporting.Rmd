@@ -22,7 +22,6 @@ Sys.setenv(TZ = "US/Central")
 
 ```{r message=FALSE}
 library(tidyverse)
-library(bfuncs)
 library(gridExtra)
 ```
 
@@ -31,6 +30,10 @@ source("../r/theme_bfuncs.r")
 ```
 
 aps_ddd.feather was created in data_aps_03_process_for_ddd.Rmd.
+
+```{bash}
+open 'smb://uctnascifs.uthouston.edu/sph_research/DETECT'
+```
 
 ```{r}
 aps_ddd <- feather::read_feather("/Volumes/DETECT/one_year_data/aps_ddd.feather")
@@ -199,6 +202,17 @@ ggsave(
   filename = "../images/fig_aps_ddd_change_in_reporting.png",
   plot     = fig_aps_ddd_change_in_reporting,
   device   = "png",
+  width    = 11.43
+)
+```
+
+2020-02-21: Create an eps version of the file for the JAMA R&R
+
+```{r}
+ggsave(
+  filename = "../images/fig_aps_ddd_change_in_reporting.eps",
+  plot     = fig_aps_ddd_change_in_reporting,
+  device   = "eps",
   width    = 11.43
 )
 ```
