@@ -1,11 +1,6 @@
 ---
 title: "Manage Variables in MedStar EPCR Data"
 date: "Created: 2018-12-26 <br> Updated: `r Sys.Date()`"
-output: 
-  html_notebook:
-    toc: true
-    toc_float: true
-    css: custom-css.css
 ---
 
 # Overview
@@ -24,28 +19,21 @@ Sys.setenv(TZ = "US/Central")
 
 ```{r message=FALSE}
 library(tidyverse)
-library(bfuncs)
 ```
 
 medstar_epcr.feather was created in data_medstar_epcr_01_import.Rmd
 
-```{r}
-medstar_epcr <- feather::read_feather("/Volumes/sph_research/DETECT/one_year_data/medstar_epcr_01_import.feather")
+```{bash}
+open 'smb://uctnascifs.uthouston.edu/sph_research/DETECT'
 ```
 
 ```{r}
-about_data(medstar_epcr) # 35,557 observations and 32 variables
+medstar_epcr <- feather::read_feather("/Volumes/DETECT/one_year_data/medstar_epcr_01_import.feather")
 ```
 
-[top](#top)
-
-
-
-
-
-
-
-
+```{r}
+dim(medstar_epcr) # 35,557    32
+```
 
 
 # Standardize character strings
@@ -72,14 +60,6 @@ rm(vars)
 [top](#top)
 
 
-
-
-
-
-
-
-
-
 # Remove "city of" from address_city value 
 
 ```{r}
@@ -88,14 +68,6 @@ medstar_epcr <- medstar_epcr %>%
 ```
 
 [top](#top)
-
-
-
-
-
-
-
-
 
 
 # Separate names, dob's, and street addresses
@@ -119,19 +91,18 @@ medstar_epcr <- medstar_epcr %>%
   )
 ```
 
+Replaces spaces with underscores in address street name.
+
 ```{r}
-about_data(medstar_epcr) # 35,557 observations and 39 variables
+medstar_epcr <- medstar_epcr %>% 
+  mutate(
+    address_street_name = stringr::str_replace_all(address_street_name, "\\s", "_")
+  )
 ```
 
-[top](#top)
-
-
-
-
-
-
-
-
+```{r}
+dim(medstar_epcr) # 35,557    39
+```
 
 
 # Recode categories
@@ -158,9 +129,7 @@ medstar_epcr <- medstar_epcr %>%
   ) %>% 
   mutate_at(
     vars(starts_with("detect")),
-    funs(
-      if_else(. == "N/A", NA_character_, .)
-    )
+    ~ if_else(. == "N/A", NA_character_, .)
   )
 ```
 
@@ -185,18 +154,8 @@ medstar_epcr <- medstar_epcr %>%
 ```
 
 ```{r}
-about_data(medstar_epcr) # 35,557 observations and 40 variables
+dim(medstar_epcr) # 35,557    40
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Create indicator for completed DETECT screening
@@ -216,18 +175,8 @@ medstar_epcr <- medstar_epcr %>%
 ```
 
 ```{r}
-about_data(medstar_epcr) # 35,557 observations and 56 variables
+dim(medstar_epcr) # 35,557    56
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Process numeric variables
@@ -240,18 +189,8 @@ medstar_epcr <- medstar_epcr %>%
 ```
 
 ```{r}
-about_data(medstar_epcr) # 35,557 observations and 56 variables
+dim(medstar_epcr) # 35,557    56
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Duplicate (almost) rows
@@ -282,7 +221,7 @@ medstar_epcr <- medstar_epcr %>%
 ```
 
 ```{r}
-about_data(medstar_epcr) # 35,557 observations and 57 variables
+dim(medstar_epcr) # 35,557    57
 ```
 
 How many pairs of duplicate pcr numbers are there?
@@ -302,14 +241,14 @@ For each of those pcr numbers, if the only thing that differs between the two ro
 So, for each variable of interest, create a dummy variable that indicates if if values are different within incident pcr number
 
 ```{r}
-medstar_epcr <- medstar_epcr %>% 
+medstar_epcr <- medstar_epcr %>%
   mutate_at(
     .vars = vars(
       arrival_time, response_num, incident_pcr, incident_complaint, age, 
       name_full, dob, address_street, address_city, address_state,
       address_zip, gender, race, symptoms, crew_sig, disposition
     ),
-    .funs = funs(diff = as.numeric(length(unique(.)) > 1))
+    .funs = list(diff = ~ as.numeric(length(unique(.)) > 1))
   ) %>% 
   ungroup()
 ```
@@ -325,8 +264,8 @@ medstar_epcr <- medstar_epcr %>%
 
 ```{r}
 # Data checking
-# medstar_epcr %>% 
-#   filter(pcr_dup) %>% 
+# medstar_epcr %>%
+#   filter(pcr_dup) %>%
 #   select(incident_pcr, pcr_dup, ends_with("_diff"), aps_report, answered_count, diff_count)
 ```
 
@@ -365,7 +304,7 @@ medstar_epcr <- medstar_epcr %>%
 ```
 
 ```{r}
-about_data(medstar_epcr) # 35,556 observations and 58 variables
+dim(medstar_epcr) # 35,556    58
 ```
 
 
@@ -389,7 +328,7 @@ medstar_epcr <- medstar_epcr %>%
 ```
 
 ```{r}
-about_data(medstar_epcr) # 35,555 observations and 58 variables
+dim(medstar_epcr) # 35,555    58
 ```
 
 
@@ -449,38 +388,18 @@ medstar_epcr <- medstar_epcr %>%
 ```
 
 ```{r}
-about_data(medstar_epcr) # 28,228 observations and 56 variables
+dim(medstar_epcr) # 28,228    56
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Save data
 
 ```{r}
-feather::write_feather(
+readr::write_rds(
   medstar_epcr, 
-  "/Volumes/sph_research/Detect/one_year_data/medstar_epcr_02_variable_management.feather"
+  "/Volumes/DETECT/one_year_data/medstar_epcr_02_variable_management.rds"
 )
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Session information
