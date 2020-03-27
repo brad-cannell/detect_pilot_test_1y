@@ -1,16 +1,11 @@
 ---
 title: "Processing Data For ITS Analysis"
 date: "Created: 2019-01-17 <br> Updated: `r Sys.Date()`"
-output: 
-  html_notebook:
-    toc: true
-    toc_float: true
-    css: custom-css.css
 ---
 
 # Overview
 
-Preparing APS investigations data for Dr. Livingston's ITS analysis.
+Preparing APS investigations data for Dr. Livingston's DDD analysis.
 
 **Some notes from APS about administrative variables:**
 
@@ -40,34 +35,28 @@ Sys.setenv(TZ = "US/Central")
 ```
 
 ```{r message=FALSE}
-library(tidyverse)
-library(bfuncs)
+library(dplyr)
 ```
 
-aps_02_variable_management.feather was created in data_aps_02_variable_management.Rmd
+
+# Read-in data
+
+* Make sure to connect to the UTHealth server using the path stored in NOTES.
+
+* aps_02_variable_management.rds was created in data_aps_02_variable_management.Rmd
 
 ```{r}
-aps <- feather::read_feather("/Volumes/DETECT/one_year_data/aps_02_variable_management.feather")
+aps <- readr::read_rds("/Volumes/DETECT/one_year_data/aps_02_variable_management.rds")
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 64 variables
+dim(aps) # 18,080 observations and 64 variables
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Deidentify case numbers
 
-I want a case number identifier in the data that can't be linked back to APS records.
+We want a case number identifier in the data that can't be linked back to APS records.
 
 ```{r}
 aps <- aps %>% 
@@ -75,23 +64,13 @@ aps <- aps %>%
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 65 variables
+dim(aps) # 18,080 observations and 65 variables
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Check duplicate rows
 
-For the ITS analysis, we are interested in changes in the number of individual "reports" of EA. So, each row should be a unique reporter/intake stage number combination. Results are hidden to protect participant privacy.
+For the DDD analysis, we are interested in changes in the number of individual "reports" of EA. So, each row should be a unique reporter/intake stage number combination. Results are hidden to protect participant privacy.
 
 ```{r eval=FALSE}
 aps %>% 
@@ -100,16 +79,6 @@ aps %>%
 ```
 
 So, there are 10 rows (5 reports to APS) where a report was made to APS (intake stage number) by two people at the same time, but both individuals were the same type of reporter (both health care providers/staff or both family members and relatives). For the ITS analysis, we will keep these rows in the data.
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Dates included
@@ -124,15 +93,8 @@ aps %>%
   )
 ```
 
-[top](#top)
-
-
-
-
-
-
-
-
+Earliest date in data: 2014-12-31	   
+Latest date in data: 2018-02-28	
 
 
 # Subset columns
@@ -149,24 +111,14 @@ aps_ddd <- aps %>%
 ```
 
 ```{r}
-about_data(aps_ddd) # 18,080 observations and 44 variables
+dim(aps_ddd) # 18,080 observations and 44 variables
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Save the data
 
 ```{r}
-feather::write_feather(aps_ddd, "/Volumes/DETECT/one_year_data/aps_ddd.feather")
+readr::write_rds(aps_ddd, "/Volumes/DETECT/one_year_data/aps_ddd.rds")
 ```
 
 Save in Excel format for Doug
@@ -174,16 +126,6 @@ Save in Excel format for Doug
 ```{r}
 readr::write_csv(aps_ddd, "/Volumes/DETECT/one_year_data/aps_ddd.csv")
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Session information

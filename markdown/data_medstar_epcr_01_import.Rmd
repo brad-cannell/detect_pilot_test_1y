@@ -1,17 +1,13 @@
 ---
 title: "Importing MedStar Data For Analysis"
 date: "Created: 2018-12-18 <br> Updated: `r Sys.Date()`"
-output: 
-  html_notebook:
-    toc: true
-    toc_float: true
-    css: "custom-css.css"
 ---
 
 # Overview
 
 In this file we read-in the raw data we received from MedStar on 2018-03-01
 
+Make sure to connect to the UTHealth server using the path stored in NOTES.
 
 # Load packages
 
@@ -21,17 +17,8 @@ Sys.setenv(TZ = "US/Central")
 ```
 
 ```{r message=FALSE}
-library(tidyverse)
-library(bfuncs)
+library(dplyr)
 ```
-
-
-
-
-
-
-
-
 
 
 # Set column names and types
@@ -79,7 +66,7 @@ col_info <- c(
 
 ```{r}
 medstar_epcr <- readxl::read_excel(
-  path = "/Volumes/sph_research/Detect/one_year_data/medstar_epcr.xlsx",
+  path = "/Volumes/Detect/one_year_data/medstar_epcr.xlsx",
   col_names = col_info[seq(1, length(col_info), 2)],
   col_types = col_info[seq(2, length(col_info), 2)],
   skip = 1
@@ -88,18 +75,8 @@ rm(col_info)
 ```
 
 ```{r}
-about_data(medstar_epcr) # 36,304 observations and 32 variables
+dim(medstar_epcr) # 36,304 observations and 32 variables
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Deduplicate rows
@@ -120,37 +97,17 @@ medstar_epcr <- distinct(medstar_epcr)
 ```
 
 ```{r}
-about_data(medstar_epcr) # 35,557 observations and 33 variables
+dim(medstar_epcr) # 35,557 observations and 33 variables
 ```
 
 747 duplicate rows were dropped from the data.
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Save imported data
 
 ```{r}
-feather::write_feather(medstar_epcr, "/Volumes/sph_research/DETECT/one_year_data/medstar_epcr_01_import.feather")
+readr::write_rds(medstar_epcr, "/Volumes/DETECT/one_year_data/medstar_epcr_01_import.rds")
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Session information

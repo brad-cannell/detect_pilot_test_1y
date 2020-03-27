@@ -7,7 +7,7 @@ date: "Created: 2018-12-26 <br> Updated: `r Sys.Date()`"
 
 * The raw MedStar epcr data was imported in data_medstar_epcr_01_import.Rmd
 
-* In this file we prepare the data for analysis
+* In this file we do some basic data cleaning and prepare the data to be merged with APS data.
 
 
 # Load packages and data
@@ -18,17 +18,18 @@ Sys.setenv(TZ = "US/Central")
 ```
 
 ```{r message=FALSE}
-library(tidyverse)
+library(dplyr)
 ```
 
-medstar_epcr.feather was created in data_medstar_epcr_01_import.Rmd
 
-```{bash}
-open 'smb://uctnascifs.uthouston.edu/sph_research/DETECT'
-```
+# Read-in data
+
+* Make sure to connect to the UTHealth server using the path stored in NOTES.
+
+* medstar_epcr_01_import.rds was created in data_medstar_epcr_01_import.Rmd
 
 ```{r}
-medstar_epcr <- feather::read_feather("/Volumes/DETECT/one_year_data/medstar_epcr_01_import.feather")
+medstar_epcr <- readr::read_rds("/Volumes/DETECT/one_year_data/medstar_epcr_01_import.rds")
 ```
 
 ```{r}
@@ -57,8 +58,6 @@ medstar_epcr <- medstar_epcr %>%
 rm(vars)
 ```
 
-[top](#top)
-
 
 # Remove "city of" from address_city value 
 
@@ -66,8 +65,6 @@ rm(vars)
 medstar_epcr <- medstar_epcr %>% 
   mutate(address_city = stringr::str_replace(address_city, "city of ", ""))
 ```
-
-[top](#top)
 
 
 # Separate names, dob's, and street addresses
@@ -87,7 +84,7 @@ medstar_epcr <- medstar_epcr %>%
     birth_day           = lubridate::day(dob),
     birth_year          = lubridate::year(dob),
     address_num         = stringr::str_extract(address_street, "^\\d{1,5}") %>% as.numeric(),
-    address_street_name = stringr::str_trim(str_replace(address_street, "^\\d{1,5}", ""))
+    address_street_name = stringr::str_trim(stringr::str_replace(address_street, "^\\d{1,5}", ""))
   )
 ```
 
@@ -161,10 +158,10 @@ dim(medstar_epcr) # 35,557    40
 # Create indicator for completed DETECT screening
 
 ```{r}
-medstar_epcr <- medstar_epcr %>% 
+medstar_epcr <- medstar_epcr %>%
   mutate_at(
     .vars = vars(starts_with("detect_")),
-    .funs = funs(answered = !is.na(.))
+    .funs = list(answered = ~ !is.na(.))
   ) %>% 
   mutate(
     answered_count = select(., ends_with("answered")) %>% rowSums()
