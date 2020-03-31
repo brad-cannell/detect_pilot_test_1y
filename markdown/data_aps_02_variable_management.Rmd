@@ -383,6 +383,19 @@ dim(aps) # 18,080 observations and 64 variables
 ```
 
 
+# Check duplicate rows
+
+For the all subsequent analyses, we are interested in changes in the number of individual "reports" of EA. So, each row should be a unique reporter/intake stage number combination. Results are hidden to protect participant privacy.
+
+```{r eval=FALSE}
+aps %>% 
+  group_by(intake_stage_num, reporter) %>% 
+  filter(n() > 1)
+```
+
+So, there are 10 rows (5 reports to APS) where a report was made to APS (intake stage number) by two people at the same time, but both individuals were the same type of reporter (both health care providers/staff or both family members and relatives). Catherine told me that it was possible for two people to call-in at the same time.
+
+
 # Save data
 
 ```{r}

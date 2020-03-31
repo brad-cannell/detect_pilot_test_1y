@@ -1,11 +1,6 @@
 ---
 title: "Figure: Change in Reporting Over Time"
 date: "Created: 2019-01-29 <br> Updated: `r Sys.Date()`"
-output: 
-  html_notebook:
-    toc: true
-    toc_float: true
-    css: custom-css.css
 ---
 
 # Overview
@@ -42,8 +37,6 @@ aps_ddd <- feather::read_feather("/Volumes/DETECT/one_year_data/aps_ddd.feather"
 ```{r}
 dim(aps_ddd) # 118,080    45
 ```
-
-[top](#top)
 
 
 # Data management
@@ -127,16 +120,6 @@ weekly_reports_by_group <- weekly_reports_by_group %>%
   ungroup()
 ```
 
-[top](#top)
-
-
-
-
-
-
-
-
-
 
 # Create plots
 
@@ -216,24 +199,6 @@ ggsave(
   width    = 11.43
 )
 ```
-
-[top](#top)
-
-
-# Mean age
-
-```{r}
-bfuncs::mean_table(aps_ddd, age)
-```
-
-
-
-
-
-
-
-
-
 
 
 # Session information

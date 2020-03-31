@@ -78,7 +78,7 @@ aps %>%
   filter(n() > 1)
 ```
 
-So, there are 10 rows (5 reports to APS) where a report was made to APS (intake stage number) by two people at the same time, but both individuals were the same type of reporter (both health care providers/staff or both family members and relatives). For the ITS analysis, we will keep these rows in the data.
+So, there are 10 rows (5 reports to APS) where a report was made to APS (intake stage number) by two people at the same time, but both individuals were the same type of reporter (both health care providers/staff or both family members and relatives). For the ITS analysis, we will keep these rows in the data. Catherine told me that it was possible for two people to call-in at the same time.
 
 
 # Dates included
@@ -104,14 +104,14 @@ Subset the data to include only the columns needed for the DDD analysis
 ```{r}
 aps_ddd <- aps %>% 
   select(
-    case, study_week, study_period, detect, reporter, ems, medstar_service_area, 
+    case, age, study_week, study_period, detect, reporter, ems, medstar_service_area, 
     city_fw, any_valid, all_invalid, valid_3cat, closure_reason,
     valid_emotional_abuse:total_other_dispositions, total_valid, total_invalid
   )
 ```
 
 ```{r}
-dim(aps_ddd) # 18,080 observations and 44 variables
+dim(aps_ddd) # 18,080 observations and 45 variables
 ```
 
 
