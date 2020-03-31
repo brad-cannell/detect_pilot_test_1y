@@ -1,11 +1,6 @@
 ---
 title: "Importing APS Data For Analysis"
 date: "Created: 2019-01-17 <br> Updated: `r Sys.Date()`"
-output: 
-  html_notebook:
-    toc: true
-    toc_float: true
-    css: custom-css.css
 ---
 
 # Overview
@@ -21,42 +16,23 @@ Sys.setenv(TZ = "US/Central")
 ```
 
 ```{r message=FALSE}
-library(tidyverse)
-library(bfuncs)
+library(dplyr)
 ```
 
 [top](#top)
-
-
-
-
-
-
-
-
 
 
 # Read-in data
 
+* Make sure to connect to the UTHealth server using the path stored in NOTES.
+
 ```{r}
-aps <- readxl::read_excel(
-  path = "/Volumes/sph_research/Detect/one_year_data/aps_data.xlsx"
-)
+aps <- readxl::read_excel("/Volumes/DETECT/one_year_data/aps_data.xlsx")
 ```
 
 ```{r}
-about_data(aps) # 18,152 observations and 47 variables
+dim(aps) # 18,152 observations and 47 variables
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Deduplicate rows
@@ -78,37 +54,17 @@ aps <- distinct(aps)
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 47 variables
+dim(aps) # 18,080 observations and 47 variables
 ```
 
 72 duplicate rows were dropped from the data.
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Save imported data
 
 ```{r}
-feather::write_feather(aps, "/Volumes/sph_research/Detect/one_year_data/aps_01_import.feather")
+readr::write_rds(aps, "/Volumes/DETECT/one_year_data/aps_01_import.rds")
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Session information

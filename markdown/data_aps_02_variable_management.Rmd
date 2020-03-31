@@ -1,18 +1,13 @@
 ---
 title: "Manage Variables in APS Data"
 date: "Created: 2019-01-25 <br> Updated: `r Sys.Date()`"
-output: 
-  html_notebook:
-    toc: true
-    toc_float: true
-    css: custom-css.css
 ---
 
 # Overview
 
 * The raw APS data was imported in data_aps_01_import.Rmd
 
-* In this file we prepare the data for analysis
+* In this file we do some basic data cleaning and prepare the data to be merged with MedStar data.
 
 
 # Load packages and data
@@ -23,29 +18,23 @@ Sys.setenv(TZ = "US/Central")
 ```
 
 ```{r message=FALSE}
-library(tidyverse)
-library(bfuncs)
+library(dplyr)
 ```
 
-aps_01_import.feather was created in data_aps_01_import.Rmd
+
+# Read-in data
+
+* Make sure to connect to the UTHealth server using the path stored in NOTES.
+
+* aps_01_import.rds was created in data_aps_01_import.Rmd
 
 ```{r}
-aps <- feather::read_feather("/Volumes/DETECT/one_year_data/aps_01_import.feather")
+aps <- readr::read_rds("/Volumes/DETECT/one_year_data/aps_01_import.rds")
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 47 variables
+dim(aps) # 18,080 observations and 47 variables
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Standardize character strings
@@ -75,18 +64,8 @@ rm(vars)
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 47 variables
+dim(aps) # 18,080 observations and 47 variables
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Clean city
@@ -95,8 +74,7 @@ View current values for city
 
 ```{r eval=FALSE}
 aps %>%
-  group_by(city) %>%
-  freq_table()
+  freqtables::freq_table(city)
 ```
 
 Need to move city value to street. Need to do so without using identifiers in the code. Therefore, adding a temporary row variable.
@@ -139,18 +117,8 @@ aps <- select(aps, -row)
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 47 variables
+dim(aps) # 18,080 observations and 47 variables
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Separate dob's and street addresses
@@ -166,23 +134,13 @@ aps <- aps %>%
     birth_day           = lubridate::day(dob),
     birth_year          = lubridate::year(dob),
     address_num         = stringr::str_extract(street, "^\\d{1,5}") %>% as.numeric(),
-    address_street_name = stringr::str_trim(str_replace(street, "^\\d{1,5}", ""))
+    address_street_name = stringr::str_trim(stringr::str_replace(street, "^\\d{1,5}", ""))
   )
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 52 variables
+dim(aps) # 18,080 observations and 52 variables
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # MedStar service area
@@ -193,13 +151,10 @@ What cities appear in the data?
 
 ```{r eval=FALSE}
 aps %>% 
-  group_by(city) %>% 
-  freq_table()
+  freqtables::freq_table(city)
 ```
 
 There are a lot of cities included in this data that our outside of MedStar's service area. Create a dummy variable to indicate cities included in MedStar's coverage area.
-
-
 
 ```{r}
 aps <- aps %>% 
@@ -214,7 +169,7 @@ aps <- aps %>%
 Note: There are no APS investigations with a city address of Edgecliff Village or Westover Hills.
 
 ```{r}
-about_data(aps) # 18,080 observations and 53 variables
+dim(aps) # 18,080 observations and 53 variables
 ```
 
 Add a little information about the area this data covers
@@ -237,7 +192,6 @@ aps %>%
   )
 ```
 
-
 How many cities are inside and outside of the MedStar Service Area?
 
 ```{r echo=FALSE}
@@ -256,16 +210,6 @@ aps %>%
   )
 ```
 
-[top](#top)
-
-
-
-
-
-
-
-
-
 
 # Create city_fw
 
@@ -275,18 +219,8 @@ aps <- aps %>%
 ```
 
 ```{r}
-about_data(aps) # 8,927 observations and 62 variables
+dim(aps) # 8,927 observations and 62 variables
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Create DETECT identifier
@@ -319,18 +253,8 @@ aps <- aps %>%
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 56 variables
+dim(aps) # 18,080 observations and 56 variables
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Create study week variable
@@ -391,18 +315,8 @@ aps <- aps %>%
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 58 variables
+dim(aps) # 18,080 observations and 58 variables
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Create dummy variable for EMS reporter
@@ -413,18 +327,8 @@ aps <- aps %>%
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 59 variables
+dim(aps) # 18,080 observations and 59 variables
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Valid/Invalid summary
@@ -475,35 +379,15 @@ aps <- aps %>%
 ```
 
 ```{r}
-about_data(aps) # 18,080 observations and 64 variables
+dim(aps) # 18,080 observations and 64 variables
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Save data
 
 ```{r}
-feather::write_feather(aps, "/Volumes/DETECT/one_year_data/aps_02_variable_management.feather")
+readr::write_rds(aps, "/Volumes/DETECT/one_year_data/aps_02_variable_management.rds")
 ```
-
-[top](#top)
-
-
-
-
-
-
-
-
 
 
 # Session information

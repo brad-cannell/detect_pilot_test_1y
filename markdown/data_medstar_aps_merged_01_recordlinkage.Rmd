@@ -1,0 +1,374 @@
+---
+title: "Merge MedStar Data With APS Data - Linking Datasets"
+date: "Created: 2019-06-21 <br> Updated: `r Sys.Date()`"
+---
+
+# Overview
+
+In this file, we will use the RecordLinkage package to generate a probability that each row in the medstar data is a match to each row in the APS data based on name and date of birth. Address is also used in the algorithm as contextual information, but not as a determining factor due to its instability at the person level.
+
+# Load packages and data
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = NA)
+Sys.setenv(TZ = "US/Central")
+```
+
+```{r message=FALSE}
+library(dplyr)
+```
+
+```{bash}
+open 'smb://uctnascifs.uthouston.edu/sph_research/DETECT'
+```
+
+## MedStar DETECT data
+
+This is the data that contains MedStar DETECT responses and demographics and health data.
+
+Data from data_medstar_epcr_02_variable_management.Rmd
+
+```{r}
+medstar_complete <- feather::read_feather("/Volumes/DETECT/one_year_data/medstar_epcr_02_variable_management.feather")
+```
+
+```{r}
+dim(medstar_complete) # 28,228    56
+```
+
+
+
+## APS Client data
+
+APS client information from records of all elder abuse and neglect investigations conducted in and around MedStar's service area between 2014-12-31 and 2018-02-28. 
+
+The [allegations](http://www.dfps.state.tx.us/handbooks/APS/Files/APS_pg_1340.asp#APS_1340) data contains information about the allegation type(s) for each case and the perpetrator (self/other) for each allegation.
+
+APS [closure reason](http://www.dfps.state.tx.us/handbooks/APS/Files/APS_pg_2800.asp#APS_2900) data contains information about the closure reason for each case.
+
+APS [disposition](http://www.dfps.state.tx.us/handbooks/APS/Files/APS_pg_2700.asp#APS_2700) data contains information about the disposition for each allegation.
+
+Data from data_aps_02_variable_management.Rmd
+
+```{r}
+aps <- feather::read_feather("/Volumes/DETECT/one_year_data/aps_02_variable_management.feather")
+```
+
+```{r}
+dim(aps) # 18,080    64
+```
+
+[top](#top)
+
+
+# Prepare MedStar data for record matching
+
+Nesting is convient for the matching process. May want to look at changing in the future. Actually, it's totally unnecisary in this case. Come back and change accordingly in the future.
+
+```{r message=FALSE}
+medstar_nested <- medstar_complete %>% 
+  # Nest all but the following columns - not needed for the RecordLinkage process
+  # and we want to reduce the dataset to one row per pcr.
+  # Important to use response_date instead of date_entered
+  tidyr::nest(
+    -arrival_time, -incident_pcr, -name_first, -name_last, -starts_with("birth"), 
+    -address_num, -address_street_name, .key = "medstar_nested"
+  ) %>% 
+  
+  # Ungroup
+  ungroup()
+```
+
+## Data check: How many rows are there and how many unique incident PCR numbers are there?
+
+```{r}
+medstar_nested %>% 
+  summarise(
+    Rows = n(),                                 # 28,228	
+    `Unique PCR` = length(unique(incident_pcr)) # 28,228	
+  )
+```
+
+```{r}
+dim(medstar_nested) # 28,228    10
+```
+
+At this point each screening (incident_pcr_number) is a single row that can be matched to rows in the APS data.
+
+[top](#top)
+
+
+# Prepare APS data for record matching
+
+Each time a report is made to APS about a person a unique intake stage number is generated. It's possible for multiple reports to be made about the same person/incident. So, there is also a case number assigned to the victim and the report/group of reports. If more than one victim is reported at once, each is given a separate case number. A single victim may be associated with more than one case. 
+
+Therefore, some case numbers in the client data will have multiple rows that are redundant aside from the intake stage (person who reported). When we match the APS data to the MedStar data below by name, individual people may get matched more than once (i.e., if they were treated by MedStar more than once, investigated by APS more than once, or both). We are fine with that. However, we don’t want people to be matched once per person who made a report (intake_stage).  
+
+Again, we will get around this by nesting all columns that may result in multiple rows per case number.
+
+Add hyphens -- move to variable management
+
+```{r}
+aps <- aps %>% 
+  mutate(
+    address_street_name = stringr::str_replace_all(address_street_name, "\\s", "_")
+  )
+```
+
+```{r}
+aps_nested <- aps %>% 
+  # Nest all but the following columns - not needed for the RecordLinkage process
+  # and we want to reduce the dataset to one row per case number
+  tidyr::nest(
+    -case_num, -intake_date, -name_first, -name_last, -starts_with("birth"),
+    -address_num, -address_street_name, .key = "aps_nested"
+  ) %>% 
+  
+  # Ungroup
+  ungroup()
+```
+
+
+### Data check: How many rows are there and how many unique case numbers are there?
+
+```{r}
+aps_nested %>% 
+  summarise(
+    Rows = n(),                               # 17,926
+    `Unique Cases` = length(unique(case_num)) # 15,280
+  )
+```
+
+That means that some case numbers are duplicated. Below we manually check for differences (results hidden to protect patient privacy).
+
+```{r eval=FALSE}
+bind_cols(
+  
+  # Use this part only if you want to view all records - even those that
+  # only differ by intake_start and intake_stage
+  aps_nested %>% 
+    group_by(case_num) %>% 
+    filter(max(row_number()) > 1) %>% 
+    tidyr::unnest(cols = c(aps_nested)),
+  
+  aps_nested %>% 
+    group_by(case_num) %>% 
+    filter(max(row_number()) > 1) %>% 
+    tidyr::unnest(cols = c(aps_nested)) %>% 
+    mutate_at(vars(-case_num), .funs = list(diff = ~length(unique(.)) > 1)) %>% 
+    ungroup() %>% 
+    select(ends_with("diff")) %>% 
+    mutate(diffs = rowSums(.))
+) %>%
+  
+  ungroup() %>%
+  # If a case number only differs by intake_start and intake_stage, 
+  # then I don't want to view it
+  mutate(keep = if_else(intake_date_diff == TRUE & diffs == 2,0, 1)) %>% 
+  filter(keep == 1)
+```
+
+After manual review, duplicates within case are due to different intake start dates (i.e., report dates), different spellings of names at different intakes (reports). There are also a couple differences in DOB between intakes. We should keep both spellings and DOB's for the matching process. We can filter them later as needed.
+
+[top](#top)
+
+
+# Determine which rows are likely to be matches
+
+Below, we will use various functions from the [RecordLinkage package](https://cran.r-project.org/web/packages/RecordLinkage/index.html) to find rows in the APS data that match rows in the MedStar data on name, date of birth, and address -- including non-exact matches (e.g. mispelled names, mistyped dates of birth).
+
+## Subset matching variables
+
+```{r}
+medstar_compare <- medstar_nested %>%
+  select(-medstar_nested) %>%
+  # The variables you want to compare have to appear in the same order in both datasets
+  select(incident_pcr, arrival_time, name_first, name_last, starts_with("birth"),
+         address_num, address_street_name)
+
+aps_compare <- aps_nested %>%
+  select(-aps_nested) %>%
+  # The variables you want to compare have to appear in the same order in both datasets
+  select(case_num, intake_date, name_first, name_last, starts_with("birth"), 
+         address_num, address_street_name)
+```
+
+```{r}
+ncol(medstar_compare) == ncol(aps_compare)
+```
+
+
+## Take a small random sample of both datasets for testing - delete
+
+Do a manual review to see what kinds of potential errors (false positives and false negatives) I should be looking for.
+
+```{r eval=FALSE}
+set.seed(123)
+test_medstar_compare <- sample_n(medstar_compare, 1000)
+test_aps_compare <- sample_n(aps_compare, 1000)
+
+test_rpairs_jar <- RecordLinkage::RLBigDataLinkage(
+  dataset1 = test_medstar_compare,
+  dataset2 = test_aps_compare,
+  strcmp   = c("name_first", "name_last", "address_street_name"),
+  exclude  = c("incident_pcr", "arrival_time")
+)
+test_rpairs_epiwt <- RecordLinkage::epiWeights(test_rpairs_jar)
+test_pairs_possible_matches <- RecordLinkage::getPairs(test_rpairs_epiwt)
+test_pairs_possible_matches <- test_pairs_possible_matches %>%
+  filter(id != "") %>%
+  mutate(
+    dataset  = if_else(row_number() %% 2 == 1, "medstar", "aps"),
+    row      = id %>% as.character() %>% as.integer(),
+    pair_num = rep(seq(nrow(.) / 2), each = 2),
+    Weight   = if_else(Weight == "", lead(Weight), Weight) %>% as.character() %>% as.numeric()
+  ) %>%
+  select(dataset, row, pair_num, everything(), -id) %>%
+  rename(
+    "case_pcr_num" = "incident_pcr",
+    "date"         = "arrival_time"
+  ) %>%
+  mutate(date = as.Date(date))
+```
+
+```{r eval=FALSE}
+view_test <- test_pairs_possible_matches %>% 
+  # No need to look at the 1's. They are identical matches
+  filter(Weight < 1) %>% 
+  # The zeros look like true non-matches
+  filter(Weight > 0) %>% 
+  # As does everything below 0.06
+  # In the 0.6 range, I'm noticing some people who only have address in common.
+  filter(Weight > 0.60)
+```
+
+In the 0.9s:   
+* Minor typos in names e.g. smith and smiith, but everything else matching   
+
+In the 0.8s:    
+* Minor types in dob e.g. 5/19/1925 and 5/19/2025, but everything else matching   
+
+In the 0.7s:   
+* Minor typos with differing addresses   
+* Minor typos in name and dob   
+* No typos with differing addresses   
+* These all look like legitimate matches though   
+
+In the 0.6s:    
+* Completely different names, with same address (not match)   
+* Minor typos in name with matching DOB and different address (match)   
+* Possible name typo, dob typo, and different address (Not sure)   
+* If we were going to do manual checks, it should probably be in the .60s   
+
+```{r}
+# rm(test_aps_compare, test_medstar_compare, test_pairs_possible_matches, 
+#    test_rpairs_epiwt, test_rpairs_jar, view_test)
+```
+
+
+## Add string comparators
+
+> String comparators measure the similarity between strings, usually with a similarity measure in
+the range [0, 1], where 0 denotes maximal dissimilarity and 1 equality. This allows ‘fuzzy’ comparison patterns as displayed in the following example.
+[Sariyar & Borg, 2010](https://journal.r-project.org/archive/2010/RJ-2010-017/RJ-2010-017.pdf)
+
+Below we Compares each record in data set 1 to each record in data set 2 until all records are compared. For example, id1 - id1, id1-id2, idn-idm. For each pair, a probability match is given for each variable (i.e., first name, last name, etc.). In this case, we are using the Jaro-Winkler distance as our comparison measure ( [Winkler, 1990](http://eric.ed.gov/?id=ED325505), [Wikipedia, 2018](https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance)).
+
+```{r eval=FALSE}
+# Don't run unless necessary
+start_link <- lubridate::now()
+rpairs_jar <- RecordLinkage::RLBigDataLinkage(
+  dataset1 = medstar_compare, 
+  dataset2 = aps_compare,
+  strcmp   = c("name_first", "name_last", "address_street_name"),
+  exclude  = c("incident_pcr", "arrival_time")
+)
+finish_link <- lubridate::now()
+time_link <- finish_link - start_link
+time_link # ~4.5 hours
+```
+
+```{r eval=FALSE}
+# Don't run unless necessary
+saveRDS(rpairs_jar, "rpairs_jar.rds")
+```
+
+```{r eval=FALSE}
+# Don't run unless necessary
+rpairs_jar <- readRDS("/Volumes/DETECT/one_year_data/rpairs_jar.rds")
+```
+
+
+## Stochastic record linkage
+
+> Stochastic record linkage relies on the assumption of conditional probabilities concerning comparison patterns... In RecordLinkage an EM algorithm is used as a promising method for reliable estimations. The backbone of this algorithm is described by Haber (1984). Weight calculation based on the EM algorithm
+and the method by Contiero et al. (2005) are implemented by functions emWeights and epiWeights. Both take a data set object as argument and return copy with the calculated weights stored in additional components. Calling summary on the result shows the distribution of weights in histogram style. This information can be helpful for determining classification thresholds, e.g. by identifying clusters of record pairs with high or low weights as non-matches or matches respectively.
+[Sariyar & Borg, 2010](https://journal.r-project.org/archive/2010/RJ-2010-017/RJ-2010-017.pdf)
+
+This function calculates weights for record pairs based on the approach used by Contiero et al. in the EpiLink record linkage software. [Contiero et al. (2005)](http://methods.schattauer.de/en/contents/archivepremium/manuscript/431.html)
+
+```{r eval=FALSE}
+# Don't run unless necessary
+start_weights <- lubridate::now()
+rpairs_epiwt <- RecordLinkage::epiWeights(rpairs_jar)
+finish_weights <- lubridate::now()
+time_weights <- finish_weights - start_weights
+time_weights # ~22 mins
+```
+
+```{r eval=FALSE}
+# Don't run unless necessary
+saveRDS(rpairs_epiwt, "rpairs_epiwt.rds")
+```
+
+```{r eval=FALSE}
+# Don't run unless necessary
+rpairs_epiwt <- readRDS("/Volumes/sph_research/Detect/one_year_data/rpairs_epiwt.rds")
+```
+
+
+## Manually inspect all pairs and their weights
+
+> Discernment between matches and non-matches is achieved by means of computing weight thresholds... The most common practice is to determine thresholds by clerical review, either a single threshold which separates links and non-links or separate thresholds for links and non-links which define a range of doubtable cases between them. RecordLinkage supports this by the function getPairs, which shows record pairs aligned in two consecutive lines along with their weight.
+[Sariyar & Borg, 2010](https://journal.r-project.org/archive/2010/RJ-2010-017/RJ-2010-017.pdf)
+
+Review record pairs aligned in two consecutive rows along with their weight (results hidden to protect participant privacy):
+
+```{r eval=FALSE}
+# Don't run unless necessary
+start_paring <- lubridate::now()
+pairs_possible_matches <- RecordLinkage::getPairs(rpairs_epiwt, min.weight = 0.50)
+finish_paring <- lubridate::now()
+time_paring <- finish_paring - start_paring
+time_paring # ~4 mins
+```
+
+```{r eval=FALSE}
+# Don't run unless necessary
+saveRDS(pairs_possible_matches, "pairs_possible_matches.rds")
+```
+
+## Clean up
+
+```{r}
+rm(list = ls())
+```
+
+
+## References 
+
+Contiero, P., Tittarelli, A., Tagliabue, G., Maghini, A., Fabiano, S., Crosignani, P., & Tessandori, R. (2005). The EpiLink Record Linkage Software Presentation and Results of Linkage Test on Cancer Registry Files. Methods Archive, 44(1), 66-71.
+
+Sariyar, M., & Borg, A. (2010). The RecordLinkage package: Detecting errors in data. The R Journal, 2(2), 61-67.
+
+Winkler, W. (1990). String comparator metrics and enhanced decision rules in the Fellegi-Sunter model of record linkage. Available from http://eric.ed.gov/?id=ED325505.
+
+[top](#top)
+
+&nbsp;
+
+-------------------------------------------------------------------------------
+
+```{r echo=FALSE}
+sessionInfo()
+```
