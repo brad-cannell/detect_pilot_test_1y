@@ -398,6 +398,13 @@ readr::write_rds(
 )
 ```
 
+```{r}
+readr::write_csv(
+  medstar_epcr, 
+  "/Volumes/DETECT/one_year_data/medstar_epcr_02_variable_management.csv"
+)
+```
+
 
 # Session information
 
