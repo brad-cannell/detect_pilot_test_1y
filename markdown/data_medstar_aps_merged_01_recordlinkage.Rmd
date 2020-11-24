@@ -29,7 +29,7 @@ This is the data that contains MedStar DETECT responses and demographics and hea
 Data from data_medstar_epcr_02_variable_management.Rmd
 
 ```{r}
-medstar_complete <- feather::read_feather("/Volumes/DETECT/one_year_data/medstar_epcr_02_variable_management.feather")
+medstar_complete <- readr::read_rds("/Volumes/DETECT/one_year_data/medstar_epcr_02_variable_management.rds")
 ```
 
 ```{r}
@@ -51,7 +51,7 @@ APS [disposition](http://www.dfps.state.tx.us/handbooks/APS/Files/APS_pg_2700.as
 Data from data_aps_02_variable_management.Rmd
 
 ```{r}
-aps <- feather::read_feather("/Volumes/DETECT/one_year_data/aps_02_variable_management.feather")
+aps <- readr::read_rds("/Volumes/DETECT/one_year_data/aps_02_variable_management.rds")
 ```
 
 ```{r}
