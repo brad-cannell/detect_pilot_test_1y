@@ -16,10 +16,11 @@ Sys.setenv(TZ = "US/Central")
 
 ```{r message=FALSE}
 library(dplyr)
+library(readr)
 ```
 
 ```{bash}
-open 'smb://uctnascifs.uthouston.edu/sph_research/DETECT'
+open 'smb://islgpcifs.uthouston.edu/sph_research/DETECT/one_year_data/'
 ```
 
 ## MedStar DETECT data
@@ -29,7 +30,7 @@ This is the data that contains MedStar DETECT responses and demographics and hea
 Data from data_medstar_epcr_02_variable_management.Rmd
 
 ```{r}
-medstar_complete <- readr::read_rds("/Volumes/DETECT/one_year_data/medstar_epcr_02_variable_management.rds")
+medstar_complete <- read_rds("/Volumes/one_year_data/medstar_epcr_02_variable_management.rds")
 ```
 
 ```{r}
@@ -51,17 +52,75 @@ APS [disposition](http://www.dfps.state.tx.us/handbooks/APS/Files/APS_pg_2700.as
 Data from data_aps_02_variable_management.Rmd
 
 ```{r}
-aps <- readr::read_rds("/Volumes/DETECT/one_year_data/aps_02_variable_management.rds")
+aps <- read_rds("/Volumes/one_year_data/aps_02_variable_management.rds")
 ```
 
 ```{r}
 dim(aps) # 18,080    64
 ```
 
-[top](#top)
+
+# Prepared data for record matching
+
+```{r}
+medstar_complete %>% 
+  summarise(
+    Rows = n(),
+    `Unique PCR` = length(unique(incident_pcr)) 
+  )
+```
+
 
 
 # Prepare MedStar data for record matching
+
+We will match rows in the MedStar data to rows in the APS data that match (probabilistically) on name, DOB, and address. In order to make RecordLinkage process ass efficient as possible, we only want to search for matches among unique combinations of name, DOB, and address. After identifying the matching combinations, we can promulgate the pair numbers to all rows with the corresponding unique combination of name, DOB, and address.
+
+NOTE: We originally did this by nesting all variables that we didn't intend to match on. However, it caused problems later when we tried to unnest the merged MedStar and APS data.
+
+```{r}
+medstar_complete <- medstar_complete %>% 
+  mutate(
+    # Add row number for joining later
+    row_ms_complete = row_number(),
+    # Paste together match vars to look for unique combinations
+    match_vars = paste(
+      name_first, name_last, birth_mnth, birth_day, birth_year, address_num, 
+      address_street, sep = "_"
+    )
+  )
+```
+
+```{r}
+medstar_complete %>% 
+ summarise(
+    Rows = n(),
+    `Unique match combinations` = length(unique(match_vars))
+  )
+```
+
+The MedStar complete data has 28,228 rows and those rows contain 19,186 unique combinations of the variables that we are matching on.
+
+Subset the MedStar data to include only unique combinations of name, DOB, and address:
+
+
+Left off here... before completing this, I want to make sure it works in the simulated data.
+
+
+
+
+```{r}
+medstar_compare <- medstar_complete %>%
+  group_by(match_vars)
+  filter()
+  
+  # The variables you want to compare have to appear in the same order in both data sets
+  select(incident_pcr, arrival_time, name_first, name_last, starts_with("birth"),
+         address_num, address_street_name)
+```
+
+
+
 
 Nesting is convient for the matching process. May want to look at changing in the future. Actually, it's totally unnecisary in this case. Come back and change accordingly in the future.
 
@@ -94,6 +153,8 @@ dim(medstar_nested) # 28,228    10
 ```
 
 At this point each screening (incident_pcr_number) is a single row that can be matched to rows in the APS data.
+
+
 
 [top](#top)
 

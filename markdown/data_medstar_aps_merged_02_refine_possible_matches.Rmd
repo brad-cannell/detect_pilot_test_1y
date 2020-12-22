@@ -23,7 +23,7 @@ library(bfuncs)
 ```
 
 ```{bash}
-open 'smb://uctnascifs.uthouston.edu/sph_research/DETECT'
+open 'smb://islgpcifs.uthouston.edu/sph_research/DETECT/one_year_data/'
 ```
 
 ## MedStar DETECT data
