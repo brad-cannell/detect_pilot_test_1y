@@ -1,0 +1,3016 @@
+---
+title: "Merge MedStar Data With APS Data - Linking Datasets"
+output: pdf_document
+date: 'Created: 2019-06-21 <br> Updated: `r Sys.Date()`'
+---
+
+# Overview
+
+In this file, we will merge the MedStar data and the APS data that we previously cleaned.
+
+We also check the datasets below for response numbers that were submitted to MedStar's legal compliance department by medics as being associated with a patient they reported to APS for investigation.
+
+
+# Load packages and data
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = NA)
+Sys.setenv(TZ = "US/Central")
+```
+
+```{r message=FALSE}
+library(dplyr)
+library(readr)
+library(tidyr)
+library(lubridate)
+```
+
+
+## MedStar DETECT data
+
+This is the data that contains MedStar DETECT responses and demographics and health data.
+
+Data from data_medstar_epcr_02_variable_management.Rmd
+
+```{r}
+medstar_complete <- readRDS("/Users/chiufengyap/OneDrive - The University of Texas Health Science Center at Houston/Fall 2020/R course/MedStar_APS/delete/medstar_epcr_02_variable_management.rds")
+```
+
+```{bash}
+<!-- # For Brad -->
+<!-- open 'smb://islgpcifs.uthouston.edu/sph_research/DETECT/one_year_data/' -->
+```
+```{r}
+#file location for Booma (BN)
+medstar_complete <- readRDS('C:/Users/booma/Desktop/Cannell_project/medstar_epcr_02_variable_management.rds')
+
+```
+
+```{r}
+# # For Brad
+# medstar_complete <- read_rds("/Volumes/one_year_data/medstar_epcr_02_variable_management.rds")
+```
+
+```{r}
+dim(medstar_complete) # 28,228    56
+```
+
+
+## APS Client data
+
+APS client information from records of all elder abuse and neglect investigations conducted in and around MedStar's service area between 2014-12-31 and 2018-02-28. 
+
+The [allegations](http://www.dfps.state.tx.us/handbooks/APS/Files/APS_pg_1340.asp#APS_1340) data contains information about the allegation type(s) for each case and the perpetrator (self/other) for each allegation.
+
+APS [closure reason](http://www.dfps.state.tx.us/handbooks/APS/Files/APS_pg_2800.asp#APS_2900) data contains information about the closure reason for each case.
+
+APS [disposition](http://www.dfps.state.tx.us/handbooks/APS/Files/APS_pg_2700.asp#APS_2700) data contains information about the disposition for each allegation.
+
+Data from data_aps_02_variable_management.Rmd
+
+```{r}
+aps <- readRDS("/Users/chiufengyap/OneDrive - The University of Texas Health Science Center at Houston/Fall 2020/R course/MedStar_APS/delete/aps_02_variable_management.rds")
+```
+
+```{r}
+# # For Brad
+# aps <- read_rds("/Volumes/one_year_data/aps_02_variable_management.rds")
+```
+
+```{r}
+#file location for Booma (BN)
+aps <- readRDS('C:/Users/booma/Desktop/Cannell_project/aps_02_variable_management.rds')
+```
+
+
+```{r}
+dim(aps) # 18,080    64
+```
+
+
+## Possible matches
+
+Pairs possible matches contains the results of the RecordLinkage process. It was created in data_medstar_aps_merged_01_recordlinkage.Rmd.
+
+```{r}
+pairs_possible_matches <- readRDS("/Users/chiufengyap/OneDrive - The University of Texas Health Science Center at Houston/Fall 2020/R course/MedStar_APS/delete/pairs_possible_matches.rds")
+```
+
+
+
+```{r}
+# # For Brad
+# pairs_possible_matches <- read_rds("/Volumes/one_year_data/pairs_possible_matches.rds")
+```
+
+
+
+```{r}
+#file location for Booma (BN)
+pairs_possible_matches <- readRDS('C:/Users/booma/Desktop/Cannell_project/pairs_possible_matches.rds')
+```
+
+
+```{r}
+dim(pairs_possible_matches) # 1,024,698      12
+```
+
+Make the data frame containing the pairs of potential matches easier to review.
+#BN - added new variable Weight_new to track those that are not pairs
+
+```{r}
+pairs_possible_matches <- pairs_possible_matches %>%
+  # Remove "blank" rows in between potential pairs.
+  filter(id != "") %>%
+  # Create a variable that explicitly identifies which dataset each row is from.
+  # Also, share the weight value between both rows in each pair of potential matches.
+  mutate(
+    dataset  = if_else(row_number() %% 2 == 1, "medstar", "aps"),
+    row      = id %>% as.character() %>% as.integer(),
+    pair_num = rep(seq(nrow(.) / 2), each = 2),
+    Weight   = if_else(Weight == "", lead(Weight), Weight) %>% as.character() %>% as.numeric(),
+    Weight_new = 0
+  ) %>% 
+  select(dataset, row, pair_num, everything(), -id) %>% 
+  rename(
+    "case_pcr_num" = "incident_pcr",
+    "date"         = "arrival_time"
+  ) %>% 
+  mutate(date = as.Date(date))
+  
+```
+
+```{r}
+dim(pairs_possible_matches) # 683,132     15
+```
+
+
+# Create exact match dummy variables
+
+* For example, is first_name an exact match between rows, etc.   
+* These will be used below to filter the data (e.g., drop all rows that share address only) and reduce the amount of manual review that needs to be done.   
+* We reshape the data from long to wide to create these variables because it significantly decreases computation time.    
+
+```{r}
+review_matches <- pairs_possible_matches
+```
+
+```{r}
+medstar_pairs <- review_matches %>% filter(dataset == "medstar")
+aps_pairs <- review_matches %>% filter(dataset == "aps")
+names(aps_pairs) <- paste0(names(aps_pairs), "1")
+review_matches_wide <- bind_cols(medstar_pairs, aps_pairs)
+```
+
+```{r}
+# Helper function
+is_match <- function(x, y) {
+  out <- x == y
+  out[is.na(out)] <- FALSE
+  out
+}
+
+# # For Testing 
+## Note- changed pair_possible_matches_wide to review_matches_wide - BN
+# review_matches_wide %>%
+#   mutate(address_num_match = is_match(address_num, address_num1)) %>%
+#  select(address_num_match, address_num, address_num1)
+#   # filter(is.na(address_num1))
+```
+
+```{r}
+review_matches_wide <- review_matches_wide %>%
+  # Do they match within pair_num?
+  # Using "==" doesn't get NA
+  mutate(
+          
+    name_first_match = is_match(name_first, name_first1),
+    name_last_match = is_match(name_last, name_last1),
+    birth_mnth_match = is_match(birth_mnth,birth_mnth1),
+    birth_day_match = is_match(birth_day, birth_day1),
+    birth_year_match = is_match(birth_year, birth_year1),
+    address_num_match = is_match(address_num, address_num1),
+    address_street_name_match = is_match(address_street_name, address_street_name1)
+  ) %>% 
+  # Does full name, dob, and address match within pair_num?
+  mutate(
+    name_full_match = name_first_match & name_last_match,
+    birth_full_match = birth_mnth_match & birth_day_match & birth_year_match,
+    address_full_match = address_num_match & address_street_name_match,
+    no_full_match = !name_full_match & !birth_full_match & !address_full_match,
+    # Pairs that have matching full name and dob, but different addresses
+    # Use to keep as match below
+    diff_address_only = name_full_match & birth_full_match & !address_full_match,
+    # Pairs that have no criteria in common except for an address element
+    only_address_match = !name_first_match & !name_last_match & 
+                         !birth_mnth_match & !birth_day_match & !birth_year_match & 
+                         (address_num_match | address_street_name_match),
+    # Pairs that have no criteria in common except for an address element and a
+    # single birth element
+    only_add_1_birth_match = !name_first_match & !name_last_match & 
+                             !birth_full_match &
+                             (sum(birth_mnth_match, birth_day_match, birth_year_match == 1)) & 
+                             (address_num_match | address_street_name_match)
+  )
+```
+
+
+# Stack the data frames again
+
+Now that the exact match dummy variables have been created, we will convert the data frame from wide back to long to make it easier to manually inspect each pair of potential matches.
+
+```{r}
+
+
+medstar_pairs <- review_matches_wide %>% 
+  select(dataset:Weight_new, ends_with("match"), diff_address_only, -(is_match1))
+
+aps_pairs <- review_matches_wide %>% 
+  select(dataset1:Weight_new1, ends_with("match"), diff_address_only, -(is_match))
+
+names(aps_pairs) <- stringr::str_replace_all(names(aps_pairs), "1$", "")
+
+review_matches <- bind_rows(medstar_pairs, aps_pairs) %>% 
+  arrange(pair_num, desc(dataset))
+```
+
+```{r}
+## commented it out as the deselection was applied on previous code chunk as -(is_match1) and -(is_match) -BN
+#review_matches <- review_matches %>% select(-c("is_match...13", "is_match...15"))
+```
+
+```{r} 
+dim(review_matches) # 683,132     29
+
+
+```
+
+
+# Filter possible matches
+
+* There are quite a few pairs that are matching on name and dob, but not address. These are matches. We will set the weight to 0.99.
+
+* There are quite a few pairs that are not matches on name or dob, but only have address in common. We will drop them from possible matches set.
+
+* There are quite a few pairs that are not matches on name or dob, but have address in common and 1 single dob element. We will drop them from possible matches set.
+
+* Keep when the names look like they have a small typo and DOB matches exactly. Even if address does not match.
+
+* Do not keep when they have the same name, but different DOB and address.   
+
+* Figure out lower bound for matching weights by trial and error.
+
+
+
+ 
+
+```{r}
+# Try lower bounds values until a reasonable cutoff value is found
+# view_matches <- review_matches %>% filter(Weight <= 0.80) %>% View()
+# 0.6497735 appears to be a good cutoff
+```
+
+```{r}
+review_matches <- review_matches %>% 
+  mutate(Weight = if_else(diff_address_only, 0.99, Weight)) %>% 
+  # Remove potential pairs with a weight value below the previously determined
+  # lower bound.
+  filter(Weight >= 0.6497735) %>%
+  # Drop pairs that only have address in common
+  filter(!only_address_match) %>% 
+  # Drop pairs that share address and 1 birth element only
+  filter(!only_add_1_birth_match)
+```
+
+## manual review of the review_matches dataset -
+* Manually review in the following order--
+if the pair is already verified, Weight_new will be 0 if the pair does not match and will be 1 if pair does match
++ those with only non-match with either first-name, last-name, day of birth, month of birth, year of birth. 
++ those with non-match in 2 of the following - first-name, last-name, day of birth, month of birth, year of birth, address.
++ those with non-match in 3 of the following - first-name, last-name, day of birth, month of birth, year of birth, address.
++ those with non-match in 4 of the following - first-name, last-name, day of birth, month of birth, year of birth, address.
+
+```{r}
+
+ 
+
+
+# reviewing those with full_name match but not birth_full_match and address_full match
+# review_matches_view <- review_matches %>%
+#         filter(name_full_match & !birth_full_match & !address_full_match)
+# 
+# #2294 observations
+# 
+# review_matches <- review_matches %>%
+#         filter(!pair_num %in% c(
+#                 
+#         ))
+#         
+# 
+# # 166 observations 
+# 
+# 
+#   # There are still some matches and non-matches in this range. 
+#   # But, I think I will have to filter them out manually.
+#   # Many of them appear to be husband and wife.
+#   filter(!pair_num %in% c(
+#     13315, 13316, 13678:13684, 13732, 13772:13791, 13898:13942, 13960:13961,
+#     14015, 14034:14036, 14227, 14245:14246, 14365:14396, 14412:14422, 14541,
+#     14594:14600, 14636:14639, 14667, 14738, 14773:14837, 14986:14996,
+#     15026:15033, 15056:15057, 15058:15116, 15123:15148, 15180, 15247:15337,
+#     15343:15367, 15419:15423, 15436:15442, 15454:15455, 15471:15472,
+#     15480:15484, 15535:15556, 15577:15582, 15602:15604, 15619:15646,
+#     15701, 15724:15727, 15749:15751, 15772:15815, 15841:15851, 15877:15932,
+#     15946:15948, 15986:15990, 16005:16018, 16029:16071, 16090:16265,
+#     16384:16385, 16387:16399, 16413:16418, 16420:16473, 16484:16492,
+#     16501:16525, 16589:16694, 16712:16714, 16743:16827, 16844:16907,
+#     16933:16950, 16962:16991, 17000:17196, 17206:17456, 17482:17530,
+#     17536:17537, 17552:17714, 17737:17765, 17807:17885, 17938:18200,
+#     18244:18590, 18670:18944, 18949:18964, 19040:19115, 19134:19191,
+#     19230:19738
+#   )) 
+```
+
+
+
+BN - reviewing those pairs with matching DOB, last_name, address, but different first_name
+assumptions we are making
+* minor spelling erors in first name = matching pair
+* completely different first name, same gender or with unisex names, with same DOB, address = matching pair 
+                https://genderchecker.com - this website used to confirm the gender
+                we are also assuming that there are no twins
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & name_last_match & birth_full_match & address_full_match) %>%
+        arrange(desc(Weight))
+
+View(review_matches_view)
+
+
+View(aps)
+View(medstar_complete)
+```
+
+824 observations 
+
+
+
+#################
+
+###reviewing those pairs with matching first_name, DOB, address, but different last_name
+assumptions we are making
+* minor spelling erors in last name = matching pair
+* since every other element matches we can assume that it is the same person
+even with completely different last name
+* we are also assuming that they are not twins
+* keeping all of them
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & !name_last_match & birth_full_match & address_full_match) %>%
+        arrange(desc(Weight))
+
+View(review_matches_view)
+
+```
+
+566 observations
+
+
+
+
+# reviewing those pairs with matching first_name,last_name, address, but different DOB - only month different
+Assumptions 
+Only one element different, so assuming that they are the same person
+*keeping all of them
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & name_last_match  & !birth_full_match & address_full_match & !birth_mnth_match 
+               & birth_day_match & birth_year_match ) %>%
+        arrange(desc(Weight))
+
+View(review_matches_view)
+```
+
+130 observations 
+
+
+
+#reviewing those pairs with matching first_name,last_name, address, but different DOB - only day different
+Assumptions 
+Only one element different, so assuming that they are the same person
+*keeping all of them
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & name_last_match & !birth_full_match & address_full_match & birth_mnth_match & 
+                       !birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight))
+
+View(review_matches_view)
+```
+
+524 observations 
+
+
+
+#reviewing those pairs with matching first_name,last_name, address, but different DOB - only year different
+Some do have change in year 19 vs 20 example 1947 vs 2047 - this is definitely same person
+Assumptions 
+Only one element different, so assuming that they are the same person
+*keeping all of them
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match  & name_last_match  & !birth_full_match & address_full_match & birth_mnth_match  
+               & birth_day_match & !birth_year_match ) %>%
+        arrange(desc(Weight), desc(pair_num), birth_year)
+   
+View(review_matches_view)
+```
+
+1712 observations 
+
+
+###reviewing those pairs with non matching first_name, last_name, but same DOB, address
+
+*** assumptions
+* we are assuming that there are no twins
+* first and last name interchanged - assume it is same person
+* if minor misspelling in both first and last name - assume it is same person
+* if first name or last name is completely different, and other element has minor
+misspelling, and gender is same assume it is same person
+* female and very different last name and minor mispelling in first name, assume it 
+is same person
+* either first name and/or last name are completely different, but gender is different assume they 
+are different people
+* first name and last name are completely different, and gender is same assume they 
+are different people
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & !name_last_match & birth_full_match & address_full_match ) %>%
+        arrange(desc(Weight))
+
+View(review_matches_view)
+
+```
+
+148 observations
+
+
+
+
+
+###reviewing those pairs with non matching first_name, day of birth, but matching on other variables
+assumptions
+* minor mispelling in first name and different day of birth ~ assume it is same 
+person
+* first name is very different,and confirming it is not middle name/different gender
+on the compelte aps/medstar dataset, assume it is different person
+* first name is very different,and confirming it is middle name on the
+compelte aps/medstar dataset, assume it is same person
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & name_last_match & !birth_full_match & address_full_match & birth_mnth_match & 
+                       !birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight))
+
+View(review_matches_view)
+
+```
+
+100 observations
+
+
+
+
+
+###reviewing those pairs with non matching first_name, month of birth, but matching on other variables
+assumptions
+* minor mispelling in first name and different month of birth ~ assume it is same 
+person
+* first name is very different,and confirming it is not middle name and different gender
+on the compelte aps/medstar dataset, assume it is different person
+* first name is very different,and confirming it is middle name on the
+compelte aps/medstar dataset, assume it is same person
+* first name is very different, same gender - assume it is same person
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & name_last_match & !birth_full_match & address_full_match & !birth_mnth_match & 
+                       birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight))
+
+View(review_matches_view)
+
+```
+
+12 observations
+
+
+
+###reviewing those pairs with non matching first_name, year of birth, but matching on other variables
+assumptions
+* minor mispelling in first name and different year of birth ~ assume it is same 
+person
+* first name is very different,and confirming it is not middle name and different gender
+on the compelte aps/medstar dataset, assume it is different person 
+* first name is very different,and confirming it is middle name on the
+compelte aps/medstar dataset, assume it is same person
+*first name is very different, but year is 20xx vs 19xx, and same gender
+assume it is same person (and not twins)
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & name_last_match & !birth_full_match & address_full_match & birth_mnth_match & 
+                       birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight))
+
+View(review_matches_view)
+
+```
+
+222 observations
+
+
+#reviewing those pairs with nonmatching first name and address
+assumptions
+- very different first name, same address, same gender, - assume it is same person
+- very different first name, same address, different gender - assume it is different person
+- minor misspelling first name, same address, same gender - assume it is same person
+- minor misspelling first name, different address, same gender - assume it is same person
+- very different first name, different address, same gender  -assume it is different person
+
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & name_last_match & birth_full_match & !address_full_match & birth_mnth_match &
+                       birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+```
+710 observations
+
+
+#reviewing those pairs with nonmatching last name and day of birth
+assumption -
+-changes in last name, and day of birth - everything else same - assume same person
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & !name_last_match & !birth_full_match & address_full_match & birth_mnth_match &
+                       !birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+```
+#28 observations- 
+
+
+#reviewing those pairs with nonmatching last name and month of birth
+assume it is same person
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & !name_last_match & !birth_full_match & address_full_match & !birth_mnth_match 
+               & birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+```
+#4 observations - 
+
+
+#reviewing those pairs with nonmatching last name and year of birth
+assume it is same person
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & !name_last_match & !birth_full_match & address_full_match & birth_mnth_match &
+                       birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+```
+#78 observations - 
+
+
+#reviewing those pairs with nonmatching last name and address
+- minor typos in last name - assume same person
+- very different last name - look at address -> minor typo in address - assume same person
+- very different last name - look at address -> very different address --> confirm if there are different addresses in medstar/aps if available --> overlapping address --> assume same person
+- very different last name - look at address -> very different address --> confirm if there are different addresses in medstar/aps if available --> non-overlapping address --> assume different person
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & !name_last_match & birth_full_match & !address_full_match & birth_mnth_match &
+                       birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+```
+# 500 observations 
+
+
+#reviewing those pairs with matching first_name, last_name, address, but different DOB - both month and day are different
+Assume all the observations are matching pairs due to 
+-	Information collected from third person 
+-	Information collected from non-medical records
+-	Typographical issue
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & name_last_match & !birth_full_match & address_full_match & !birth_mnth_match &
+                       !birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+```
+#50 observations
+
+#reviewing those pairs with matching first_name, last_name, address, but different DOB - both day and year are different
+
+Assume all the observations are matching pairs due to 
+-	Information collected from third person 
+-	Information collected from non-medical records
+-	Typographical issue
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & name_last_match & !birth_full_match & address_full_match & birth_mnth_match &
+                       !birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+```
+#70 observations
+
+#reviewing those pairs with matching first_name, last_name,  but different DOB - both day and address are different
+
+Assume all the observations are matching pairs due to 
+-	Information collected from third person 
+-	Information collected from non-medical records
+-	Typographical issue
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & name_last_match & !birth_full_match & !address_full_match & birth_mnth_match &
+                       !birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+```
+#124 observations
+
+
+ 
+### non matching month and year of birth 
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & name_last_match & !birth_full_match & address_full_match & !birth_mnth_match &
+                       birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+```
+#20 observations
+
+### non matching month and address
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & name_last_match & !birth_full_match & !address_full_match & !birth_mnth_match 
+               & birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+```
+#34 observations
+
+
+### non matching year and address
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & name_last_match & !birth_full_match & !address_full_match & birth_mnth_match 
+               & birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+```
+#282 observations
+
+
+##First name, last name and date of birth different
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & !name_last_match & !birth_full_match & address_full_match & birth_mnth_match 
+               & !birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+```
+0 observations
+
+
+##First name, last name and month of birth different
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & !name_last_match & !birth_full_match & address_full_match & !birth_mnth_match
+               & birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+```
+
+0 observations
+
+
+##First name, last name and year of birth different
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & !name_last_match & !birth_full_match & address_full_match & birth_mnth_match
+               & birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+```
+0 observations
+
+
+##First name, last name and address different
+
+Assumptions 
+- if minor spelling error in first name, last name - assume same person
+- if first and/or last name very different - address very different -  assume different person
+- if first and/or last name very different - address minor typo - same gender - assume different person
+- if first and/or last name very different - address minor typo - different gender - assume different person
+- if first name and last name are interchanged - assume same person regardless of address
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & !name_last_match & birth_full_match & !address_full_match & birth_mnth_match
+               & birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+```
+#126 observations
+
+
+
+##First name, day of birth and month of of birth different
+asssumptions
+- if first name very different - assume different person as they could be siblings/partners
+- first name minor typo - assume same person
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & name_last_match & !birth_full_match & address_full_match & !birth_mnth_match
+               & !birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+```
+# 166 observations
+
+
+
+##First name, day of birth and year of of birth different
+asssumptions
+- if first name very different - assume different person as they could be siblings/partners
+- first name minor typo - assume same person
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & name_last_match & !birth_full_match & address_full_match & birth_mnth_match
+               & !birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+```
+# 142 observations
+
+##First name, day of birth and address different
+asssumptions
+- if first name very different - assume different person as they could be siblings/partners
+- first name minor typo - assume same person
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & name_last_match & !birth_full_match & !address_full_match & birth_mnth_match
+               & !birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+```
+22 observations
+
+
+
+##First name, month of birth and year of birth different
+asssumptions
+- if first name very different - assume different person as they could be siblings/partners
+- first name minor typo - assume same person
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & name_last_match & !birth_full_match & address_full_match & !birth_mnth_match
+               & birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+```
+
+106 observations
+
+
+##First name, month of birth and address different
+asssumptions
+- if first name very different - assume different person as they could be siblings/partners
+- first name minor typo - assume same person
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & name_last_match & !birth_full_match & !address_full_match & !birth_mnth_match
+               & birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+```
+
+12 observations
+
+##First name, year of birth and address different
+asssumptions
+- if first name very different - assume different person as they could be siblings/partners
+- first name minor typo - assume same person
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & name_last_match & !birth_full_match & !address_full_match & birth_mnth_match
+               & birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+```
+30 observations
+
+
+##Last name, day of birth and month of birth different
+asssumptions
+- Assume different person if very different last name as they could be living in a group home, apartment.
+- Assume same person if minor typo in last name.
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & !name_last_match & !birth_full_match & address_full_match & !birth_mnth_match
+               & !birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+24 observations
+
+
+##Last name, day of birth and year of birth different
+asssumptions
+- Assume different person if very different last name as they could be living in a group home, apartment.
+- Assume same person if minor typo in last name.
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & !name_last_match & !birth_full_match & address_full_match & birth_mnth_match
+               & !birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+28 observations
+
+
+
+##Last name, day of birth and address different
+asssumptions
+- assume same person if minor typo in last name 
+- if last name completely different and address is different assume different person
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & !name_last_match & !birth_full_match & !address_full_match & birth_mnth_match
+               & !birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+16 observations
+
+
+##Last name, month of birth and year of birth different
+asssumptions
+- assume same person if minor typo in last name 
+- if last name completely different, year is in 2000's instead of 1900's and month off by multiple months assume same person
+- otherwise assume same person
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & !name_last_match & !birth_full_match & address_full_match & !birth_mnth_match
+               & birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+4 observations
+
+
+
+##Last name, month of birth and address different
+asssumptions
+- assume same person if minor typo in last name 
+- if last name completely different, month is off by multiple months and address different assume different person
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & !name_last_match & !birth_full_match & !address_full_match & !birth_mnth_match
+               & birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+2 observations
+
+##Last name, year of birth and address different
+asssumptions
+- assume same person if minor typo in last name 
+- if last name completely different, year is off by multiple years and address different assume different person
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & !name_last_match & !birth_full_match & !address_full_match & birth_mnth_match
+               & birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+76 observations
+
+
+##day of birth, month of birth and  year of birth different
+asssumptions
+Assume same person as 
+-	Very rare to have same first and last name and live in same address
+-	Assume typo in all 3 elements of date of birth 
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & name_last_match & !birth_full_match & address_full_match & !birth_mnth_match
+               & !birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+
+View(review_matches_view)
+
+
+```
+192 observations
+
+
+
+##day of birth, month of birth and  address different
+asssumptions
+- assume same person if minor typo in address
+- if address very different assume different person
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & name_last_match & !birth_full_match & !address_full_match & !birth_mnth_match
+               & !birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+26 observations
+
+
+##year of birth, month of birth and  address different
+asssumptions
+-	Assume same person if address has minor typo. 
+-	Else assume different person
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & name_last_match & !birth_full_match & !address_full_match & !birth_mnth_match
+               & birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+4 observations
+
+
+##year of birth, day of birth and  address different
+asssumptions
+-	Assume same person if address has minor typo. 
+-	Else assume different person
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & name_last_match & !birth_full_match & !address_full_match & birth_mnth_match
+               & !birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+```
+12 observations
+
+
+##first name, last name, month of birth, day of birth different
+asssumptions
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & !name_last_match & !birth_full_match & address_full_match & !birth_mnth_match
+               & !birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+0 observations
+
+
+##first name, last name, year of birth, day of birth different
+asssumptions
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & !name_last_match & !birth_full_match & address_full_match & birth_mnth_match
+               & !birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+0 observations
+
+##first name, last name, address, day of birth different
+asssumptions
+-	Assume same person if minor typo in first name, last name and/or address
+-	If first name, last name completely different assume different person
+-	If first name only different, minor typo in last name, minor typo in address, - same gender assume same person, 
+        different gender assume different person
+-	-last name very different assume different person
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & !name_last_match & !birth_full_match & !address_full_match & birth_mnth_match
+               & !birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+12 observations
+
+##first name, last name, year of birth, month of birth different
+asssumptions
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & !name_last_match & !birth_full_match & address_full_match & !birth_mnth_match
+               & birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+0 observations
+
+
+##first name, last name, month of birth, address different
+asssumptions
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & !name_last_match & !birth_full_match & !address_full_match & !birth_mnth_match
+               & birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+0 observations
+
+
+##first name, last name, year of birth, address different
+asssumptions
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & !name_last_match & !birth_full_match & !address_full_match & birth_mnth_match
+               & birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+0 observations
+
+
+##first name, day of birth, month of birth, year of birth different
+asssumptions
+-	Minor typo in first name assume same person as it is rare that two people with almost similar first and last name 
+        reside at same address.
+-	Major difference in first name and/or different gender assume different person as it could be partner, sibling or 
+        other relative
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & name_last_match & !birth_full_match & address_full_match & !birth_mnth_match
+               & !birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+1058 observations
+
+
+##first name, day of birth, month of birth,address different
+asssumptions
+-	Minor typo in first name assume same person as it is rare that two people with almost similar first and last name 
+        reside at same address.
+-	Major difference in first name and/or different gender assume different person as it could be partner, sibling or 
+        other relative
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & name_last_match & !birth_full_match & !address_full_match & !birth_mnth_match
+               & !birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+6 observations
+
+
+##first name, year of birth, month of birth,address different
+asssumptions
+-	Minor typo in first name assume same person as it is rare that two people with almost similar first and last name 
+        reside at same address.
+-	Major difference in first name and/or different gender assume different person as it could be partner, sibling or 
+        other relative
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(!name_first_match & name_last_match & !birth_full_match & !address_full_match & !birth_mnth_match
+               & birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+4 observations
+
+##last name, year of birth, month of birth, day of birth different
+asssumptions
+-	Minor typo in last name assume same person as it is rare that two people with almost similar first and last name 
+        reside at same address.
+-	Major difference in last name assume different person as it could be partner, sibling or other relative or it could 
+        be some kind of group living facility or apartment complex
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & !name_last_match & !birth_full_match & address_full_match & !birth_mnth_match
+               & !birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+364 observations
+
+##last name, address, month of birth, day of birth different
+asssumptions
+-	Minor typo in last name and minor typo in address assume same person 
+-	Last name very different assume different person even if living in address where there is minor typo as we are 
+        unaware of type of living facility 
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & !name_last_match & !birth_full_match & !address_full_match & !birth_mnth_match
+               & !birth_day_match & birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+82 observations
+
+
+##last name, address, month of birth, year of birth different
+asssumptions
+-	Minor typo in last name and minor typo in address assume same person 
+-	Last name very different assume different person even if living in address where there is minor typo as we are 
+        unaware of type of living facility 
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & !name_last_match & !birth_full_match & !address_full_match & !birth_mnth_match
+               & birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+22 observations
+
+
+
+##last name, address, day of birth, year of birth different
+asssumptions
+-	Minor typo in last name and minor typo in address assume same person 
+-	Last name very different assume different person even if living in address where there is minor typo as we are 
+        unaware of type of living facility
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & !name_last_match & !birth_full_match & !address_full_match & birth_mnth_match
+               & !birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+46 observations
+
+##month of birth, address, day of birth, year of birth different
+asssumptions
+-	Minor typo in address, assume same person as it is rare for person with same first and last name to live in same 
+        address (with minor typo in address)
+-	Different address assume different person
+
+
+```{r}
+review_matches_view <- review_matches %>%
+        filter(name_first_match & name_last_match & !birth_full_match & !address_full_match & !birth_mnth_match
+               & !birth_day_match & !birth_year_match) %>%
+        arrange(desc(Weight), desc(pair_num))
+   
+View(review_matches_view)
+
+
+```
+26 observations
+
+
+
+creating a new weight variable (Weight_new) where all the non-pairs from manual search will be coded to 2, for two specific 
+scenarios the pairs were very less when compared to non-pairs, so the pairs in these scenarios will be code as 3, and the rest 
+will be coded as 0     
+
+The second step will be to create a new variable (Weight_new_1) where all pairs, observations with weight of 1 and observations 
+with weight of 0.99, and those coded as 3 in Weight_new will be coded as 1, the non pairs as 2 and the rest as 0. This is to 
+make sure that we have reviewed all the possible pairs in the dataset
+```{r}
+
+
+review_matches <- review_matches %>%
+                        mutate( Weight_new =  case_when(
+                                pair_num %in% c( 
+                                        # only first name different - the following gender was different for
+                                        # first names
+                                7803:7806, 7837:7839,8718:8723,
+                                #different first and last name 
+                                8939, 9216, 9217, 9743, 9766, 9767, 9799, 12894,9135, 9679,
+                                # very different first name and different day of birth
+                                9129, 9138:9144, 9180:9206,
+                                # very different first name and different day of birth, different gender
+                                9100,
+                                # very different first name, year of birth, different gender
+                                9598:9600,
+                                # very different first name, address (minor spelling issues), different gender
+                                9680, 9681, 16646,16477, 19351, 
+                                # very different first name, very different address, same gender
+                                13125, 19230, 
+                                
+                                # very different last name, very different non-overlapping address
+                                11743, 15057, 15056, 15323, 15498,15932,17552,17624, 17623, 18333, 18290, 
+                                18334,18355,18396, 18431, 18480, 18578, 18724, 18723, 19136, 19270:19277, 19704,
+                                #first name, last name, address different - very different first and last names 
+                                ##especially
+                                9668, 9769:9774, 10342, 11077, 11078, 11949, 11948, 12212, 12965, 
+                                14412:14415,14636:14639,14541,15419:15423, 15471, 15472, 16387, 16388, 16501, 
+                                16599, 116598, 16991, 17738, 18838,
+                                # first name, date and and month of birth very different
+                                9703, 9704, 9736, 9786:9789, 9785, 9784, 9776:9783, 9802, 9803, 9853, 9855, 
+                                9862, 9872, 9871, 9973:9975, 9983:9986, 10000:10029, 10043:10046, 10124, 10125, 
+                                15772:15779,
+                                # first name, day of birth and year of birth very different
+                                10181:10184, 10389, 10390,10439, 10438, 10514, 10513, 10605:10607, 10646:10648, 
+                                10732:10734,
+                                11442:11444, 11534, 11535, 11701:11703, 11852:11854, 11934, 12041:12060, 12664, 12665, 
+                                13042:13051, 
+                                #first name, day of birth and address very different
+                                10629,18940, 18941, 
+                                #first name, month both birth and year of birth different
+                                9821, 9822, 9826:9833,9995, 10047, 10179:10176, 10420:10424, 10510, 10511, 10537, 10536, 
+                                10573, 10572, 10620:10623, 18071:18087,
+                                
+                                #last name, month and day of birth different 
+                                9823:9825, 9834, 9835, 10039, 10072, 10150, 10151, 17238:17240,
+                                #last name, day and year of birth different
+                                10457:10459, 11071, 12221:12222, 12433, 12434, 12946, 12947, 12978, 13072, 
+                                # last name, day of birth and address different 
+                                10405, 19622:19624, 
+                                #first name, last name, day of birth, address different
+                                19042:19047,
+                                #last name, month of of birth and year of birth different
+                                10705, 10706,
+                                # last name, year of birth and addresss different 
+                                11379:11381, 
+                                # day of birth, month of birth and address different
+                                18244:18247,
+                                # First name, month of birth, day  of birth, address different 
+                                11430, 14396, 17176, 
+                                # First name, year of birth, month  of birth, address different
+                                11505, 18311,
+                                #lastname, month of birth, year of birth and address different
+                                11439, 11440, 12263:12264, 16589:16592, 17536, 17537, 17737,
+                                #last name, year of birth, day of birth, address different 
+                                10347, 10346, 10411:10414, 11780, 13009, 14433, 14667, 16416:16418, 16817, 18438, 18439, 
+                                19134, 19135, 19435:19439,
+                                # day of birth, month of birth, year of birth, address different
+                                18244:18247,
+                                # last name, day of birth, month of birth, address different
+                                11762:11777, 13656:13659, 14302, 15123, 15247, 15248, 15577:15582, 16015:16018, 16160, 
+                                17495, 17807, 17831:17834,
+                                #first name, day of birth, month of birth, year of birth different
+                                13898:13905, 13960:13961, 14227, 14245, 14246, 10973, 10972, 12069, 12478, 12489, 12831, 
+                                13037, 12601, 12600, 13772:13791, 13150:13155, 13241:13245, 13276, 13315, 13316, 
+                                13678:13684
+                                ) ~ 2,
+                                
+                                 # last name, day of birth, month of birth and year of birth different 
+                                # assigning value of 3 only to pairs
+                                pair_num %in% c(10032:10033, 10036, 10048:10050, 10082, 10084:10088) ~ 3,
+                                # first name, day of birth, month of birth, year of birth different
+                                # assigning value of 3 only to pairs
+                                pair_num %in% c(10034:10035, 10056, 10055, 10069:10071, 10143, 10147:10148, 10180, 
+                                                   10187:10188, 10360:10387, 10603:10604) ~ 3,
+                                
+                                # last name, day of birth, month of birth and year of birth different 
+                                # adding all the values here
+                                (name_first_match & !name_last_match & !birth_full_match & address_full_match & 
+                                        !birth_mnth_match & !birth_day_match & !birth_year_match) ~ 2,
+                                 
+                                # first name, day of birth, month of birth, year of birth different
+                                # adding all the values here
+                                (!name_first_match & name_last_match & !birth_full_match & address_full_match &
+                                        !birth_mnth_match & !birth_day_match & !birth_year_match) ~ 2,
+                                
+                               
+                                
+                                TRUE ~ 0
+                                ))
+
+View(review_matches)
+
+table(review_matches$Weight_new)
+
+# there are 28870 + 110 potential observations that could be  pairs and 2206 observations that are non pairs so far
+
+review_matches <- review_matches %>% 
+                        mutate(Weight_new_1 = case_when(
+                                        
+                                Weight == 1 ~ 1,
+                                Weight == 0.99 ~ 1,
+                                Weight_new == 3 ~ 1,
+                                Weight_new == 2 ~ 2,
+                                !name_first_match & name_last_match & birth_full_match &  
+                                         address_full_match & Weight_new == 0 ~ 1,
+                                name_first_match & !name_last_match & birth_full_match & address_full_match ~ 1,
+                                name_first_match & name_last_match  & !birth_full_match & address_full_match &   
+                                         !birth_mnth_match & birth_day_match & birth_year_match ~ 1,
+                                name_first_match & name_last_match & !birth_full_match & address_full_match & 
+                                        birth_mnth_match & !birth_day_match & birth_year_match ~ 1,
+                                name_first_match & name_last_match & !birth_full_match & address_full_match & 
+                                        birth_mnth_match & birth_day_match & !birth_year_match ~ 1,
+                                !name_first_match & !name_last_match & birth_full_match & address_full_match ~ 1,
+                                name_first_match & name_last_match & !birth_full_match & address_full_match & 
+                                        !birth_mnth_match & !birth_day_match & birth_year_match ~ 1,
+                                !name_first_match & name_last_match & !birth_full_match & address_full_match &
+                                        birth_mnth_match & !birth_day_match & birth_year_match ~ 1,
+                                name_first_match & name_last_match & !birth_full_match & address_full_match & 
+                                         !birth_mnth_match & !birth_day_match & birth_year_match ~ 1,
+                                !name_first_match & name_last_match & !birth_full_match & address_full_match & 
+                                        birth_mnth_match & birth_day_match & !birth_year_match ~ 1,
+                                !name_first_match & name_last_match & birth_full_match & !address_full_match &
+                                        birth_mnth_match & birth_day_match & birth_year_match ~ 1,
+                                name_first_match & !name_last_match & !birth_full_match & address_full_match & 
+                                        birth_mnth_match & !birth_day_match & birth_year_match ~ 1,
+                                name_first_match & !name_last_match & !birth_full_match & address_full_match & 
+                                        !birth_mnth_match & birth_day_match & birth_year_match ~ 1,
+                                name_first_match & !name_last_match & !birth_full_match & address_full_match & 
+                                        birth_mnth_match & birth_day_match & !birth_year_match ~ 1,
+                                name_first_match & name_last_match & !birth_full_match & address_full_match & 
+                                        !birth_mnth_match & !birth_day_match & birth_year_match ~ 1,
+                                name_first_match & name_last_match & !birth_full_match & address_full_match & 
+                                        birth_mnth_match & !birth_day_match & !birth_year_match ~ 1,
+                                name_first_match & name_last_match & !birth_full_match & !address_full_match & 
+                                        birth_mnth_match & !birth_day_match & birth_year_match ~ 1,
+                                name_first_match & name_last_match & !birth_full_match & address_full_match & 
+                                        !birth_mnth_match & birth_day_match & !birth_year_match ~ 1,
+                                name_first_match & name_last_match & !birth_full_match & !address_full_match & 
+                                        !birth_mnth_match & birth_day_match & birth_year_match ~ 1,
+                                 !name_first_match & !name_last_match & birth_full_match & !address_full_match & 
+                                        birth_mnth_match & birth_day_match & birth_year_match ~ 1,
+                                 !name_first_match & name_last_match & !birth_full_match & address_full_match & 
+                                        !birth_mnth_match & !birth_day_match & birth_year_match ~ 1,
+                                 !name_first_match & name_last_match & !birth_full_match & address_full_match & 
+                                        birth_mnth_match & !birth_day_match & !birth_year_match ~ 1,
+                                 !name_first_match & name_last_match & !birth_full_match & !address_full_match & 
+                                        birth_mnth_match & !birth_day_match & birth_year_match ~ 1,
+                                 !name_first_match & name_last_match & !birth_full_match & address_full_match & 
+                                        !birth_mnth_match & birth_day_match & !birth_year_match ~ 1,
+                                 !name_first_match & name_last_match & !birth_full_match & !address_full_match & 
+                                        !birth_mnth_match & birth_day_match & birth_year_match ~ 1,
+                                 !name_first_match & name_last_match & !birth_full_match & !address_full_match & 
+                                        birth_mnth_match & birth_day_match & !birth_year_match ~ 1,
+                                 name_first_match & !name_last_match & !birth_full_match & address_full_match & 
+                                        !birth_mnth_match & !birth_day_match & birth_year_match ~ 1,
+                                 name_first_match & !name_last_match & !birth_full_match & address_full_match & 
+                                        birth_mnth_match & !birth_day_match & !birth_year_match ~ 1,
+                                 name_first_match & !name_last_match & !birth_full_match & !address_full_match & 
+                                        birth_mnth_match & !birth_day_match & birth_year_match ~ 1,
+                                 name_first_match & !name_last_match & !birth_full_match & address_full_match & 
+                                        !birth_mnth_match & birth_day_match & !birth_year_match ~ 1,
+                                 name_first_match & !name_last_match & !birth_full_match & !address_full_match & 
+                                        !birth_mnth_match & birth_day_match & birth_year_match ~ 1,
+                                 name_first_match & !name_last_match & !birth_full_match & !address_full_match & 
+                                        birth_mnth_match & birth_day_match & !birth_year_match ~ 1,
+                                 name_first_match & name_last_match & !birth_full_match & address_full_match & 
+                                        !birth_mnth_match & !birth_day_match & !birth_year_match ~ 1,
+                                 name_first_match & name_last_match & !birth_full_match & !address_full_match & 
+                                        !birth_mnth_match & !birth_day_match & birth_year_match ~ 1,
+                                 name_first_match & name_last_match & !birth_full_match & !address_full_match & 
+                                        !birth_mnth_match & birth_day_match & !birth_year_match ~ 1,
+                                 name_first_match & name_last_match & !birth_full_match & !address_full_match & 
+                                        birth_mnth_match & !birth_day_match & !birth_year_match ~ 1,
+                                 !name_first_match & !name_last_match & !birth_full_match & !address_full_match & 
+                                        birth_mnth_match & !birth_day_match & birth_year_match ~ 1,
+                                 !name_first_match & name_last_match & !birth_full_match & address_full_match & 
+                                        !birth_mnth_match & !birth_day_match & !birth_year_match ~ 1,
+                                 name_first_match & !name_last_match & !birth_full_match & address_full_match & 
+                                        !birth_mnth_match & !birth_day_match & !birth_year_match ~ 1,
+                                 name_first_match & name_last_match & !birth_full_match & !address_full_match & 
+                                        !birth_mnth_match & !birth_day_match & !birth_year_match ~ 1,
+                                
+                                
+                                TRUE ~ 0
+))
+
+table(review_matches$Weight_new_1)
+table(review_matches$Weight_new)
+
+# there are 27932 potential observatiosn that are  pairs, 2206 observations that could be non-pairs and 1048 observations that is still needed to be reviewed manually  
+
+```
+1048 observations left to manually review. 
+Assumptions 
+- First name, last name - minor typo, DOB same assume same person regardless of address
+- First name - very different, same last name,  address and DOB assume same person
+- Last name very different, same first name, address and DOB assume same person
+- First name - very different, same last name, address and different DOB assume different person
+- Last name very different, same first name, address and different DOB assume different person
+- First name - very different, same last name, different address and same DOB assume different person
+- Last name very different, same first name, different address and same DOB assume different person
+
+```{r}
+
+
+
+review_matches_view <- review_matches %>%
+                        filter(Weight_new_1 == 0) %>%
+                        arrange(desc(Weight), desc(pair_num))
+
+View(review_matches_view)
+
+# post manual review the following pair numbers were identified as non-matches 
+# creating new variable Weight_new_2 where matches will be coded 1 and non-matches coded 0
+
+review_matches <- review_matches %>%
+                        mutate(Weight_new_2 = case_when(
+                                Weight_new_1 == 1 ~ 1,
+                                Weight_new_1 == 2 ~ 0,
+                                pair_num %in% c(10518, 10519, 11236, 11920:11933, 14015, 14034:14036, 14422, 14986:14996, 
+                                                15026:15033, 15337, 15499, 15546, 15781, 15913, 15948, 16005:16008, 16013, 
+                                                16017, 16179, 16180, 16262:16265, 16385, 16391:16396, 16473, 16491, 16492, 
+                                                16525, 16600, 16612, 16613, 16819, 16818, 16844, 17142, 17143, 17196, 17237, 
+                                                17234, 17456, 17530, 17569, 17625, 17681, 17742:17745, 17764, 17765, 17959, 
+                                                18099, 18100, 18190:18200, 18291:18294, 18356, 18450, 18451, 18498, 18496, 
+                                                18788, 18814, 18831, 18944, 18943, 19152, 19151, 19167, 19165, 19191, 19190, 
+                                                19234, 19235, 19240, 19320, 19319, 19357, 19512, 19513, 19554:19559, 
+                                                19568:19572, 19667, 19738) ~ 0,
+                                TRUE ~ 1
+                        ))
+
+table(review_matches$Weight_new_2)
+
+# so we have 2498 non-pairs observations and 28688 observations that are potential pairs in the dataset
+```
+ 
+
+
+
+
+Filtering out the non-pairs
+
+
+
+```{r}
+review_matches_f <- review_matches %>%
+                        filter(Weight_new_2 == 1)
+
+dim(review_matches_f)
+# 28688 observations, 31 variables
+
+
+View(aps)
+View(medstar_complete)
+```
+
+```{r}
+pairs_possible_matches <- review_matches_f
+```
+
+```{r}
+rm(review_matches, review_matches_view, review_matches_f, review_matches_wide)
+```
+
+
+# Date filters
+
+This is the part of the code where we originally: 
+* Filtered out possible matches where the MedStar screening took place before the APS investigation.
+* Filtered out possible matches where the APS investigation was more than a month after the MedStar screening.   
+* Kept only the most proximate APS investigation to each MedStar screening when there was more than one APS investigation matched to the screened person.
+
+Doing these things makes sense when we want to be able to say, "what does an APS investigation conducted very soon after this screening tell us about whether there was likely elder mistreatment going on or not?" In that case, we will need to align each screening with one, and only one, APS investigation. However, we may also want to be able to look at other metrics. For example,
+
+* Is a positive screening associated with a positive APS investigation at any point in time -- past or future?
+* Is there an association between EMS reporter and other types of reporters making a report (i.e., nurses)? Is that secondary report more likely to occur on cases where APS validates EM? 
+
+We will lose the ability to do those analyses if we filter the matches out of the data. Instead, I want to try adding indicator variables to the data that will allow us to easily filter out some of these matching rows later as needed.
+
+## Indicator for filtering matches using dates
+
+A pair should only be valid if the date in the MedStar data (screening) precedes (less than or equal to) the date in the client data (APS investigation)
+
+AND
+
+When there is more than one date after the date in the MedStar data, it is the closest in time.
+
+(Results hidden to protect patient privacy)
+
+```{r}
+# Keep only the variables needed for filtering
+date_filter <- pairs_possible_matches %>% select(dataset, row, pair_num, date)
+
+# Reshape wide to long to decrease computation time
+medstar_pairs <- date_filter %>% 
+  filter(dataset == "medstar") %>% 
+  select(-dataset) %>% 
+  rename_all(~paste0("medstar_", .))
+
+aps_pairs <- date_filter %>% 
+  filter(dataset == "aps") %>% 
+  select(-dataset) %>% 
+  rename_all(~paste0("aps_", .))
+  
+matches_wide  <- bind_cols(medstar_pairs, aps_pairs)
+
+# Data check
+# Make sure all the pair numbers are lined up
+if (sum(matches_wide$medstar_pair_num != matches_wide$aps_pair_num) > 0) {
+  stop("One or more pair numbers do not line up")
+}
+
+dim(matches_wide) #14344*6
+```
+
+How many will be dropped because APS investigation date preceeds the DETECT screening date?
+
+```{r}
+matches_wide %>% 
+  summarise(
+    matches_at_start = n(), # 14,344
+    screening_after_investigation = sum(medstar_date > aps_date), # 9,616
+    diff = matches_at_start - screening_after_investigation # 4,728
+  )
+```
+
+We started this phase of the data merge with 14,344 potential matches (not unique people). In 9,616 of those potential matches, the APS investigation occurred before the MedStar screening, leaving 4,728 potential matches where the MedStar screening occurred before the APS investigation.
+
+Add a variable indicating whether the investigation occurred after the screening or not:
+
+Note on > vs. >=
+It is unlikely that an APS investigation that occurred on the same day as a MedStar screening was started BECAUSE of that screening. However, that does not really matter for our purposes. What we are trying to do is link the conditions of the older adult and their environment on day X with an APS investigation that took place on or after day X. Therefore, we will keep pairs of matches when the MedStar date is less than OR EQUAL TO the APS investigation date.
+
+```{r}
+matches_wide <- matches_wide %>%
+  mutate(
+    aps_after_screening = medstar_date <= aps_date
+  )
+```
+
+## Indicator for APS investigations that are more than a month after the initial DETECT screening
+
+In some cases, there may be a MedStar screening that preceded an APS investigation, but it may have preceded it by many months. For example, there is one possible matching pair where the MedStar Screening occurred on 2012-02-01 and the APS investigation took place on 2017-12-15 (over 10 months later). In this  case, there is essentially zero chance that the MedStar screening prompted the APS investigation -- at least directly. That isn't really the main issue though. The main issue is that it's difficult to make the assumption that an APS investigation conducted 10 months post screening provides quality information about the condition of the person and their environment at the time the screening was conducted.
+
+Therefore, we will create an indicator variable that identifies possible matches where the APS investigation occurred more than 1 month after the DETECT screening.
+
+Calculate time between MedStar screening and APS investigation:
+
+```{r}
+matches_wide <- matches_wide %>% 
+  mutate(
+    time_to_investigation_mnth = medstar_date %--% aps_date / months(1),
+    time_to_investigation_day  = medstar_date %--% aps_date / days(1)
+  )
+```
+
+How many matches have a time to investigation greater than 1 month?
+
+```{r}
+matches_wide %>% 
+  # Filtering out rows with APS investigation occured before MedStar screening
+  # To get a more accurate count below.
+  filter(aps_after_screening == TRUE) %>% 
+  summarise(
+    matches_remaining = n(), # 4,728
+    longer_than_month = sum(time_to_investigation_mnth > 1), # 2,923
+    diff = matches_remaining - longer_than_month # 1,805
+  )
+```
+
+In 2,923 Of the 4,728 remaining potential matches, the APS investigation date is more than 1 month after the initial MedStar screening, leaving 1,805 potential matches.
+
+Add a variable indicating whether the investigation occurred withing 1 month of the screening or not:
+
+```{r}
+matches_wide <- matches_wide %>% 
+  mutate(
+    aps_within_month = aps_after_screening == TRUE & time_to_investigation_mnth <= 1
+  )
+```
+
+## Create an indicator variable for the most proximate APS investigation
+
+When there is more than one match (i.e., when a single MedStar screening is matched to multiple APS investigations), we will eventually want to keep the closest in time only.
+
+However, there are also cases where there are multiple rows for a single investigation date. This is the case when more than one person made a report. In those cases, we may want to be able to make sure there are no differences in the case outcome before dropping rows. Unfortunately, matches_wide doesn't contain enough information for us to do that at this point. Therefore, I'm going to comment all this out and move it to a more appropriate place later.
+
+```{r}
+# matches_wide <- matches_wide %>%
+#   group_by(medstar_row) %>% 
+#   # Within screening, earliest date always first
+#   arrange(medstar_row, aps_date) %>% 
+#   # Tag multiple APS investigations
+#   mutate(multiple_investigations = row_number() > 1) %>% 
+#   ungroup()
+```
+
+```{r}
+# aps_nested %>% 
+#   filter(row_number() == 11095 | row_number() == 11098)
+```
+
+
+# Add pair number to MedStar and APS data
+
+## Recreate a nested APS data frame
+
+Prior to the RecordLinkage process, we nested the APS data so that we would only be matching unique combinations of name, dob, and address (In the MedStar data, every row was already unique in this regard). Because of the nesting, the row number in matches_wide aligns with the row number in aps_nested, but not the complete aps data. Therefore, we will recreate the aps_nested data frame and add the pair number to it.
+
+```{r}
+aps_nested <- aps %>% 
+  # Nest all but the following columns - not needed for the RecordLinkage process
+  # and we want to reduce the dataset to one row per case number
+  nest(
+    aps_nested = c(
+      -case_num, -intake_date, -name_first, -name_last, -starts_with("birth"),
+      -address_num, -address_street_name
+    )
+  ) %>% 
+  ungroup()
+```
+
+Now, we need to add the pair numbers in matches_wide and add them to the corresponding row in the MedStar data (e.g., the column pair_num should be equal to "1" in row 5 of the MedStar data). We also need to do a similar procedure for adding pair_num to the APS data. 
+
+```{r}
+# # For Brad
+# # Delete after testing
+# medstar_complete <- read_rds("/Volumes/sph_research/Detect/one_year_data/medstar_epcr_02_variable_management.rds")
+```
+
+```{r}
+medstar_complete <- medstar_complete %>% 
+  mutate(row = row_number())
+```
+
+```{r}
+medstar_complete <- medstar_complete %>% 
+  left_join(
+    matches_wide %>% 
+      select(row = medstar_row, pair_num = medstar_pair_num),
+    by = "row"
+  ) %>% 
+  select(-row)
+```
+
+```{r}
+aps_nested <- aps_nested %>% 
+  mutate(row = row_number())
+```
+
+```{r}
+aps_nested <- aps_nested %>% 
+  left_join(
+    matches_wide %>% 
+      select(row = aps_row, pair_num = aps_pair_num),
+    by = "row"
+  ) %>% 
+  select(-row)
+```
+
+```{r}
+# Delete after testing 
+aps_nested %>% 
+  filter(pair_num == 10704)
+```
+
+
+# Join MedStar data and APS data by pair number
+
+Use full_join so that non-paired rows from both data frames are retained.
+
+Make sure to use na_matches = "never" to prevent joining on pair_number == NA.
+
+```{r}
+medstar_aps_nested <- medstar_complete %>% 
+  full_join(aps_nested, by = "pair_num", na_matches = "never", suffix = c("_ms", "_aps"))
+```
+
+
+# Add the indicator variables from matches_wide to the merged data
+
+Above, we created indicator variables that we will later use for data filters. I want to add those to the merged, nested data now.
+
+```{r}
+medstar_aps_nested <- medstar_aps_nested %>% 
+  left_join(
+    matches_wide %>% 
+      select(pair_num = medstar_pair_num, aps_after_screening:aps_within_month),
+    by = "pair_num"
+  )
+```
+
+# Unnest the APS data
+
+Rename some rows to avoid non-unique name error when we unnest the APS data.
+
+```{r}
+medstar_aps_nested <- medstar_aps_nested %>% 
+  rename(
+    age_ms = age,
+    name_full_ms = name_full,
+    dob_ms = dob,
+    address_street_ms = address_street, 
+    address_city_ms = address_city, 
+    address_zip_ms = address_zip, 
+    address_state_ms = address_state
+  )
+```
+
+```{r}
+medstar_aps_merged <- medstar_aps_nested %>% 
+  unnest(
+    cols = c(aps_nested),
+    keep_empty = TRUE
+  )
+```
+
+```{r}
+#added
+medstar_aps_merged <- medstar_aps_merged %>% 
+  rename(
+    age_aps = age,
+    dob_aps = dob,
+    name_full_aps = name_full,
+    address_street_aps = street,
+    address_city_aps = city,
+    address_zip_aps = zip
+  )
+```
+
+```{r}
+# remove underscores from address_street_name or else 
+medstar_aps_merged <- medstar_aps_merged %>% 
+  mutate(address_street_name_ms = address_street_name_ms <- gsub("_", " ", address_street_name_ms))
+```
+
+# Data checks: Join conflicts
+
+## Helper function (get_drop_value)
+
+```{r}
+get_drop_value <- function(df1, df2, x) {
+  x <- enquo(x)
+  df1_values <- df1 %>% pull(!!x)
+  df2_values <- df2 %>% pull(!!x)
+
+  if (length(df1_values) > length(df2_values)) {
+    out <- setdiff(df1_values, df2_values)
+  } else if (length(df2_values) > length(df1_values)) {
+    out <- setdiff(df2_values, df1_values)
+  } else {
+    return("The length of df1 and df2 are the same.")
+  }
+
+  if ("POSIXct" %in% class(df1_values)) {
+    out <- as.POSIXct(out, origin = "1970-01-01", tz = "UTC")
+  }
+
+  out
+}
+```
+
+## Which variables were non-joined duplicate variables?
+
+```{r}
+non_joined <- medstar_aps_merged %>% 
+  select(ends_with("_ms"), ends_with("_aps"), -address_state_ms) %>% 
+  names() %>% 
+  print()
+```
+
+Don't worry about age and name_full.
+
+## Check matches
+
+To make sure that the names and birth dates actually appear to match (results hidden to protect privacy)
+
+### Helper Function (merge_like_variables)
+
+```{r}
+merge_like_variables <- function(.data, .x) {
+  
+  # Setup
+  var <- enquo(.x) %>% quo_name()
+  var_x <- paste(var, "ms", sep = "_") %>% rlang::sym()
+  var_y <- paste(var, "aps", sep = "_") %>% rlang::sym()
+
+  # Merge
+  .data %>%
+    mutate(
+      out = case_when(
+        is.na(!!var_x) ~ !!var_y %>% as.character(), # IF .x is missing use .y
+        is.na(!!var_y) ~ !!var_x %>% as.character(), # IF .y is missing use .x
+        !!var_x != !!var_y ~ "conflict",             # IF neither missing test for conflict
+        TRUE ~ !!var_x %>% as.character()            # IF neither missing and no conflict just use .x
+      )
+    ) %>%
+    pull(out)
+}
+```
+
+
+```{r eval=FALSE}
+set.seed(123)
+
+medstar_aps_merged %>%
+  group_by(incident_pcr) %>%
+  filter(row_number() == 1) %>% # Keep one row per incident pcr - 28,229
+  ungroup() %>%
+  sample_frac(0.10, replace = FALSE) %>% # 10% random sample
+
+  mutate(
+    name_first = merge_like_variables(., name_first),
+    name_last  = merge_like_variables(., name_last),
+    birth_mnth = merge_like_variables(., birth_mnth),
+    birth_day  = merge_like_variables(., birth_day),
+    birth_year = merge_like_variables(., birth_year)
+  ) %>%
+
+  # Arrange columns for easier comparison
+  select(
+    pair_num, starts_with("name_first"),
+    starts_with("name_last"), starts_with("birth_mnth"),
+    starts_with("birth_day"), starts_with("birth_year")
+  ) %>%
+
+  # View rows with a pair number
+  filter(!is.na(pair_num))
+```
+
+When people exist in both datasets (MedStar and APS), their names and dates of birth appear to match in the merged dataset.
+
+2019-10-10: There are still some mismatches...
+
+
+
+
+## Investigate and resolve conflicting values
+
+When we join the MedStar and APS data there may be conflicts between name, DOB, age, ect. We need to investigate these conflicts and determine at least two things: 
+
+1. Are these really matches, and 
+
+2. Which value to keep when there are true matches with conflicting values.
+
+Results hidden to protect privacy
+
+```{r}
+check_conflicts <- medstar_aps_merged %>% 
+  
+  mutate_at(non_joined, as.character) %>% # For easier comparison later
+  
+  mutate(
+    name_first          = merge_like_variables(., name_first),
+    name_last           = merge_like_variables(., name_last),
+    name_full           = merge_like_variables(., name_full),
+    birth_mnth          = merge_like_variables(., birth_mnth),
+    birth_day           = merge_like_variables(., birth_day),
+    birth_year          = merge_like_variables(., birth_year),
+    age                 = merge_like_variables(., age),
+    dob                 = merge_like_variables(., dob),
+    address_street      = merge_like_variables(., address_street),
+    address_num         = merge_like_variables(., address_num),
+    address_street_name = merge_like_variables(., address_street_name),
+    address_city        = merge_like_variables(., address_city), 
+    address_zip         = merge_like_variables(., address_zip) 
+  )%>%
+  
+  # Arrange columns for easier comparison
+  select(incident_pcr, pair_num, starts_with("name_first"), 
+         starts_with("name_last"), starts_with("name_full"),
+         starts_with("birth_mnth"), starts_with("birth_day"),
+         starts_with("birth_year"), starts_with("address"), 
+         starts_with("age"), everything())
+
+
+dim(check_conflicts) # 51376 rows and 138 variables 
+```
+
+```{r}
+# Checking records that have mismatches on first and/or last names AND they are not due to APS & MEDStar's mistake on
+# swapping first & last names (name_first_aps == name_last_ms, name_first_ms == name_last_aps)
+#   for example:
+#     name_first_aps: "Yap"
+#     name_first_ms: "Steph"
+#     name_first: "conflict"
+#     name_last_aps: "Steph"
+#     name_last_ms: "Yap"
+#     name_last: "conflict"
+
+
+
+check_conflicts <- check_conflicts %>% 
+  
+  # for manual review on mismatches on name_first
+  #filter(name_first     == "conflict") %>%
+  
+        
+   ##------ did not use the following lines of code - BN ##
+  
+  # keep records that have conflicts from accidental swapped
+  # filter(name_first_aps != name_last_ms,
+  #        name_first_ms  != name_last_aps ) %>% 
+  
+  #ilter(birth_day  != "conflict") %>% 
+  #filter(birth_mnth != "conflict") %>% # this will also records that match on first name
+
+  # drop mismatches on birth_day AND birth_mnth
+  # filter(birth_day      != "conflict") %>% 
+  # filter(birth_mnth     != "conflict") %>% 
+  ##--- BN -----
+  
+  # # for manual review on mismatches on name_last, for similar name_first
+  # filter(name_last       == "conflict")
+
+
+# -------------------------- AFTER MANUAL REVIEW ------------------------------
+
+# STEP 1: Drop mismatches on name_first that are not due to typos/possible middle names/names swapping (refer 2040:2046 for example)
+filter(!pair_num %in% c(9052, 13941, 13942, 7840, 16071, 9857, 9858, 11615, 9800, 10147, 10148, 17235, 17236, 16598, 9133, 18497))  %>%
+        
+#STEP 2: Drop mismatches in last name 
+                
+filter(!pair_num %in% c(18295))
+
+### --- did not use the folloiwng lines of code --- BN
+
+# remaining records after filtering for (name_first == "conflict") include those with similar first names and/or last names who have identical birth_day & birth_mnth
+  
+# for manual review on mismatches on birth_year
+# filter(birth_year == "conflict") %>% select(pair_num, starts_with("birth_year"))
+
+# STEP 3: Dropping mismatches on birth_year (for example 1937 vs. 1940) BUT keeping mismatches such as: 1937 vs. 2037 or 1937 vs. 1938  or 1937 vs. 2038 (Steph: not entirely sure how to draw the distinct line)
+#filter(!pair_num %in% c(8790, 8970:8971, 9098, 9211:9212))
+```
+
+```{r}
+dim(check_conflicts) # 51,359 observations and 138 variables
+```
+
+
+### First name
+
+```{r echo=FALSE}
+var <- quo(name_first)
+```
+
+### Helper Function (count_conflicts)
+
+```{r}
+count_conflicts <- function(df, x) {
+  
+  # Check that valid variable name was given
+  var_name <- quo_name(x)
+  df_vars  <- names(df)
+  if ( !(var_name %in% df_vars) ) {
+    stop("The variable ", var_name, " was not found in the data frame")
+  }
+  
+  out <- df %>% 
+    filter(!!x == "conflict") %>% 
+    # If no PCR number, then no record in MedStar data
+    # If no record in MedStar data, then no possibility of conflicting name
+    group_by(incident_pcr) %>% #renamed: incident_pcr <- incident_pcr_number
+    filter(row_number() == 1) %>% 
+    ungroup()
+  
+  cat("There are", nrow(out), "conflicting values for", quo_name(x))
+}
+```
+
+```{r}
+check_conflicts %>% count_conflicts(var) # 593
+```
+
+### Helper function (view_conflicts)
+
+```{r}
+view_conflicts <- function(df, x) {
+  
+  if ( !("data.frame" %in% class(df)) ){
+    stop("df must be a data frame. df = ", df)
+  }
+  
+  out <- df %>% 
+    filter(!!x == "conflict") %>% 
+    # If no PCR number, then no record in MedStar data
+    # If no record in MedStar data, then no possibility of conflicting name
+    group_by(incident_pcr) %>% #renamed: incident_pcr <- incident_pcr_number
+    filter(row_number() == 1) %>% 
+    ungroup()
+  
+  if (nrow(out) == 0) {
+    paste("There are no conflicting values for", quo_name(x), "to view")
+  } else {
+    out
+  }
+}
+```
+
+```{r eval=FALSE}
+check_conflicts %>% view_conflicts(var) # results hidden 
+# check_conflicts include observations that have:
+# Same DOB, same(similar) first names and last names 
+# Same DOB, similar first names but diff last names 
+```
+
+* In this case, it appears as though APS has the correct name.
+
+### Helper function (resolve_conflict)
+
+```{r}
+resolve_conflict <- function(df, x, method) {
+  
+  if ( !("data.frame" %in% class(df)) ){
+    stop("df must be a data frame. df = ", df)
+  }
+  
+  valid <- c("use_medstar", "use_aps")
+  if (!(method %in% valid)) {
+    stop("Please use a valid method value. You used: ", method)
+  }
+  
+  # Get incident PCR numbers from rows with conflicts
+  ipcr_to_modify <- df %>% 
+    view_conflicts(x)
+  if (!("data.frame" %in% class(ipcr_to_modify)) ) {
+    stop("There are no conflicting values in ", quo_name(x), " to resolve")
+  } else {
+    ipcr_to_modify <- ipcr_to_modify %>% 
+      pull(incident_pcr) #renamed: incident_pcr <- incident_pcr_number
+  }
+  
+  if (method == "use_medstar") {
+    .x <- quo_name(x)
+    .x <- paste(.x, "ms", sep = "_") #changed from medstar to ms
+    .x <- rlang::sym(.x)
+
+    df %>% 
+      mutate(
+        !!quo_name(x) := if_else(
+          incident_pcr %in% ipcr_to_modify, !!.x, !!x #renamed: incident_pcr <- incident_pcr_number
+        )
+      )
+  
+  } else if (method == "use_aps") {
+    .y <- quo_name(x)
+    .y <- paste(.y, "aps", sep = "_")
+    .y <- rlang::sym(.y)
+
+    df %>% 
+      mutate(
+        !!quo_name(x) := if_else(
+          incident_pcr %in% ipcr_to_modify, !!.y, !!x #renamed: incident_pcr <- incident_pcr_number
+        )
+      )
+  }
+}
+```
+
+```{r}
+check_conflicts <- check_conflicts %>% resolve_conflict(var, "use_aps")
+check_conflicts %>% view_conflicts(var)
+```
+
+### Helper function (drop_suffix)
+
+```{r}
+drop_suffix <- function(df, x) {
+  x <- quo_name(x)
+  suffix_1 <- paste(x, "ms", sep = "_")
+  suffix_2 <- paste(x, "aps", sep = "_")
+  df %>% select(-suffix_1, -suffix_2)
+}
+```
+
+```{r}
+check_conflicts <- check_conflicts %>% drop_suffix(var)
+```
+
+
+```{r}
+dim(check_conflicts) # 51,359 and 136 variables
+```
+
+
+### Last name
+
+```{r echo=FALSE}
+var <- quo(name_last)
+```
+
+```{r}
+check_conflicts %>% count_conflicts(var) # 374
+```
+
+```{r eval=FALSE}
+check_conflicts %>% view_conflicts(var) # Results hidden
+```
+
+* Both are minor misspellings. In both cases, the spelling from APS appears to be the correct spelling. Keep the values from last_name.aps
+
+```{r}
+check_conflicts <- check_conflicts %>% resolve_conflict(var, "use_aps")
+```
+
+```{r}
+check_conflicts <- check_conflicts %>% drop_suffix(var)
+```
+
+```{r}
+dim(check_conflicts) # 51,359 observations and 134 variables
+```
+
+### Full Name
+
+```{r echo=FALSE}
+var <- quo(name_full)
+```
+
+```{r}
+check_conflicts %>% count_conflicts(var) # 1,661
+```
+
+```{r eval=FALSE}
+check_conflicts %>% view_conflicts(var) # Results hidden
+```
+
+* Both are minor misspellings. In both cases, the spelling from APS appears to be the correct spelling. Keep the values from name_full.aps
+
+```{r}
+check_conflicts <- check_conflicts %>% resolve_conflict(var, "use_aps")
+```
+
+```{r}
+check_conflicts <- check_conflicts %>% drop_suffix(var)
+```
+
+```{r}
+dim(check_conflicts) # 51,359 observations and 132 variables
+```
+
+
+### Birth month 
+
+```{r echo=FALSE}
+var <- quo(birth_mnth)
+```
+
+```{r}
+check_conflicts %>% count_conflicts(var) # 225
+```
+```{r}
+check_conflicts %>% view_conflicts(var)
+```
+
+* Keep the values from birth_month.medstar
+
+```{r}
+check_conflicts <- check_conflicts %>% resolve_conflict(var, "use_medstar")
+check_conflicts %>% view_conflicts(var)
+```
+
+
+
+```{r}
+check_conflicts <- check_conflicts %>% drop_suffix(var)
+```
+
+```{r}
+dim(check_conflicts) # 51,359 observations and 130 variables
+```
+
+
+### Birth day
+
+```{r echo=FALSE}
+var <- quo(birth_day)
+```
+
+```{r}
+check_conflicts %>% count_conflicts(var) # 336
+```
+
+```{r eval=FALSE}
+check_conflicts %>% view_conflicts(var) # Results hidden
+```
+
+* It isn't clear which one is correct. However, It doesn't affect the value for DOB, but we will use one in medstar. * Keep the values from birth_day.medstar
+
+
+```{r}
+check_conflicts <- check_conflicts %>% resolve_conflict(var, "use_medstar")
+check_conflicts %>% view_conflicts(var)
+```
+
+
+```{r}
+
+check_conflicts <- check_conflicts %>% drop_suffix(var)
+
+dim(check_conflicts) # 51,359 observations and 128 variables
+
+```
+
+
+### Birth year
+
+```{r echo=FALSE}
+var <- quo(birth_year)
+```
+
+```{r}
+check_conflicts %>% count_conflicts(var) # 726
+```
+
+```{r eval=FALSE}
+check_conflicts %>% view_conflicts(var) # Results hidden
+```
+
+* It isn't clear which one is correct. Because MedStar is our primary data source and we are interested in the medics assessment of the older adult/environment were the emergency response took place, we will keep the medstar row.
+
+```{r}
+check_conflicts <- check_conflicts %>% resolve_conflict(var, "use_medstar")
+check_conflicts %>% view_conflicts(var)
+```
+
+```{r}
+check_conflicts <- check_conflicts %>% drop_suffix(var)
+```
+
+```{r}
+dim(check_conflicts) # 51,359 observations and 126 variables
+```
+
+### DOB
+
+```{r echo=FALSE}
+var <- quo(dob)
+```
+
+```{r}
+check_conflicts %>% count_conflicts(var) # 965
+```
+
+```{r eval=FALSE}
+check_conflicts %>% view_conflicts(var) # Results hidden
+```
+
+* It isn't clear which one is correct. Because MedStar is our primary data source and we are interested in the medics assessment of the older adult/environment were the emergency response took place, we will keep the medstar row.
+
+```{r}
+check_conflicts <- check_conflicts %>% resolve_conflict(var, "use_medstar")
+check_conflicts %>% view_conflicts(var)
+```
+
+```{r}
+check_conflicts <- check_conflicts %>% drop_suffix(var)
+```
+
+```{r}
+dim(check_conflicts) # 51,359 observations and 124 variables
+```
+
+### Age
+
+```{r echo=FALSE}
+var <- quo(age)
+```
+
+```{r}
+check_conflicts %>% count_conflicts(var) # 3224
+```
+
+```{r eval=FALSE}
+check_conflicts %>% view_conflicts(var) # Results hidden
+```
+
+* It isn't clear which one is correct. Because MedStar is our primary data source and we are interested in the medics assessment of the older adult/environment were the emergency response took place, we will keep the medstar row.
+
+```{r}
+check_conflicts <- check_conflicts %>% resolve_conflict(var, "use_medstar")
+check_conflicts %>% view_conflicts(var)
+```
+
+```{r}
+check_conflicts <- check_conflicts %>% drop_suffix(var)
+```
+
+```{r}
+dim(check_conflicts) # 51,359 observations and 122 variables
+```
+
+
+### Address Street
+
+```{r echo=FALSE}
+var <- quo(address_street)
+```
+
+```{r}
+check_conflicts %>% count_conflicts(var) # 2,484
+```
+
+```{r eval=FALSE}
+check_conflicts %>% view_conflicts(var) %>% 
+  select(address_street_ms, address_street_aps) # Results hidden
+```
+
+* Because MedStar is our primary data source and we are interested in the medics assessment of the older adult/environment were the emergency response took place, we will keep the medstar row.
+
+```{r}
+check_conflicts <- check_conflicts %>% resolve_conflict(var, "use_medstar")
+check_conflicts %>% view_conflicts(var)
+```
+
+```{r}
+check_conflicts <- check_conflicts %>% drop_suffix(var)
+```
+
+```{r}
+dim(check_conflicts) # 51,359 observations and 120 variables
+```
+
+### Address Street Name
+
+```{r echo=FALSE}
+var <- quo(address_street_name)
+```
+
+```{r}
+check_conflicts %>% count_conflicts(var) # 2,312
+```
+
+```{r eval=FALSE}
+check_conflicts %>% view_conflicts(var) %>% 
+  select(address_street_name_ms, address_street_name_aps) # Results hidden
+```
+
+* Because MedStar is our primary data source and we are interested in the medics assessment of the older adult/environment were the emergency response took place, we will keep the medstar row.
+
+```{r}
+check_conflicts <- check_conflicts %>% resolve_conflict(var, "use_medstar")
+check_conflicts %>% view_conflicts(var)
+```
+
+```{r}
+check_conflicts <- check_conflicts %>% drop_suffix(var)
+```
+
+```{r}
+dim(check_conflicts) # 51,359 observations and 118 variables
+```
+
+
+### Address City
+
+```{r echo=FALSE}
+var <- quo(address_city)
+```
+
+```{r}
+check_conflicts %>% count_conflicts(var) # 906
+```
+
+```{r eval=FALSE}
+check_conflicts %>% view_conflicts(var) %>% select(starts_with("address_city")) # Results hidden
+```
+
+* Most of them appear to be minor spelling variations. And in cases where they are very different, there are legitimate reasons why the MedStar response address and the address where the APS investigation occured could differ.
+
+* Because MedStar is our primary data source and we are interested in the medics assessment of the older adult/environment were the emergency response took place, we will keep the medstar row.
+
+```{r}
+check_conflicts <- check_conflicts %>% resolve_conflict(var, "use_medstar")
+check_conflicts %>% view_conflicts(var)
+```
+
+```{r}
+check_conflicts <- check_conflicts %>% drop_suffix(var)
+```
+
+```{r}
+dim(check_conflicts) # 51359 observations and 116 variables
+```
+
+
+### Address Zip
+
+```{r echo=FALSE}
+var <- quo(address_zip)
+```
+
+```{r}
+check_conflicts %>% count_conflicts(var) # 5198
+```
+
+```{r eval=FALSE}
+check_conflicts %>% view_conflicts(var) # Results hidden
+```
+
+* Because MedStar is our primary data source and we are interested in the medics assessment of the older adult/environment were the emergency response took place, we will keep the medstar row.
+
+```{r}
+check_conflicts <- check_conflicts %>% resolve_conflict(var, "use_medstar")
+check_conflicts %>% view_conflicts(var)
+```
+
+```{r}
+check_conflicts <- check_conflicts %>% drop_suffix(var)
+```
+
+```{r}
+dim(check_conflicts) # 51,359 observations and 114 variables
+```
+
+
+### Address Number
+
+```{r echo=FALSE}
+var <- quo(address_num)
+```
+
+```{r}
+check_conflicts %>% count_conflicts(var) # 1,800
+```
+
+```{r eval=FALSE}
+check_conflicts %>% view_conflicts(var) # Results hidden
+```
+
+* Because MedStar is our primary data source and we are interested in the medics assessment of the older adult/environment were the emergency response took place, we will keep the medstar row.
+
+```{r}
+check_conflicts <- check_conflicts %>% resolve_conflict(var, "use_medstar")
+check_conflicts %>% view_conflicts(var)
+```
+
+```{r}
+check_conflicts <- check_conflicts %>% drop_suffix(var)
+```
+
+```{r}
+dim(check_conflicts) # 51,359 observations and 112 variables
+```
+
+
+## Rename the data with the resolved merge conflicts
+
+```{r}
+medstar_aps_merged <- check_conflicts 
+```
+
+```{r}
+dim(medstar_aps_merged) # 51,359 observations 112 variables
+```
+
+
+## Clean up
+
+```{r}
+rm(non_joined, var)
+```
+
+[top](#top)
+
+# Drop unneeded variables from merged data {#drop-vars}
+
+```{r}
+names(medstar_aps_merged)
+```
+
+```{r}
+vars_to_keep <- quos(incident_pcr, case_num, pair_num, name_first, name_last, birth_year, birth_mnth, birth_day, age, address_num, address_street, address_city, gender, race)
+```
+
+```{r}
+medstar_aps_merged <- medstar_aps_merged %>% select(!!!vars_to_keep)
+```
+
+```{r}
+dim(medstar_aps_merged) # 51539 observations and 14 variables
+```
+
+
+## Check for duplicate rows
+
+The data is structured such that there is a row for each combination of variables that can take multiple values within incident. Because we dropped some variables above (e.g., intake stage), there are now some duplicate rows. we remove those below.
+
+```{r}
+medstar_aps_merged <- medstar_aps_merged %>% distinct()
+```
+
+```{r}
+dim(medstar_aps_merged) # 49569 observations and 14 variables
+```
+
+[top](#top)
+
+
+
+# Data check: Data fidelity {#data-check-fidelity}
+
+## MedStar component of the merged data
+
+In this section, we just want to make sure that the values within PCR in the merged data match the values within PCR in the unmerged MedStar data and that the values within case number in the merged data match the values within case number in the unmerged APS client data.
+
+In order for the merged and original datasets to be comparable, they each include the same incident pcr numbers (i.e., where detect_data == 1), the same variables, and no duplicate rows. 
+
+There are APS cases in the merged data that aren't associated with a MedStar 911 response. Those must be removed in order to compare the datasets as well.
+
+```{r}
+merged_incidents <- medstar_aps_merged %>% 
+  filter(!is.na(incident_pcr)) %>% 
+  distinct() %>% 
+  select(-case_num, -pair_num)
+
+# Keep subset of rows from original MedStar data with detect data. Those are the only rows we
+# merged with APS data.
+# Keep only vars of interest
+original_incidents <- medstar_complete %>% 
+  filter(!is.na(incident_pcr)) %>% 
+  select(!!!vars_to_keep[!vars_to_keep %in% quos(case_num, pair_num)]) %>% 
+  distinct()
+```
+
+How many unique pcr's are in each sample?
+
+```{r}
+cat(
+  " Unique pcr numbers in the merged data:", 
+  format(length(unique(merged_incidents[["incident_pcr"]])), big.mark = ","), # 28,219
+  "\n",
+  "Unique pcr numbers in the original data:",
+  format(length(unique(original_incidents[["incident_pcr"]])), big.mark = ",") # 28,228
+)
+```
+
+How many rows in each sample?
+
+```{r}
+cat(
+  " Rows in the merged data:", 
+  format(nrow(merged_incidents), big.mark = ","), # 37,212
+  "\n",
+  "Rows in the original data:",
+  format(nrow(original_incidents), big.mark = ",") # 28,228
+)
+```
+
+Let's look for variables in the original data that have more unique values than in the merged data.
+
+### Helper function (compare_n_unique_values)
+
+```{r}
+compare_n_unique_values <- function(x, y) {
+  
+  name1 <- deparse(substitute(x))
+  name2 <- deparse(substitute(y))
+  
+  x %>% 
+    summarise_all(.funs = function(x) length(unique(x))) %>% 
+    gather("variable", !!name1) %>% 
+    
+    left_join(
+      y %>% 
+        summarise_all(.funs = function(x) length(unique(x))) %>% 
+        gather("variable", !!name2),
+      by = "variable"
+    ) %>% 
+    filter(!!rlang::sym(name1) != !!rlang::sym(name2))
+}
+```
+
+```{r}
+compare_n_unique_values(merged_incidents, original_incidents)
+```
+
+View the last name that differs (results hidden to protect privacy)
+
+```{r eval=FALSE}
+# setdiff(merged_incidents$name_first, original_incidents$name_first) 
+# setdiff(original_incidents$name_first, merged_incidents$name_first)
+```
+
+
+Let's quickly fix this so that we can accurately compare the rest of the values
+```{r message=FALSE}
+require(data.table)
+```
+
+```{r}
+setDT(original_incidents)
+setDT(merged_incidents)
+```
+
+```{r}
+merged_incidents$birth_mnth = as.double(merged_incidents$birth_mnth)
+merged_incidents$birth_day <- as.double(merged_incidents$birth_day)
+merged_incidents$address_num <- as.double(merged_incidents$address_num)
+```
+
+
+```{r}
+original_incidents <- merge(x=original_incidents, y=merged_incidents, by="incident_pcr") %>% 
+  
+  #[!duplicated(merged_incidents$incident_pcr)]
+  select(incident_pcr, starts_with("name"), everything()) %>% 
+  mutate(
+      name_last.x = if_else(
+      name_last.x != name_last.y, # IF original and merged differ
+      name_last.y,                # Use value from merged
+      name_last.x),               # Keep the same
+      name_first.x = if_else(
+      name_first.x != name_first.y,
+      name_first.y,
+      name_first.x),
+      birth_mnth.x = if_else(
+      birth_mnth.x != birth_mnth.y,
+      birth_mnth.y,
+      birth_mnth.x),
+      birth_day.x = if_else(
+      birth_day.x != birth_day.y,
+      birth_day.y,
+      birth_day.x),
+      address_num.x = if_else(
+      address_num.x != address_num.y,
+      address_num.y,
+      address_num.x),
+      address_street.x = if_else(
+      address_street.x != address_street.y,
+      address_street.y,
+      address_street.x),
+      address_city.x = if_else(
+      address_city.x != address_city.y,
+      address_city.y,
+      address_city.x)) %>%           
+
+  select(incident_pcr, ends_with(".x"))
+
+```
+
+```{r}
+colnames(original_incidents) = gsub(".x", "", colnames(original_incidents))
+```
+
+```{r}
+# Original codes
+# original_incidents <- original_incidents %>% 
+#   bind_cols(
+#     merged_incidents %>% 
+#       select(incident_pcr, name_first, name_last)
+#   ) %>% 
+#   # select(incident_pcr_number, name_last, name_last1)  %>% # For data checks
+#   mutate(
+#       name_last = if_else(
+#       name_last.x != name_last.y, # IF original and merged differ
+#       name_last.y,              # Use value from merged
+#       name_last.x                # Otherwise, don't change value
+#     )
+#   ) 
+```
+
+Now how many rows in each sample?
+
+```{r}
+cat(
+  " Unique pcr numbers in the merged data:", 
+  format(nrow(merged_incidents), big.mark = ","),
+  "\n",
+  "Unique pcr numbers in the original data:",
+  format(nrow(original_incidents), big.mark = ",")
+)
+```
+
+Now there are the same number of rows
+
+Now that the datasets are comparable, do the values match?
+
+### Helper function (final_check)
+
+```{r}
+final_check <- function(merged, original, id) {
+  names_no_1 <- names(merged)
+  names_w_1  <- names(original)
+  diff_vars  <- c(setdiff(names_no_1, names_w_1), setdiff(names_w_1, names_no_1))
+  
+  if (length(diff_vars) > 0) {
+    stop(
+      "Merged and original have different variable names: ",
+      paste(diff_vars, collapse = " ")
+    )
+  }
+  
+  df <- bind_cols(merged, original )
+  
+  for (i in seq_along(names_no_1)) {
+    x          <- rlang::sym(names_no_1[[i]])
+    y          <- rlang::sym(names_w_1[[i]])
+    print(x)
+    print(y)
+    new_var_nm <- paste("test", x, sep = "_")
+    print(quo_name(new_var_nm))
+    df         <- df %>% mutate(!!quo_name(new_var_nm) := x == y)
+  }
+  
+  # ===========================================================================
+  # Return results
+  # ===========================================================================
+  df
+}
+
+
+
+
+View(original_incidents)
+View(merged_incidents)
+```
+
+```{r}
+final_check(merged_incidents, original_incidents, merged_incidents$incident_pcr) %>%
+  filter_all(any_vars(. == FALSE))
+
+```
+
+When the MedStar complete dataset is subset to include the same variables and PCR numbers that are included in the merged MedStar/APS data the values for all other variables match.
+
+
+## APS component of the merged data
+
+In this section, we just want to make sure that the values within case number in the merged data match the values within case number in the unmerged APS client data.
+
+In order for the merged and original datasets to be comparable, they each include the same case numbers, the same variables, and no duplicate rows. 
+
+There are people in the merged data that were were screened using the DETECT tool, but an investigation was never done by APS. Those people must be removed in order to compare the datasets as well.
+
+```{r}
+View(aps)
+
+
+vars_to_keep <- aps %>% 
+  select( -intake_stage_num, -name_full, -dob, -county, -street, -city, -zip) %>% 
+  names()
+
+vars_to_keep
+```
+
+```{r}
+View(medstar_aps_merged)
+
+merged_names <- medstar_aps_merged %>%
+                select(c("case_num", "name_first", "name_last", "birth_year","birth_mnth", "birth_day", -"address_num"))
+
+merged_names_n <- names(merged_names)
+
+
+merged_cases   <- medstar_aps_merged %>% 
+  select(merged_names_n) %>%# making sure variables in both datasets are the same
+  filter(!is.na(case_num)) %>% # Drop people that APS didn't investigate
+  distinct()                   # Drop duplicate rows
+
+original_cases <- aps %>% 
+  select(merged_names_n) %>% # Compare the same vars in both datasets
+  distinct()
+
+View(merged_cases)
+View(original_cases)
+
+rlang::last_error()
+```
+
+How many unique cases are in each sample?
+
+```{r}
+cat(
+  " Unique case numbers in the merged data:", 
+  format(length(unique(merged_cases[["case_num"]])), big.mark = ","), # 15270
+  "\n",
+  "Unique case numbers in the original data:",
+  format(length(unique(original_cases[["case_num"]])), big.mark = ",") # 15280
+)
+```
+
+How many rows in each sample?
+
+```{r}
+cat(
+  " Rows in the merged data:", 
+  format(nrow(merged_cases), big.mark = ","), # 15,517
+  "\n",
+  "Rows in the original data:",
+  format(nrow(original_cases), big.mark = ",") # 15,348
+)
+```
+----------
+
+Now that the datasets are comparible, do the values match?
+
+```{r}
+final_check(merged_cases, original_cases) %>%
+  select(starts_with("test")) %>% 
+  filter_all(any_vars(. == FALSE))
+```
+
+When the APS client data is subset to include the same variables and case numbers that are included in the merged MedStar/APS data the values for all other variables match.
+
+
+## Clean up
+
+```{r}
+rm(merged_cases, merged_incidents, original_cases, original_incidents, vars_to_keep)
+```
+
+[top](#top)
+
+
+
+
+
+
+# Save the merged MedStar datasets {#save}
+
+
+
+```{r}
+View(medstar_aps_merged)
+
+feather::write_feather(medstar_aps_merged, path = "/Volumes/Detect/medstar_aps_merged.feather")
+
+
+#BN save
+feather::write_feather(medstar_aps_merged, path = "C:/Users/booma/Desktop/Cannell_project/medstar_aps_merged.feather")
+```
+
+
+## Clean up
+
+```{r}
+rm(list = ls())
+```
+
+
+## References 
+
+Contiero, P., Tittarelli, A., Tagliabue, G., Maghini, A., Fabiano, S., Crosignani, P., & Tessandori, R. (2005). The EpiLink Record Linkage Software Presentation and Results of Linkage Test on Cancer Registry Files. Methods Archive, 44(1), 66-71.
+
+Sariyar, M., & Borg, A. (2010). The RecordLinkage package: Detecting errors in data. The R Journal, 2(2), 61-67.
+
+Winkler, W. (1990). String comparator metrics and enhanced decision rules in the Fellegi-Sunter model of record linkage. Available from http://eric.ed.gov/?id=ED325505.
+
+[top](#top)
+
+&nbsp;
+
+-------------------------------------------------------------------------------
+
+```{r echo=FALSE}
+sessionInfo()
+```
