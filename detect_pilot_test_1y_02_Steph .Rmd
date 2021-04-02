@@ -37,9 +37,10 @@ medstar_complete <- readRDS("/Users/chiufengyap/OneDrive - The University of Tex
 ```
 
 ```{bash}
-<!-- # For Brad -->
-<!-- open 'smb://islgpcifs.uthouston.edu/sph_research/DETECT/one_year_data/' -->
+# For Brad
+open 'smb://islgpcifs.uthouston.edu/sph_research/DETECT/one_year_data/'
 ```
+
 ```{r}
 #file location for Booma (BN)
 medstar_complete <- readRDS('C:/Users/booma/Desktop/Cannell_project/medstar_epcr_02_variable_management.rds')
@@ -220,8 +221,6 @@ review_matches_wide <- review_matches_wide %>%
 Now that the exact match dummy variables have been created, we will convert the data frame from wide back to long to make it easier to manually inspect each pair of potential matches.
 
 ```{r}
-
-
 medstar_pairs <- review_matches_wide %>% 
   select(dataset:Weight_new, ends_with("match"), diff_address_only, -(is_match1))
 
@@ -241,8 +240,6 @@ review_matches <- bind_rows(medstar_pairs, aps_pairs) %>%
 
 ```{r} 
 dim(review_matches) # 683,132     29
-
-
 ```
 
 
@@ -259,10 +256,6 @@ dim(review_matches) # 683,132     29
 * Do not keep when they have the same name, but different DOB and address.   
 
 * Figure out lower bound for matching weights by trial and error.
-
-
-
- 
 
 ```{r}
 # Try lower bounds values until a reasonable cutoff value is found
@@ -291,10 +284,6 @@ if the pair is already verified, Weight_new will be 0 if the pair does not match
 + those with non-match in 4 of the following - first-name, last-name, day of birth, month of birth, year of birth, address.
 
 ```{r}
-
- 
-
-
 # reviewing those with full_name match but not birth_full_match and address_full match
 # review_matches_view <- review_matches %>%
 #         filter(name_full_match & !birth_full_match & !address_full_match)
@@ -1445,7 +1434,7 @@ review_matches <- review_matches %>%
                                 TRUE ~ 0
                                 ))
 
-View(review_matches)
+# View(review_matches)
 
 table(review_matches$Weight_new)
 
@@ -1565,7 +1554,7 @@ review_matches_view <- review_matches %>%
                         filter(Weight_new_1 == 0) %>%
                         arrange(desc(Weight), desc(pair_num))
 
-View(review_matches_view)
+# View(review_matches_view)
 
 # post manual review the following pair numbers were identified as non-matches 
 # creating new variable Weight_new_2 where matches will be coded 1 and non-matches coded 0
@@ -1607,8 +1596,8 @@ dim(review_matches_f)
 # 28688 observations, 31 variables
 
 
-View(aps)
-View(medstar_complete)
+# View(aps)
+# View(medstar_complete)
 ```
 
 ```{r}
@@ -1670,7 +1659,7 @@ if (sum(matches_wide$medstar_pair_num != matches_wide$aps_pair_num) > 0) {
 dim(matches_wide) #14344*6
 ```
 
-How many will be dropped because APS investigation date preceeds the DETECT screening date?
+How many will be dropped because APS investigation date precedes the DETECT screening date?
 
 ```{r}
 matches_wide %>% 
