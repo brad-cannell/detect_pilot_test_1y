@@ -1,0 +1,253 @@
+---
+title: "Joining Pair Numbers with Data Frames"
+date: "2020-11-25"
+---
+
+2020-11-20: Steph is helping me merge MedStar and APS data from the DETECT 1-year pilot study. We have already identified matches (pairs), but we are facing some challenges with getting the pair numbers back into the full MedStar and APS data frames. Below, we create a small reproducible example that I hope will help.
+
+2020-11-25: Having trouble unnesting the nested data after merge. Going to try doin this the way I did it before nesting. Looking for unique combinations of name, DOB, and address.
+
+```{r}
+library(dplyr)
+library(RecordLinkage)
+```
+
+# Simulate data
+
+Start with medstar_complete (created in data_medstar_epcr_02_variable_management.Rmd) and aps (created in data_aps_02_variable_management.Rmd).
+
+medstar_complete has two unique people. Each person has one, and only one, row in the data frame.
+
+```{r}
+medstar_complete <- tibble(
+  arrival_time = as.POSIXct(c("2017-02-01 01:54:34", "2017-02-01 04:14:07")),
+  incident_pcr = c("033c7", "a5bc4"),
+  name_first = c("brad", "john"),
+  name_last = c("cannell", "hartman"),
+  birth_mnth = c(5, 4),
+  birth_day = c(20, 14),
+  birth_year = c(1945, 1947),
+  address_num = c(100, 201),
+  address_street = c("henderson", "sequoia"),
+  detect_screening_1 = c("No", "Yes")
+) %>% 
+  print()
+```
+
+The aps data frame contains two unique people. One person, Jon, has two rows in the data frame. They differ only by intake_stage_number, which means that Jon's case was reported to APS by two different people. Notice that Jon's first name is spelled differently between the data frames.
+
+```{r}
+aps <- tibble(
+  name_last = c("yap", "hartman", "hartman"),
+  name_first = c("steph", "jon", "jon"),
+  case_num = c(43505763, 43491095, 43491095),
+  intake_date = as.POSIXct(c("2017-02-01 01:54:34", "2017-03-01 04:14:07", "2017-03-01 04:14:07")),
+  intake_stage_num = c(65655869, 65613543, 65613603),
+  birth_mnth = c(2, 4, 4),
+  birth_day = c(9, 14, 14),
+  birth_year = c(1950, 1947, 1947),
+  address_num = c(123, 201, 201),
+  address_street = c("main", "sequoia", "sequoia"),
+  abuse = c("No", "Yes", "Yes")
+) %>% 
+  print()
+```
+
+# Nest the data frames
+
+2020-11-25: Don't do this anymore. Keeping for historical reasons.
+
+Next, we will nest the data frames. We do this because we only want to search for matches among unique combinations of the matching variables (i.e., name, dob, and address). This isn't necessary for the MedStar data because each screening incident only has one row (although, we did it anyway). It is necessary for the aps data because of cases like Jon's above. We don't want to treat his single investigation as two separate investigations when matching.
+
+```{r message=FALSE}
+# medstar_nested <- medstar_complete %>% 
+#   # Nest all but the following columns - not needed for the RecordLinkage process
+#   # and we want to reduce the dataset to one row per pcr.
+#   # Important to use response_date instead of date_entered
+#   tidyr::nest(
+#     -arrival_time, -incident_pcr, -name_first, -name_last, -starts_with("birth"), 
+#     -address_num, -address_street_name, .key = "medstar_nested"
+#   ) %>% 
+#   
+#   # Ungroup
+#   ungroup() %>% 
+#   print()
+```
+
+```{r}
+# aps_nested <- aps %>% 
+#   # Nest all but the following columns - not needed for the RecordLinkage process
+#   # and we want to reduce the dataset to one row per case number
+#   tidyr::nest(
+#     -case_num, -intake_date, -name_first, -name_last, -starts_with("birth"),
+#     -address_num, -address_street_name, .key = "aps_nested"
+#   ) %>% 
+#   
+#   # Ungroup
+#   ungroup() %>% 
+#   print()
+```
+
+
+# Prepare MedStar data for record matching
+
+We will match rows in the MedStar data to rows in the APS data that match (probabilistically) on name, DOB, and address. In order to make RecordLinkage process ass efficient as possible, we only want to search for matches among unique combinations of name, DOB, and address. After identifying the matching combinations, we can promulgate the pair numbers to all rows with the corresponding unique combination of name, DOB, and address.
+
+```{r}
+medstar_complete <- medstar_complete %>% 
+  mutate(
+    # Add row number for joining later
+    row_ms_complete = row_number(),
+    # Paste together match vars to look for unique combinations
+    match_vars = paste(
+      name_first, name_last, birth_mnth, birth_day, birth_year, address_num, 
+      address_street, sep = "_"
+    )
+  )
+```
+
+```{r}
+medstar_complete %>% 
+  summarise(
+    Rows = n(),
+    `Unique match combinations` = length(unique(match_vars))
+  )
+```
+
+The MedStar complete data has 28,228 rows and those rows contain 19,186 unique combinations of the variables that we are matching on.
+
+Subset the MedStar data to include only unique combinations of name, DOB, and address:
+
+# Determine which rows are likely to be matches
+
+Below, we will use various functions from the [RecordLinkage package](https://cran.r-project.org/web/packages/RecordLinkage/index.html) to find rows in the APS data that match rows in the MedStar data on name, date of birth, and address -- including non-exact matches (e.g. mispelled names, mistyped dates of birth).
+
+## Subset matching variables
+
+```{r}
+medstar_compare <- medstar_nested %>%
+  select(-medstar_nested) %>%
+  # The variables you want to compare have to appear in the same order in both datasets
+  select(incident_pcr, arrival_time, name_first, name_last, starts_with("birth"),
+         address_num, address_street_name) %>% 
+  print()
+```
+
+```{r}
+aps_compare <- aps_nested %>%
+  select(-aps_nested) %>%
+  # The variables you want to compare have to appear in the same order in both datasets
+  select(case_num, intake_date, name_first, name_last, starts_with("birth"), 
+         address_num, address_street_name) %>% 
+  print()
+```
+
+# Simulate the RecordLinkage process 
+
+The result of the RecordLinkage process is pairs_possible_matches (created in data_medstar_aps_merged_01_recordlinkage.Rmd and refined in data_medstar_aps_merged_02_refine_possible_matches.Rmd)
+
+In this data, the "row" column:
+
+* Aligns with the row numbers in any of medstar_complete, medstar_nested, and medstar_compare for the medstar rows.
+* Aligns with the row numbers in either aps_nested or aps_compare, but not aps for the aps rows (I manually checked to make sure).
+
+```{r}
+pairs_possible_matches <- tibble(
+  dataset = rep(c("medstar", "aps"), 4),
+  row = c(1, 1, 1, 2, 2, 1, 2, 2),
+  pair_num = rep(1:4, each = 2),
+  case_pcr_num = c(
+    "033c7", "43505763", "033c7", "43491095", "a5bc4", "43505763", "a5bc4", 
+    "43491095"
+  ),
+  date = as.Date(c(
+    "2017-02-01 01:54:34", "2017-02-01 01:54:34", 
+    "2017-02-01 01:54:34", "2017-03-01 04:14:07",
+    "2017-02-01 04:14:07", "2017-02-01 01:54:34",
+    "2017-02-01 04:14:07", "2017-03-01 04:14:07"
+  )),
+  name_first = c("brad", "steph", "brad", "jon", "john", "steph", "john", "jon"),
+  name_last = c(
+    "cannell", "yap", "cannell", "hartman", "hartman", "yap", "hartman", 
+    "hartman"
+  ),
+  birth_mnth = c(5, 2, 5, 4, 4, 2, 4, 4),
+  birth_day = c(20, 9, 20, 14, 14, 9, 14, 14),
+  birth_year = c(1945, 1950, 1945, 1947, 1947, 1950, 1947, 1947),
+  address_num = c(100, 123, 100, 201, 201, 123, 201, 201),
+  address_street_name = c(
+    "henderson", "main", "henderson", "sequoia", "sequoia", "main", "sequoia", "sequoia"
+  ),
+  is_match = rep(c("", NA), 4),
+  Weight = rep(c(0.1, 0.1, 0.1, 0.9), each = 2)
+) %>% 
+  print()
+```
+
+# Simulate the process of filtering possible matches
+
+Here, I'm simplifying this process. We just end up with John and Jon, which was the only match by design.
+
+```{r}
+date_filter <- pairs_possible_matches %>% 
+  filter(Weight >= 0.9) %>% 
+  print()
+```
+
+# Add pair_number to medstar_nested and aps_nested
+
+I believe this is where we are currently at in the process. 
+
+Break date_filter up into two data frames (i.e., one for MedStar and one for APS), then keep only the row and pair_num columns.
+
+```{r}
+date_filter_medstar <- date_filter %>% 
+  filter(dataset == "medstar") %>% 
+  select(row, pair_num)
+
+date_filter_aps <- date_filter %>% 
+  filter(dataset == "aps") %>% 
+  select(row, pair_num)
+```
+
+Add row numbers to medstar_nested and aps_nested.
+
+```{r}
+medstar_nested <- medstar_nested %>% 
+  mutate(row = row_number())
+
+aps_nested <- aps_nested %>% 
+  mutate(row = row_number())
+```
+
+Add pair_num to medstar_nested and aps_nested
+
+```{r}
+medstar_nested <- medstar_nested %>% 
+  left_join(date_filter_medstar, by = "row")
+
+aps_nested <- aps_nested %>% 
+  left_join(date_filter_aps, by = "row")
+```
+
+Join medstar_nested and aps_nested on pair_num. Use full_join so that non-paired rows from both data frames are retained.
+
+Make sure to use na_matches = "never" to prevent joining on pair_number == NA.
+
+```{r}
+medstar_aps_nested <- medstar_nested %>% 
+  full_join(aps_nested, by = "pair_num", na_matches = "never", suffix = c("_ms", "_aps")) %>% 
+  print()
+```
+
+Now, unnest the data frames (really just APS).
+
+```{r}
+tidyr::unnest(medstar_aps_nested, cols = c(medstar_nested, aps_nested))
+```
+
+This is the result we want. The one person who existed in both data frames (John/Jon) now has his DETECT screening result and APS investigation result in the same row.
+
+Of course, the data is still kind of messy. It includes columns that we no longer need and we have to figure out what to do about disagreements between values. For example name_first_ms = john and name_first_aps = jon. Which first name do we use?
+
+There is a section in data_medstar_aps_merged_02_refine_possible_matches.Rmd titled "Data check: Join conflicts". It starts on line 540 in my version of the Rmd file (yours may be slightly different because you've been working on it). That section is quite extensive and should have solutions (or at least guidance) on how to handle cleaning the data from this point forward.
