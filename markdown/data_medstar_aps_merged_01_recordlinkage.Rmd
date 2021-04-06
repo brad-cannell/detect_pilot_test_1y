@@ -3,25 +3,24 @@ title: "Merge MedStar Data With APS Data - Linking Datasets"
 date: "Created: 2019-06-21 <br> Updated: `r Sys.Date()`"
 ---
 
-# Overview
+# ⭐️Overview
 
 In this file, we will use the RecordLinkage package to generate a probability that each row in the medstar data is a match to each row in the APS data based on name and date of birth. Address is also used in the algorithm as contextual information, but not as a determining factor due to its instability at the person level.
 
-# Load packages and data
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(comment = NA)
-Sys.setenv(TZ = "US/Central")
-```
+# 📦Load packages data
 
 ```{r message=FALSE}
 library(dplyr)
 library(readr)
 ```
 
+# 🌐Connect to server
+
 ```{bash}
 open 'smb://islgpcifs.uthouston.edu/sph_research/DETECT/one_year_data/'
 ```
+
+# 📥Import data
 
 ## MedStar DETECT data
 
@@ -69,7 +68,6 @@ medstar_complete %>%
     `Unique PCR` = length(unique(incident_pcr)) 
   )
 ```
-
 
 
 # Prepare MedStar data for record matching
@@ -423,13 +421,3 @@ Contiero, P., Tittarelli, A., Tagliabue, G., Maghini, A., Fabiano, S., Crosignan
 Sariyar, M., & Borg, A. (2010). The RecordLinkage package: Detecting errors in data. The R Journal, 2(2), 61-67.
 
 Winkler, W. (1990). String comparator metrics and enhanced decision rules in the Fellegi-Sunter model of record linkage. Available from http://eric.ed.gov/?id=ED325505.
-
-[top](#top)
-
-&nbsp;
-
--------------------------------------------------------------------------------
-
-```{r echo=FALSE}
-sessionInfo()
-```
