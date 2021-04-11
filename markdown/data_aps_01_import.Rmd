@@ -71,3 +71,13 @@ As an RDS file.
 readr::write_rds(aps, "/Volumes/DETECT/one_year_data/aps_01_import.rds")
 ```
 
+# Session information
+
+```{r echo=FALSE}
+rm(list = ls())
+```
+
+```{r echo=FALSE}
+sessionInfo()
+```
+
