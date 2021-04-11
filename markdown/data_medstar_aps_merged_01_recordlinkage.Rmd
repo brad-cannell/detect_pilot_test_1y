@@ -36,8 +36,6 @@ medstar_complete <- read_rds("/Volumes/one_year_data/medstar_epcr_02_variable_ma
 dim(medstar_complete) # 28,228    56
 ```
 
-
-
 ## APS Client data
 
 APS client information from records of all elder abuse and neglect investigations conducted in and around MedStar's service area between 2014-12-31 and 2018-02-28. 
@@ -102,7 +100,7 @@ The MedStar complete data has 28,228 rows and those rows contain 19,186 unique c
 Subset the MedStar data to include only unique combinations of name, DOB, and address:
 
 
-Left off here... before completing this, I want to make sure it works in the simulated data.
+# 🔴Left off here... before completing this, I want to make sure it works in the simulated data. The code above pastes the matching variable together instead of nesting. I think that's what I should do next time. Not sure I want to do it this time because we've already done all the manual reviews.
 
 
 
@@ -120,7 +118,7 @@ medstar_compare <- medstar_complete %>%
 
 
 
-Nesting is convient for the matching process. May want to look at changing in the future. Actually, it's totally unnecisary in this case. Come back and change accordingly in the future.
+Nesting is convenient for the matching process. May want to look at changing in the future. Actually, it's totally unnecessary in this case. Come back and change accordingly in the future.
 
 ```{r message=FALSE}
 medstar_nested <- medstar_complete %>% 
@@ -158,6 +156,8 @@ At this point each screening (incident_pcr_number) is a single row that can be m
 
 
 # Prepare APS data for record matching
+
+**Next time you do this, incorporate person id**
 
 Each time a report is made to APS about a person a unique intake stage number is generated. It's possible for multiple reports to be made about the same person/incident. So, there is also a case number assigned to the victim and the report/group of reports. If more than one victim is reported at once, each is given a separate case number. A single victim may be associated with more than one case. 
 
