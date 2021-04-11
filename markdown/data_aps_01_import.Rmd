@@ -3,35 +3,38 @@ title: "Importing APS Data For Analysis"
 date: "Created: 2019-01-17 <br> Updated: `r Sys.Date()`"
 ---
 
-# Overview
+# ⭐️Overview
 
 In this file we read-in the raw data we received from APS on 2018-09-26 through Kiteworks.
 
 
-# Load packages
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(comment = NA)
-Sys.setenv(TZ = "US/Central")
-```
+# 📦Load packages
 
 ```{r message=FALSE}
 library(dplyr)
 ```
 
-[top](#top)
+
+# 🌐Connect to server
+
+Connect to the UTHealth server.
+
+```{bash}
+# For Brad
+# open 'smb://islgpcifs.uthouston.edu/sph_research/DETECT/one_year_data/'
+```
 
 
-# Read-in data
+# 📥Read-in data
 
 * Make sure to connect to the UTHealth server using the path stored in NOTES.
 
 ```{r}
-aps <- readxl::read_excel("/Volumes/DETECT/one_year_data/aps_data.xlsx")
+aps <- readxl::read_excel("/Volumes/one_year_data/aps_data.xlsx")
 ```
 
 ```{r}
-dim(aps) # 18,152 observations and 47 variables
+dim(aps) # 18,152    47
 ```
 
 
@@ -54,25 +57,17 @@ aps <- distinct(aps)
 ```
 
 ```{r}
-dim(aps) # 18,080 observations and 47 variables
+dim(aps) # 18,080    47
 ```
 
-72 duplicate rows were dropped from the data.
+18152 - 18080 = 72 duplicate rows were dropped from the data.
 
 
-# Save imported data
+# Save APS data
+
+As an RDS file.
 
 ```{r}
 readr::write_rds(aps, "/Volumes/DETECT/one_year_data/aps_01_import.rds")
 ```
 
-
-# Session information
-
-```{r echo=FALSE}
-rm(list = ls())
-```
-
-```{r echo=FALSE}
-sessionInfo()
-```
