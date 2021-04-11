@@ -167,6 +167,8 @@ Again, we will get around this by nesting all columns that may result in multipl
 
 Add hyphens -- move to variable management
 
+NOTE: Thought about trying to incorporate using person_id here, but it is also used inconsistently. See case_num == 43630694 for an example.
+
 ```{r}
 aps <- aps %>% 
   mutate(
