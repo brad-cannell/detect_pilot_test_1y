@@ -157,8 +157,6 @@ At this point each screening (incident_pcr_number) is a single row that can be m
 
 # Prepare APS data for record matching
 
-**Next time you do this, incorporate person id**
-
 Each time a report is made to APS about a person a unique intake stage number is generated. It's possible for multiple reports to be made about the same person/incident. So, there is also a case number assigned to the victim and the report/group of reports. If more than one victim is reported at once, each is given a separate case number. A single victim may be associated with more than one case. 
 
 Therefore, some case numbers in the client data will have multiple rows that are redundant aside from the intake stage (person who reported). When we match the APS data to the MedStar data below by name, individual people may get matched more than once (i.e., if they were treated by MedStar more than once, investigated by APS more than once, or both). We are fine with that. However, we don’t want people to be matched once per person who made a report (intake_stage).  
@@ -166,6 +164,8 @@ Therefore, some case numbers in the client data will have multiple rows that are
 Again, we will get around this by nesting all columns that may result in multiple rows per case number.
 
 Add hyphens -- move to variable management
+
+NOTE: Thought about trying to incorporate using person_id here, but it is also used inconsistently. See case_num == 43630694 for an example.
 
 ```{r}
 aps <- aps %>% 
