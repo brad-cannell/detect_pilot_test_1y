@@ -3,33 +3,39 @@ title: "Manage Variables in APS Data"
 date: "Created: 2019-01-25 <br> Updated: `r Sys.Date()`"
 ---
 
-# Overview
+# ⭐️Overview
 
 * The raw APS data was imported in data_aps_01_import.Rmd
 
 * In this file we do some basic data cleaning and prepare the data to be merged with MedStar data.
 
 
-# Load packages and data
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(comment = NA)
-Sys.setenv(TZ = "US/Central")
-```
+# 📦Load packages
 
 ```{r message=FALSE}
 library(dplyr)
+library(purrr)
+library(fastDummies)
+library(stringr)
 ```
 
 
-# Read-in data
+# 🌐Connect to server
 
-* Make sure to connect to the UTHealth server using the path stored in NOTES.
+Connect to the UTHealth server.
+
+```{bash eval=FALSE}
+# For Brad
+open 'smb://islgpcifs.uthouston.edu/sph_research/DETECT/one_year_data/'
+```
+
+
+# 📥Read-in data
 
 * aps_01_import.rds was created in data_aps_01_import.Rmd
 
 ```{r}
-aps <- readr::read_rds("/Volumes/DETECT/one_year_data/aps_01_import.rds")
+aps <- readr::read_rds("/Volumes/one_year_data/aps_01_import.rds")
 ```
 
 ```{r}
@@ -47,20 +53,28 @@ Because we will merge this data with other data sets in the future based on char
 
 ```{r}
 aps <- aps %>% 
-  mutate_if(is.character, tolower) %>% 
-  mutate_if(is.character, stringr::str_replace, "[[:blank:]]$", "") %>%
-  mutate_if(is.character, stringr::str_replace_all, "[[:blank:]]{2,}", " ")
+  mutate(
+    across(
+      .cols = where(is.character), 
+      function(x) {
+        x <- str_to_lower(x) # Make lowercase
+        x <- str_trim(x) # Remove leading and trailing spaces
+        x <- str_replace_all(x, "[[:blank:]]{2,}", " ") # Remove double spaces
+      }
+    )
+  )
 ```
 
 4. Remove any special characters (e.g., hyphens, periods)   
 
 ```{r}
-vars <- quos(name_last, name_first, name_full)
-
 aps <- aps %>% 
-  mutate_at(vars(!!! vars), stringr::str_replace_all, "[^a-zA-Z\\d\\s]", " ")
-
-rm(vars)
+  mutate(
+    across(
+      c(name_last, name_first, name_full),
+      ~ str_replace_all(.x, "[^a-zA-Z\\d\\s]", " ")
+    )
+  )
 ```
 
 ```{r}
@@ -119,6 +133,201 @@ aps <- select(aps, -row)
 ```{r}
 dim(aps) # 18,080 observations and 47 variables
 ```
+
+
+# Resolve within-case discrepancies between rows
+
+Which variables have differing values within case number? Each case number should be about the investigation of a single person. Therefore, most of the values for each variable within case should be constant. Unfortunately, this isn't the case. 
+
+**Some notes from APS about administrative variables:**
+
+* Each unique **Intake Stage #** (Column M) may be thought of as a unique report of ANE made on a particular date at a particular time. Each unique intake will generate a unique investigation, designated by an **Investigation Stage #** (Column L). So, each unique intake # is paired with an investigation #. With this a case is opened, assigned a **case #** (Column K)
+
+* **Each row of data in this file may be best understood as a unique "reporter" which is the person making a report of abuse, neglect or exploitation (ANE) about a particular victim, on a particular date and time.** The name and DOB and address information in the first several columns are that of the victim, not the reporter. The only information provided about the reporter is column O, reporter type. 
+
+* As already noted, each unique **Intake #** may be thought of as a unique report of ANE. However, there may be two reporters on the same intake, which appears as two rows with the same intake number. This reflects that two different people made the report at the same time, most likely in the way that one person speaks to the intake worker, then hands the phone to the other reporter. You may see a different reporter type in each row which is common when the victim is calling with a family member. Also common is the victim or a family member calling along with someone providing services or other assistance, maybe a health care provider, a community organization, or a law enforcement officer. They are making the call together, hence together they are making the report of ANE. Two people, one report. 
+
+* In contrast to the above, you may see two rows with the same case number but different intake numbers which are on the same date. This represents two different reports called in independently by two different people. Thus, they have different intake numbers, and they are regarded as two different reports of the same abuse. And again, as mentioned above, they have the same case numbers because it was determined that after the initial report was made, the subsequent report concerned the same mistreatment or self-neglect and therefore was merged into the already-created case.
+
+* For the ITS analysis, we are interested in changes in the number of individual "reports" of EA. So, each row should be a unique reporter/intake stage number combination.
+
+* For the merge with the MedStar data, it's easiest if each case is collapsed into a single row. 
+
+* Therefore, we after fixing discrepancies, we will create a long version and wide version of the APS data.
+
+## Create case_row
+
+To count the number of rows per case
+
+```{r}
+aps <- aps %>% 
+  arrange(case_num) %>% 
+  group_by(case_num) %>% 
+  mutate(case_row = row_number()) %>% 
+  ungroup() %>% 
+  select(case_num, case_row, everything())
+```
+
+```{r}
+dim(aps) # 18,080    48
+```
+
+## Descriptives
+
+```{r}
+aps %>% 
+  summarise(
+    Rows           = nrow(aps),
+    `Unique cases` = length(unique(aps$case_num)),
+    Difference     = Rows - `Unique cases`,
+    `Min rows`     = min(case_row),
+    `Max rows`     = max(case_row),
+    .groups        = "drop"
+  )
+```
+
+So, there are **18,080** total rows in the APS data. Of those, **15,280** represent unique cases (i.e., investigations). They do NOT represent unique people. We will identify unique people later. Most cases only have one row (i.e., one reporter); however, some cases have as many as 12 rows (i.e., 12 unique reporters, which is the person making a report of abuse, neglect or exploitation (ANE), about a particular victim, on a particular date and time).
+
+The APS long data should have 18,080 rows. The APS wide data should have 15,280 rows.
+
+## Check for discrepencies
+
+### Helper function: all_match
+
+```{r}
+all_match <- function(x) {
+  # If there are any NA's, check for all NA's
+  if (any(is.na(x))) {
+    # Check for all NA
+    out <- all(is.na(x))
+  } else {
+    out <- length(unique(x)) == 1
+  }
+  out
+}
+
+# # For testing
+# df <- tibble(
+#   id = c(1, 1, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5),
+#   x = c(1, 1, NA, NA, 3, NA, NA, 2, 3, NA, NA, NA),
+#   y = rep("a", 12)
+# )
+# 
+# df %>% 
+#   group_by(id) %>% 
+#   mutate(
+#     x_match = all_match(x),
+#     y_match = all_match(y)
+#   )
+```
+
+```{r}
+# It doesn't make sense to check columns that are different by design
+inspect_cols <- aps %>% 
+  select(
+    -case_num, -case_row, -investigation_stage_num, -intake_stage_num, 
+    -intake_date, -reporter, -investigation_closure_date, -closure_reason
+  ) %>% 
+  names()
+```
+
+```{r}
+# Set column order ahead of time. This assumes that you know the names of each 
+# of the columns you want to inspect
+col_order <- map(
+  names(aps), 
+  function(x) {
+    if (x %in% inspect_cols) {
+      c(x, paste0(x, "_all_match"))
+    } else {
+      x
+    }
+  }
+) %>% 
+  unlist()
+```
+
+```{r}
+inspect_aps <- aps %>% 
+  group_by(case_num) %>% 
+  mutate(
+    across(
+      .cols  = all_of(inspect_cols),
+      .fns   = ~ all_match(.x),
+      .names = "{col}_all_match"
+    )
+  ) %>% 
+  dplyr::select(all_of(col_order)) %>% 
+  ungroup()
+```
+
+Which columns have any discrepancies?
+
+```{r}
+inspect_aps %>% 
+  select(ends_with("all_match")) %>% 
+  select(where(~ !all(.x))) %>% 
+  names()
+```
+
+Every column has at least one discrepancy. Let's view the discrepancies.
+
+```{r}
+all_match_cols <- select(inspect_aps, ends_with("all_match")) %>% 
+  names() %>% 
+  rlang::syms()
+```
+
+```{r}
+walk(
+  .x = all_match_cols,
+  .f = function(x) {
+    # Get column name w/o "all_matches" suffix
+    no_suf <- str_remove(quo_name(x), "_all_match$")
+    no_suf <- rlang::sym(no_suf)
+    
+    # Create name for new data frame
+    df_nm <- str_replace(quo_name(x), "_all_match$", "")
+    df_nm <- paste0("discrepancies_", df_nm)
+    
+    # Get the discrepancies
+    results <- inspect_aps %>% 
+      filter(!!x == FALSE) %>% 
+      select(case_num, case_row, !!no_suf, !!x, everything())
+    
+    # Save to global environment
+    assign(df_nm, results, envir = .GlobalEnv)
+  }  
+)
+```
+
+
+Left off here...
+
+Need to resolve the discrepancies.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # Separate dob's and street addresses
@@ -219,7 +428,7 @@ aps <- aps %>%
 ```
 
 ```{r}
-dim(aps) # 8,927 observations and 62 variables
+dim(aps) # 18,080    54
 ```
 
 
@@ -319,16 +528,42 @@ dim(aps) # 18,080 observations and 58 variables
 ```
 
 
-# Create dummy variable for EMS reporter
+# Create dummy variable for reporter
+
+How many unique values are there for reporter?
+
+```{r}
+unique(aps$reporter)
+```
+
+Clean up the reporter names a little bit so that dummy columns are easier to read
+
+```{r}
+aps$reporter <- aps$reporter %>% 
+  str_replace("health care providers/staff -- ems/emt", "ems") %>% # Shorten EMS
+  str_replace_all(" |/|-", "_") %>% # Replaces spaces and special characters
+  str_replace_all("_{2,}", "_") # Replace more than one underscore with a single underscore
+```
+
+Create dummy variables
 
 ```{r}
 aps <- aps %>% 
-  mutate(ems = if_else(reporter == "health care providers/staff -- ems/emt", 1, 0))
+  dummy_cols(select_columns = "reporter")
 ```
 
 ```{r}
 dim(aps) # 18,080 observations and 59 variables
 ```
+
+
+
+
+
+# Create min and max investigation date variables
+
+
+# Create a number of reporters variable
 
 
 # Valid/Invalid summary

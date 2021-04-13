@@ -19,9 +19,9 @@ library(dplyr)
 
 Connect to the UTHealth server.
 
-```{bash}
+```{bash eval=FALSE}
 # For Brad
-# open 'smb://islgpcifs.uthouston.edu/sph_research/DETECT/one_year_data/'
+open 'smb://islgpcifs.uthouston.edu/sph_research/DETECT/one_year_data/'
 ```
 
 
@@ -68,7 +68,7 @@ dim(aps) # 18,080    47
 As an RDS file.
 
 ```{r}
-readr::write_rds(aps, "/Volumes/DETECT/one_year_data/aps_01_import.rds")
+readr::write_rds(aps, "/Volumes/one_year_data/aps_01_import.rds")
 ```
 
 # Session information
