@@ -39,6 +39,14 @@ aps <- readr::read_rds("/Volumes/one_year_data/aps_01_import.rds")
 ```
 
 ```{r}
+#for Booma 
+
+aps <- readr::read_rds("C:/Users/booma/Downloads/aps_01_import.rds")
+
+
+```
+
+```{r}
 dim(aps) # 18,080 observations and 47 variables
 ```
 
