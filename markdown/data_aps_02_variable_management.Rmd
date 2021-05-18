@@ -314,8 +314,311 @@ Left off here...
 
 Need to resolve the discrepancies.
 
+#Booma starts here
+
+# creating new data frame to retain the existing information in aps
+
+```{r}
+aps_2 <- aps
+
+```
+
+## Discrepancies in last name
+fixing rules -
+1. go with most common name in the case number group
+2. if there are only 2 instances or if there are even instances go with the first one
+3. if last name and first name seem interchanged, replace the terms accordingly
 
 
+```{r}
+
+
+View(discrepancies_name_last)
+#52 observations
+
+#creating new data frame for ease of writing code in next step
+dnl <- discrepancies_name_last
+
+aps_2 <- aps_2 %>% 
+  mutate(name_last = case_when(
+    case_num == 43630694 ~ dnl$name_last[dnl$case_num == 43630694 
+                                         & dnl$case_row == 2],
+    case_num == 43712349 ~ dnl$name_last[dnl$case_num == 43712349 
+                                         & dnl$case_row == 2],
+    case_num == 43834412 ~ dnl$name_last[dnl$case_num == 43834412 
+                                         & dnl$case_row == 1],
+    case_num == 44047558 ~ dnl$name_last[dnl$case_num == 44047558 
+                                         & dnl$case_row == 2],
+    case_num == 44098590 ~ dnl$name_last[dnl$case_num == 44098590 
+                                         & dnl$case_row == 1],
+    case_num == 44202718 ~ dnl$name_last[dnl$case_num == 44202718 
+                                         & dnl$case_row == 1],
+    case_num == 44361687 ~ dnl$name_last[dnl$case_num == 44361687 
+                                         & dnl$case_row == 2],
+    case_num == 44534324 ~ dnl$name_last[dnl$case_num == 44534324 
+                                         & dnl$case_row == 4],
+    case_num == 44985172 ~ dnl$name_last[dnl$case_num == 44985172 
+                                         & dnl$case_row == 3],
+    case_num == 45009395 ~ dnl$name_last[dnl$case_num == 45009395 
+                                         & dnl$case_row == 2],
+    case_num == 45241463 ~ dnl$name_last[dnl$case_num == 45241463 
+                                         & dnl$case_row == 1], 
+    case_num == 45561218 ~ dnl$name_last[dnl$case_num == 45561218 
+                                         & dnl$case_row == 2],
+    case_num == 45686452 ~ dnl$name_last[dnl$case_num == 45686452 
+                                         & dnl$case_row == 1],
+    case_num == 45766192 ~ dnl$name_last[dnl$case_num == 45766192 
+                                         & dnl$case_row == 2],
+    TRUE ~ name_last
+    )
+  )
+
+#testing to check if there are any discrepancies that are not fixed
+aps_2 %>%
+  group_by(case_num) %>%
+  mutate(test_name_last = all_match(name_last)) %>%
+  filter(test_name_last == FALSE)
+
+```
+
+
+```{r}
+#fixing pending discrepancies       
+# there is one case number (46198930) which will be split into two cases with the following case_numbers -->  90000001, 90000002
+
+aps_2 <- aps_2 %>%
+  mutate(case_num = case_when(
+    case_num == 46198930 & case_row == 1 ~ 90000001,
+    case_num == 46198930 & case_row == 2 ~ 90000002,
+    TRUE ~ case_num),
+    (case_row = case_when(
+      case_num == 90000002 ~ 1,
+      TRUE ~ case_num)
+    )
+  )
+
+```
+
+## Discrepancies in first_name 
+
+```{r}
+View(discrepancies_name_first)
+#118 observations
+
+#creating new data frame for ease of writing code in next step
+dnf <- discrepancies_name_first
+
+aps_2 <- aps_2 %>%
+  mutate(name_first = case_when(
+    case_num == 43630694 ~ dnf$name_first[dnf$case_num == 43630694 
+                                          & dnf$case_row == 2],
+    #case_num == 43634107 ~ "donna",
+    case_num == 43712349 ~ dnf$name_first[dnf$case_num == 43712349 
+                                          & dnf$case_row == 2],
+    case_num == 43834412 ~ dnf$name_first[dnf$case_num == 43834412
+                                          & dnf$case_row == 1],
+    case_num == 43933221 ~ dnf$name_first[dnf$case_num == 43933221 
+                                          & dnf$case_row == 1],
+    case_num == 43998424 ~ dnf$name_first[dnf$case_num == 43998424 
+                                          & dnf$case_row == 1],
+    case_num == 44098590 ~ dnf$name_first[dnf$case_num == 44098590 
+                                          & dnf$case_row == 2],
+    case_num == 44133841 ~ dnf$name_first[dnf$case_num == 44133841 
+                                          & dnf$case_row == 1],
+    case_num == 44149921 ~ dnf$name_first[dnf$case_num == 44149921 
+                                          & dnf$case_row == 1],
+    case_num == 44202718 ~ dnf$name_first[dnf$case_num == 44202718 
+                                          & dnf$case_row == 1],
+    case_num == 44278970 ~ dnf$name_first[dnf$case_num == 44278970 
+                                          & dnf$case_row == 1],
+    case_num == 44619484 ~ dnf$name_first[dnf$case_num == 44619484 
+                                          & dnf$case_row == 1],
+    case_num == 44759165 ~ dnf$name_first[dnf$case_num == 44759165 
+                                          & dnf$case_row == 2],
+    case_num == 44767336 ~ dnf$name_first[dnf$case_num == 44767336 
+                                          & dnf$case_row == 2],
+    case_num == 44985172 ~ dnf$name_first[dnf$case_num == 44985172 
+                                          & dnf$case_row == 3],
+    case_num == 45009395 ~ dnf$name_first[dnf$case_num == 45009395 
+                                          & dnf$case_row == 2],
+    case_num == 45086686 ~ dnf$name_first[dnf$case_num == 45086686 
+                                          & dnf$case_row == 1],
+    case_num == 45092611 ~ dnf$name_first[dnf$case_num == 45092611 
+                                          & dnf$case_row == 1],
+    case_num == 45118774 ~ dnf$name_first[dnf$case_num == 45118774 
+                                          & dnf$case_row == 1],
+    case_num == 45130361 ~ dnf$name_first[dnf$case_num == 45130361 
+                                          & dnf$case_row == 4],
+    #case_num == 45202615 ~ "jasper",
+    case_num == 45342291 ~ dnf$name_first[dnf$case_num == 45342291 
+                                          & dnf$case_row == 2],
+    case_num == 45359082 ~ dnf$name_first[dnf$case_num == 45359082 
+                                          & dnf$case_row == 1],
+    case_num == 45369750 ~ dnf$name_first[dnf$case_num == 45369750 
+                                          & dnf$case_row == 2],
+    case_num == 45396401 ~ dnf$name_first[dnf$case_num == 45396401 
+                                          & dnf$case_row == 1],
+    case_num == 45405950 ~ dnf$name_first[dnf$case_num == 45405950 
+                                          & dnf$case_row == 3],
+    case_num == 45410028 ~ dnf$name_first[dnf$case_num == 45410028 
+                                          & dnf$case_row == 2],
+    case_num == 45453113 ~ dnf$name_first[dnf$case_num == 45453113 
+                                          & dnf$case_row == 1],
+    case_num == 45467549 ~ dnf$name_first[dnf$case_num == 45467549 
+                                          & dnf$case_row == 1],
+    case_num == 45475078 ~ dnf$name_first[dnf$case_num == 45475078 
+                                          & dnf$case_row == 2],
+    case_num == 45547900 ~ dnf$name_first[dnf$case_num == 45547900 
+                                          & dnf$case_row == 1],
+    case_num == 45614971 ~ dnf$name_first[dnf$case_num == 45614971 
+                                          & dnf$case_row == 2],
+    case_num == 45686452 ~ dnf$name_first[dnf$case_num == 45686452 
+                                          & dnf$case_row == 1],
+    case_num == 46169389 ~ dnf$name_first[dnf$case_num == 46169389 
+                                          & dnf$case_row == 1],
+    # case_num == 46198930 ~ "robert",
+    case_num == 46232228 ~ dnf$name_first[dnf$case_num == 46232228 
+                                          & dnf$case_row == 3],
+    TRUE ~ name_first
+                        
+        ))
+
+#testing if there are any discreapncies that were not fixed
+aps_2 %>%
+        group_by(case_num) %>%
+        mutate(
+        test_name_first = all_match(name_first)) %>%
+                filter(test_name_first == FALSE)
+
+```
+
+
+```{r}
+#issues with 2 case numbers - 43634107, 45202615
+#based on Dr. Cannell's suggestion going to split these into 4 different cases 
+# the id's would be 90000003, 90000004, 90000005, 90000006
+
+aps_2 <- aps_2 %>%
+  mutate(case_num = case_when(
+    case_num == 43634107 & case_row == 1 ~ 90000003,
+    case_num == 43634107 & case_row == 2 ~ 90000004, 
+    case_num == 45202615 & case_row == 1 ~ 90000005,
+    case_num == 45202615 & case_row == 2 ~ 90000006,
+    TRUE ~ case_num
+    )
+  )
+
+#fixing case row numbers in those 2 case_numbers with case_row == 2
+aps_2 <- aps_2 %>%
+  mutate(case_row = case_when(
+    case_num == 90000004 ~ 1L,
+    case_num == 90000006 ~ 1L,
+    TRUE ~ case_row
+    )
+  )
+
+
+
+```
+
+## Discrepancies in full name
+
+Since we have fixed discrepancies in first and last name we can 
+actually edit the name_full variable to use the updated first and last names
+
+```{r}
+View(discrepancies_name_full)
+#139 observations
+
+aps_2 <- aps_2 %>%
+  mutate(name_full = paste(name_first, name_last, sep = " "))
+
+#testing if there are any unfixed discrepancies
+aps_2 %>%
+  group_by(case_num) %>%
+  mutate(test_name_full = all_match(name_full)) %>%
+  filter(test_name_full == FALSE)
+
+```
+## Discrepancies in person id
+
+```{r}
+
+View(discrepancies_person_id)
+#not fixed as we do not have information on this variable
+```
+## Discrepancies in street, city, zip, county
+for all of these variables we are going to be using the value of the most frequently occurring instance
+
+
+```{r}
+View(discrepancies_street) #634 observations
+View(discrepancies_city) #381 observations
+View(discrepancies_county) #37 observations
+View(discrepancies_zip) #649 observations
+
+aps_2$county <- as.character(aps$county)
+aps_2$city <- as.character(aps$city)
+aps_2$zip <- as.character(aps$zip)
+aps_2$street <- as.character(aps$street)
+
+aps_2$case_num <- as.character(aps$case_num)
+
+Mode <- function(x) {
+        ux <- unique(x)
+        ux[which.max(tabulate(match(x, ux)))]
+}
+
+
+aps_2 <- aps_2 %>%
+  group_by(case_num) %>%
+  mutate(zip = substr(zip, 1, 5),
+  street = Mode(street),
+  city = Mode(city),
+  county = Mode(county))%>%
+  ungroup()
+
+#testing if there are any unfixed discrepancies
+aps_test <- aps_2 %>%
+  group_by(case_num) %>%
+  mutate(
+  test_zip = all_match(zip),
+  test_street = all_match(street),
+  test_city = all_match(city),
+  test_county = all_match(county)) 
+
+aps_test %>%
+  filter(test_zip == FALSE)
+
+aps_test %>%
+  filter(test_street == FALSE)
+
+aps_test %>%
+  filter(test_city == FALSE)
+
+aps_test %>%
+  filter(test_county == FALSE)
+
+```
+## Discrepancy in age 
+
+```{r}
+View(discrepancies_age) #454 observations
+
+#going to stick with first instance of age - which corresponds to first incident 
+#report created
+
+aps_2 <- aps_2 %>%
+  group_by(case_num) %>%
+  mutate(age = Mode(age))%>%
+  ungroup()
+        
+range(aps$age)
+
+aps %>%
+  filter(age >= 100)
+
+```
 
 
 
