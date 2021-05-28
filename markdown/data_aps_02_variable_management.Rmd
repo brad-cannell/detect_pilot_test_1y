@@ -28,7 +28,7 @@ Connect to the UTHealth server.
 
 ```{bash eval=FALSE}
 # For Brad
-open 'smb://islgpcifs.uthouston.edu/sph_research/DETECT/one_year_data/'
+# open 'smb://islgpcifs.uthouston.edu/sph_research/DETECT/one_year_data/'
 ```
 
 
@@ -965,35 +965,29 @@ Booma and Steph left off here...
 
 
 
+Steph attempted to pick up here...
 
 
-
-
-
-
-
-
-
-# Separate dob's and street addresses
-
-* We also separate dob into its component parts: month, day, year.
+# Separate street addresses
 
 * We also separate the street address into the number part and the street name part
 
 ```{r}
-aps <- aps %>%
-  mutate(
-    birth_mnth          = lubridate::month(dob),
-    birth_day           = lubridate::day(dob),
-    birth_year          = lubridate::year(dob),
-    address_num         = stringr::str_extract(street, "^\\d{1,5}") %>% as.numeric(),
-    address_street_name = stringr::str_trim(stringr::str_replace(street, "^\\d{1,5}", ""))
-  )
+# aps_2 <- aps_2 %>%
+#   mutate(
+#     address_num         = stringr::str_extract(street, "^\\d{1,5}") %>% as.numeric(),
+#     address_street_name = stringr::str_trim(stringr::str_replace(street, "^\\d{1,5}", ""))
+#   )
 ```
 
 ```{r}
-dim(aps) # 18,080 observations and 52 variables
+# dim(aps_2) # 18,080 observations and 78 variables
 ```
+
+
+
+
+
 
 
 # MedStar service area
@@ -1003,14 +997,14 @@ According to [MedStar's website](http://www.medstar911.org/service-area), the ci
 What cities appear in the data?
 
 ```{r eval=FALSE}
-aps %>% 
-  freqtables::freq_table(city)
+aps_2 %>% 
+  freqtables::freq_table(city) # 254 different cities
 ```
 
-There are a lot of cities included in this data that our outside of MedStar's service area. Create a dummy variable to indicate cities included in MedStar's coverage area.
+There are a lot of cities included in this data that are outside of MedStar's service area. Create a dummy variable to indicate cities included in MedStar's coverage area.
 
 ```{r}
-aps <- aps %>% 
+aps_2 <- aps_2 %>% 
   mutate(medstar_service_area = if_else(city %in% c(
     "blue mound", "burleson", "edgecliff village", "forest hill", "fort worth", 
     "haltom city", "haslet", "lake worth", "lakeside", "river oaks", "saginaw", 
@@ -1022,7 +1016,7 @@ aps <- aps %>%
 Note: There are no APS investigations with a city address of Edgecliff Village or Westover Hills.
 
 ```{r}
-dim(aps) # 18,080 observations and 53 variables
+dim(aps_2) # 18,080 observations and 79 variables
 ```
 
 Add a little information about the area this data covers
@@ -1030,7 +1024,7 @@ Add a little information about the area this data covers
 What counties are represented in this data?
 
 ```{r echo=FALSE}
-aps %>% 
+aps_2 %>% 
   mutate(
     `Medstar Service Area` = if_else(
       medstar_service_area == 0,
@@ -1048,7 +1042,7 @@ aps %>%
 How many cities are inside and outside of the MedStar Service Area?
 
 ```{r echo=FALSE}
-aps %>% 
+aps_2 %>% 
   mutate(
     `Medstar Service Area` = if_else(
       medstar_service_area == 0,
@@ -1067,12 +1061,12 @@ aps %>%
 # Create city_fw
 
 ```{r}
-aps <- aps %>% 
+aps_2 <- aps_2 %>% 
   mutate(city_fw = if_else(city == "fort worth", 1, 0))
 ```
 
 ```{r}
-dim(aps) # 18,080    54
+dim(aps_2) # 18,080    80
 ```
 
 
@@ -1081,10 +1075,10 @@ dim(aps) # 18,080    54
 Create a dummy variable corresponding to the dates when MedStar was using the DETECT tool.
 
 ```{r}
-aps <- aps %>% 
+aps_2 <- aps_2 %>% 
   mutate(
     detect = case_when(
-      as.Date(intake_date) >= "2015-09-17" & as.Date(intake_date) <= "2015-10-26" ~ 1,
+      as.Date(intake_date) >= "2015-09-17" & as.Date(intake_date) <= "2015-10-26" ~ 1, # 7,520 obs
       as.Date(intake_date) >= "2017-02-01"                                        ~ 1,
       TRUE                                                                        ~ 0
     )
@@ -1094,7 +1088,7 @@ aps <- aps %>%
 Also, create a 4-level study period identifier
 
 ```{r}
-aps <- aps %>% 
+aps_2 <- aps_2 %>% 
   mutate(
     study_period = case_when(
       as.Date(intake_date) < "2015-09-17" ~ 1,
@@ -1106,7 +1100,7 @@ aps <- aps %>%
 ```
 
 ```{r}
-dim(aps) # 18,080 observations and 56 variables
+dim(aps_2) # 18,080 observations and 82 variables
 ```
 
 
@@ -1117,17 +1111,21 @@ dim(aps) # 18,080 observations and 56 variables
 What time period does the APS data cover?
 
 ```{r echo=FALSE}
-aps %>% 
+aps_2 %>% 
   summarise(
     `Earliest Date` = min(intake_date),
     `Latest Date` = max(intake_date)
   )
+
+# Earliest : "2014-12-31 10:26:00 UTC"
+# Latest:  "2018-02-28 18:09:00 UTC"
+
 ```
 
 ## Create a week number variable.
 
 ```{r}
-aps <- aps %>% 
+aps_2 <- aps_2 %>% 
   mutate(
     intake_year = format(intake_date, "%y"),
     year_add = case_when(
@@ -1146,13 +1144,13 @@ aps <- aps %>%
 
 ```{r}
 # Data checks
-# aps_its %>% select(intake_date, intake_year, year_add, week, study_week, detect)
+aps_2 %>% select(intake_date, intake_year, year_add, week, study_week, detect)
 ```
 
 During which study weeks did DETECT screening occur?
 
 ```{r echo=FALSE}
-aps %>% 
+aps_2 %>% 
   filter(detect == 1) %>% 
   # For data checking
   # select(intake_date, study_week)
@@ -1163,12 +1161,12 @@ aps %>%
 Drop unneeded variables
 
 ```{r}
-aps <- aps %>% 
+aps_2 <- aps_2 %>% 
   select(-year_add, -week)
 ```
 
 ```{r}
-dim(aps) # 18,080 observations and 58 variables
+dim(aps_2) # 18,080 observations and 84 variables
 ```
 
 
@@ -1177,13 +1175,13 @@ dim(aps) # 18,080 observations and 58 variables
 How many unique values are there for reporter?
 
 ```{r}
-unique(aps$reporter)
+unique(aps_2$reporter) # 14 different types
 ```
 
 Clean up the reporter names a little bit so that dummy columns are easier to read
 
 ```{r}
-aps$reporter <- aps$reporter %>% 
+aps_2$reporter <- aps_2$reporter %>% 
   str_replace("health care providers/staff -- ems/emt", "ems") %>% # Shorten EMS
   str_replace_all(" |/|-", "_") %>% # Replaces spaces and special characters
   str_replace_all("_{2,}", "_") # Replace more than one underscore with a single underscore
@@ -1192,23 +1190,44 @@ aps$reporter <- aps$reporter %>%
 Create dummy variables
 
 ```{r}
-aps <- aps %>% 
+aps_2 <- aps_2 %>% 
   dummy_cols(select_columns = "reporter")
 ```
 
 ```{r}
-dim(aps) # 18,080 observations and 59 variables
+dim(aps_2) # 18,080 observations and 98 variables
 ```
-
-
 
 
 
 # Create min and max investigation date variables
 
+```{r}
+aps_2 <- aps_2 %>% 
+  group_by(case_num) %>% 
+  mutate(
+    investigate_date_min = min(intake_date),
+    investigate_date_max = max(intake_date)
+  )
+```
+
 
 # Create a number of reporters variable
 
+```{r}
+aps_2 <- aps_2 %>% 
+  mutate(reporter_total = sum(reporter_anonymous + reporter_blank_unknown + 
+                                reporter_community_agencies_organizations + reporter_ems + 
+                                reporter_family_members_and_relatives + reporter_financial_institution + 
+                                reporter_friends_and_neighbors + reporter_health_care_providers_staff + 
+                                reporter_law_enforcement + reporter_legal_and_court_related_services_staff + 
+                                reporter_other_providers + reporter_others + reporter_other_providers + 
+                                reporter_others + reporter_state_agencies + reporter_victim))
+```
+
+```{r}
+dim(aps_2) # 18,080   101
+```
 
 # Valid/Invalid summary
 
@@ -1225,7 +1244,7 @@ To do that, we will create a new variable called "any_valid" that is equal to 1 
 * If one disposition is other, and the rest are invalid, then any valid equals NA   
 
 ```{r}
-aps <- aps %>% 
+aps_2 <- aps_2 %>% 
   mutate(
     total_valid   = select(., starts_with("valid")) %>% rowSums(),
     total_invalid = select(., starts_with("invalid")) %>% rowSums(),
@@ -1267,7 +1286,7 @@ dim(aps) # 18,080 observations and 64 variables
 For the all subsequent analyses, we are interested in changes in the number of individual "reports" of EA. So, each row should be a unique reporter/intake stage number combination. Results are hidden to protect participant privacy.
 
 ```{r eval=FALSE}
-aps %>% 
+aps_2 %>% 
   group_by(intake_stage_num, reporter) %>% 
   filter(n() > 1)
 ```
@@ -1286,6 +1305,7 @@ readr::write_rds(aps, "/Volumes/DETECT/one_year_data/aps_02_variable_management.
 readr::write_csv(aps, "/Volumes/DETECT/one_year_data/aps_02_variable_management.csv")
 ```
 
+unique_data name = ""
 
 # Session information
 
