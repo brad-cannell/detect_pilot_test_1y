@@ -34,6 +34,8 @@ Connect to the UTHealth server.
 
 # 📥Read-in data
 
+Let's use the data with one row per case_num.
+
 * aps_01_import.rds was created in data_aps_01_import.Rmd
 
 ```{r}
@@ -328,12 +330,6 @@ walk(
 )
 ```
 
-
-Left off here...
-
-Need to resolve the discrepancies.
-
-Booma and Steph starts here:
 
 ### Mode function
 
@@ -953,36 +949,25 @@ aps_2 <- aps_2 %>% group_by(case_num) %>%
 ```
 
 ```{r}
-aps_cleaned <- aps_2 %>% select(!ends_with(".y") & (!ends_with(".x")))
-aps_unique <- aps_cleaned %>% filter(case_row==1)
+aps_2 <- aps_2 %>% select(!ends_with(".y") & (!ends_with(".x")))
+
 ```
 
 ```{r}
 rm(aps_test, dnf, dnl, dz)
+
 ```
 
-Booma and Steph left off here...
 
 
 
-Steph attempted to pick up here...
+# From Brad (Delete when done):
 
+1. Move code to create reporter dummy variables up here.
 
-# Separate street addresses
+2. Move the code to create earliest and latest report date.
 
-* We also separate the street address into the number part and the street name part
-
-```{r}
-# aps_2 <- aps_2 %>%
-#   mutate(
-#     address_num         = stringr::str_extract(street, "^\\d{1,5}") %>% as.numeric(),
-#     address_street_name = stringr::str_trim(stringr::str_replace(street, "^\\d{1,5}", ""))
-#   )
-```
-
-```{r}
-# dim(aps_2) # 18,080 observations and 78 variables
-```
+3. If all discrepancies are fixed at this point, then reduce the data down to 1 row per case_num. 
 
 
 
@@ -1076,6 +1061,7 @@ Create a dummy variable corresponding to the dates when MedStar was using the DE
 
 ```{r}
 aps_2 <- aps_2 %>% 
+  group_by(case_num) %>% 
   mutate(
     detect = case_when(
       as.Date(intake_date) >= "2015-09-17" & as.Date(intake_date) <= "2015-10-26" ~ 1, # 7,520 obs
@@ -1191,14 +1177,40 @@ Create dummy variables
 
 ```{r}
 aps_2 <- aps_2 %>% 
-  dummy_cols(select_columns = "reporter")
+  fastDummies::dummy_cols(select_columns = "reporter")
 ```
+
+
+```{r}
+# reporter_anonymous
+aps_2 <- aps_2 %>% 
+  group_by(case_num) %>% 
+  mutate(
+    reporter_anonymous                               = max(reporter_anonymous),
+    reporter_blank_unknown                           = max(reporter_blank_unknown),
+    reporter_community_agencies_organizations        = max(reporter_blank_unknown),
+    reporter_ems                                     = max(reporter_ems),
+    reporter_family_members_and_relatives            = max(reporter_family_members_and_relatives), 
+    reporter_financial_institution                   = max(reporter_financial_institution), 
+    reporter_friends_and_neighbors                   = max(reporter_friends_and_neighbors), 
+    reporter_health_care_providers_staff             = max(reporter_health_care_providers_staff), 
+    reporter_law_enforcement                         = max(reporter_law_enforcement), 
+    reporter_legal_and_court_related_services_staff  = max(reporter_legal_and_court_related_services_staff), 
+    reporter_other_providers                         = max(reporter_other_providers), 
+    reporter_others                                  = max(reporter_others), 
+    reporter_other_providers                         = max(reporter_other_providers), 
+    reporter_others                                  = max(reporter_others), 
+    reporter_state_agencies                          = max(reporter_state_agencies), 
+    reporter_victim                                  = max(reporter_victim))
+
+dim(aps_2) # 18,080 observations and 98 variables
+
+```
+
 
 ```{r}
 dim(aps_2) # 18,080 observations and 98 variables
 ```
-
-
 
 # Create min and max investigation date variables
 
@@ -1216,6 +1228,7 @@ aps_2 <- aps_2 %>%
 
 ```{r}
 aps_2 <- aps_2 %>% 
+  group_by(case_num) %>% 
   mutate(reporter_total = sum(reporter_anonymous + reporter_blank_unknown + 
                                 reporter_community_agencies_organizations + reporter_ems + 
                                 reporter_family_members_and_relatives + reporter_financial_institution + 
@@ -1244,13 +1257,17 @@ To do that, we will create a new variable called "any_valid" that is equal to 1 
 * If one disposition is other, and the rest are invalid, then any valid equals NA   
 
 ```{r}
-aps_2 <- aps_2 %>% 
+aps_2 <- aps_2 %>%
+  group_by(case_num) %>%
+  # select(case_num, starts_with("valid"), starts_with("invalid")) %>% 
+  rowwise() %>% 
   mutate(
-    total_valid   = select(., starts_with("valid")) %>% rowSums(),
-    total_invalid = select(., starts_with("invalid")) %>% rowSums(),
+    total_valid   = sum(c_across(starts_with("valid"))),
+    total_invalid = sum(c_across(starts_with("invalid"))),
     any_valid     = as.numeric(total_valid > 0),
     all_invalid   = as.numeric(total_valid == 0 & total_invalid > 0)
-  )
+  ) %>% 
+  ungroup()
 ```
 
 Create 3-level summary variable
@@ -1260,7 +1277,7 @@ Create 3-level summary variable
 3. Unable to determine or other finding
 
 ```{r}
-aps <- aps %>% 
+aps_2 <- aps_2 %>% 
   mutate(
     valid_3cat = case_when(
       any_valid == 1 ~ 1,
@@ -1271,21 +1288,20 @@ aps <- aps %>%
 ```
 
 ```{r}
-# Data checks
-# check <- aps %>% 
-#   select(closure_reason:total_other_dispositions, total_valid:valid_3cat)
+dim(aps_2) # 18,080 observations and 104 variables
 ```
 
 ```{r}
-dim(aps) # 18,080 observations and 64 variables
+# Data checks
+# aps_2 %>% filter(case_num == 44885551)
 ```
 
 
 # Check duplicate rows
 
-For the all subsequent analyses, we are interested in changes in the number of individual "reports" of EA. So, each row should be a unique reporter/intake stage number combination. Results are hidden to protect participant privacy.
+For the all subsequent analyses, we are interested in changes in the number of individual "reports" of EA. Results are hidden to protect participant privacy.
 
-```{r eval=FALSE}
+```{r}
 aps_2 %>% 
   group_by(intake_stage_num, reporter) %>% 
   filter(n() > 1)
@@ -1297,15 +1313,14 @@ So, there are 10 rows (5 reports to APS) where a report was made to APS (intake 
 # Save data
 
 ```{r}
-readr::write_rds(aps, "/Volumes/DETECT/one_year_data/aps_02_variable_management.rds")
+readr::write_rds(aps_unique, "/Volumes/DETECT/one_year_data/aps_02_variable_management.rds")
 ```
 
 
 ```{r}
-readr::write_csv(aps, "/Volumes/DETECT/one_year_data/aps_02_variable_management.csv")
+readr::write_csv(aps_unique, "/Volumes/DETECT/one_year_data/aps_02_variable_management.csv")
 ```
 
-unique_data name = ""
 
 # Session information
 
@@ -1315,4 +1330,4 @@ rm(list = ls())
 
 ```{r echo=FALSE}
 sessionInfo()
-```
+```wh
