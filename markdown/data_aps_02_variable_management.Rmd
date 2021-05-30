@@ -34,15 +34,10 @@ Connect to the UTHealth server.
 
 # 📥Read-in data
 
-Let's use the data with one row per case_num.
-
 * aps_01_import.rds was created in data_aps_01_import.Rmd
 
 ```{r}
 # aps <- readr::read_rds("/Volumes/one_year_data/aps_01_import.rds")
-# 
-# # For Booma 
-# aps <- readr::read_rds("C:/Users/booma/Downloads/aps_01_import.rds")
 
 # For Steph
 aps <- readr::read_rds("/Users/chiufengyap/OneDrive - The University of Texas Health Science Center at Houston/Research/MedStar_APS/delete/aps_01_import.rds")
@@ -61,10 +56,9 @@ Because we will merge this data with other data sets in the future based on char
 2. Remove trailing spaces (e.g., "John Smith ")   
 3. Remove double spaces (e.g., "John  Smith")
 
-# Steph Adds
-
 ```{r}
-# Change all dob's year LIKE "20__" to "19__" because records with similar case_num that have all dob_all_match = TRUE could have all their dobs LIKE 2027-01-01, which is impossible.
+# Change all date of birth (dob)'s year element from "20__" to "19__" because records with similar case_num that have all dob_all_match = TRUE could have all their dob like 2027-01-01, which is impossible at this moment.
+
 aps <- aps %>% 
   mutate(
     dob_year = format(dob, "%Y"),
@@ -77,7 +71,8 @@ aps <- aps %>%
     dob = paste(c(dob_year), c(dob_month), c(dob_day), sep="-"),
     dob = as.Date(dob, format="%Y-%m-%d"))
 
-aps <- subset(aps, select = -c(dob_year, dob_month, dob_day, dob_year_1, dob_year_2))
+aps <- subset(aps, select = -c(dob_year, dob_month, dob_day, dob_year_1, 
+                               dob_year_2))
 ```
 
 ```{r}
@@ -184,6 +179,7 @@ Which variables have differing values within case number? Each case number shoul
 
 * Therefore, we after fixing discrepancies, we will create a long version and wide version of the APS data.
 
+
 ## Create case_row
 
 To count the number of rows per case
@@ -200,6 +196,7 @@ aps <- aps %>%
 ```{r}
 dim(aps) # 18,080    48
 ```
+
 
 ## Descriptives
 
@@ -234,20 +231,6 @@ all_match <- function(x) {
   }
   out
 }
-
-# # For testing
-# df <- tibble(
-#   id = c(1, 1, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5),
-#   x = c(1, 1, NA, NA, 3, NA, NA, 2, 3, NA, NA, NA),
-#   y = rep("a", 12)
-# )
-# 
-# df %>% 
-#   group_by(id) %>% 
-#   mutate(
-#     x_match = all_match(x),
-#     y_match = all_match(y)
-#   )
 ```
 
 ```{r}
@@ -340,21 +323,22 @@ Mode <- function(x) {
 }
 ```
 
+
 ### Creating new data frame to retain the existing information in aps.
 
 ```{r}
 aps_2 <- aps
 ```
 
+
 ### Discrepancies in last name
-fixing rules -
-1. go with most common name in the case number group
+
+Fixing rules -
+1. Go with the most common name by case_num using Mode()
 2. if there are only 2 instances or if there are even instances go with the first one
 3. if last name and first name seem interchanged, replace the terms accordingly
 
 ```{r}
-# View(discrepancies_name_last) # 52 observations
-
 # Creating new data frame for ease of writing code in next step
 dnl <- discrepancies_name_last
 
@@ -392,17 +376,15 @@ aps_2 <- aps_2 %>%
     )
   )
 
-#testing to check if there are any discrepancies that are not fixed
-aps_2 %>%
-  group_by(case_num) %>%
-  mutate(test_name_last = all_match(name_last)) %>%
-  filter(test_name_last == FALSE)
-```
+# Testing to check if there are any discrepancies that are not fixed
+# aps_2 %>%
+#   group_by(case_num) %>%
+#   mutate(test_name_last = all_match(name_last)) %>%
+#   filter(test_name_last == FALSE)
 
 
-```{r}
-# fixing pending discrepancies       
-# there is one case number (46198930) which will be split into two cases with the following case_numbers -->  90000001, 90000002
+# Fixing pending discrepancies       
+# There is one case number (46198930) which will be split into two cases with the following case_numbers -->  90000001, 90000002
 
 aps_2 <- aps_2 %>%
   mutate(
@@ -417,12 +399,11 @@ aps_2 <- aps_2 %>%
     )
 ```
 
+
 ### Discrepancies in first_name 
 
 ```{r}
-# View(discrepancies_name_first) #118 observations
-
-# creating new data frame for ease of writing code in next step
+# Creating new data frame for ease of writing code in next step
 dnf <- discrepancies_name_first
 
 aps_2 <- aps_2 %>%
@@ -497,18 +478,14 @@ aps_2 <- aps_2 %>%
                         
         ))
 
-# testing if there are any discrepancies that were not fixed
-aps_2 %>%
-  group_by(case_num) %>%
-  mutate(test_name_first = all_match(name_first)) %>%
-  filter(test_name_first == FALSE)
-```
+# Testing if there are any discrepancies that were not fixed
+# aps_2 %>%
+#   group_by(case_num) %>%
+#   mutate(test_name_first = all_match(name_first)) %>%
+#   filter(test_name_first == FALSE)
 
-
-```{r}
-# issues with 2 case numbers - 43634107, 45202615
-# based on Dr. Cannell's suggestion going to split these into 4 different cases 
-# the id's would be 90000003, 90000004, 90000005, 90000006
+# Issues with 2 case numbers - 43634107, 45202615
+# Based on Dr. Cannell's suggestion going to split these into 4 different cases: 90000003, 90000004, 90000005, 90000006
 
 aps_2 <- aps_2 %>%
   mutate(case_num = case_when(
@@ -520,7 +497,7 @@ aps_2 <- aps_2 %>%
     )
   )
 
-# fixing case row numbers in those 2 case_numbers with case_row == 2
+# Fixing case row numbers in those 2 case_numbers with case_row == 2
 aps_2 <- aps_2 %>%
   mutate(case_row = case_when(
     case_num == 90000004 ~ 1L,
@@ -530,13 +507,12 @@ aps_2 <- aps_2 %>%
   )
 ```
 
+
 ### Discrepancies in full name
 
-Since we have fixed discrepancies in first and last name we can 
-actually edit the name_full variable to use the updated first and last names
+Update name_full variable using the updated first and last names
 
 ```{r}
-# View(discrepancies_name_full) #139 observations
 aps_2 <- aps_2 %>%
   mutate(name_full = paste(name_first, name_last, sep = " "))
 
@@ -547,25 +523,22 @@ aps_2 %>%
   filter(test_name_full == FALSE)
 ```
 
+
 ### Discrepancies in person id
 
 ```{r}
 # View(discrepancies_person_id) # not fixed as we do not have information on this variable
 ```
 
+
 ### Discrepancies in street, city, and county
+
 for all of these variables we are going to be using the value of the most frequently occurring instance
 
 ```{r}
-#View(discrepancies_street) #634 observations
-#View(discrepancies_city) #381 observations
-#View(discrepancies_county) #37 observations
-
 aps_2$county <- as.character(aps$county)
 aps_2$city <- as.character(aps$city)
 aps_2$street <- as.character(aps$street)
-
-# aps_2$case_num <- as.character(aps$case_num) 
 
 aps_2 <- aps_2 %>%
   group_by(case_num) %>%
@@ -574,22 +547,14 @@ aps_2 <- aps_2 %>%
   county = Mode(county))%>%
   ungroup()
 
-#testing if there are any unfixed discrepancies
+# Testing if there are any unfixed discrepancies
 aps_test <- aps_2 %>%
   group_by(case_num) %>%
   mutate(test_street = all_match(street),
   test_city = all_match(city),
   test_county = all_match(county)) 
-
-aps_test %>%
-  filter(test_street == FALSE)
-
-aps_test %>%
-  filter(test_city == FALSE)
-
-aps_test %>%
-  filter(test_county == FALSE)
 ```
+
 
 ### Discrepancies in age
 
@@ -598,12 +563,12 @@ aps_2 <- aps_2 %>%
   group_by(case_num) %>%
   mutate(
     age = Mode(age))
-
-# # check for all_match == FALSE
-# aps_2 %>% group_by(case_num) %>% mutate(age_test = all_match(age)) %>% filter(age_test==FALSE) # 0 obs
 ```
 
+
 ### Discrepancies in dob
+
+Replacing the individual elements (year, month, and day) of dob using the Mode()
 
 ```{r}
 # Mode() for individual year, month, and day
@@ -622,319 +587,62 @@ aps_2 <- aps_2 %>%
   select(-c(dob_year, dob_month, dob_day))
 ```
 
+
+* Fixing binary variables using max() if the variable has ever reported (value = 1) group by case_num
+
 ### Discrepancies in invalid_emotional_abuse  
 
 ```{r}
 aps_2 <- aps_2 %>% 
   group_by(case_num) %>% 
-  mutate(
-    invalid_emotional_abuse_total = sum(invalid_emotional_abuse),
-    invalid_emotional_abuse = max(invalid_emotional_abuse))
+  mutate(invalid_emotional_abuse = max(invalid_emotional_abuse),
+         invalid_exploitation = max(invalid_exploitation),
+         invalid_medical_neglect = max(invalid_medical_neglect),
+         invalid_mental_health_neglect = max(invalid_mental_health_neglect),
+         invalid_physical_abuse = max(invalid_physical_abuse),
+         invalid_physical_neglect = max(invalid_physical_neglect),
+         invalid_sexual_abuse = max(invalid_sexual_abuse),
+         other_emotional_abuse = max(other_emotional_abuse),
+         other_exploitation = max(other_exploitation),
+         other_medical_neglect = max(other_medical_neglect),
+         other_mental_health_neglect = max(other_mental_health_neglect),
+         other_physical_abuse = max(other_physical_abuse),
+         other_physical_neglect = max(other_physical_neglect),
+         other_sexual_abuse = max(other_sexual_abuse),
+         total_allegations_investigated = sum(total_allegations_investigated),
+         total_other_dispositions = sum(total_other_dispositions),
+         utd_emotional_abuse = max(utd_emotional_abuse),
+         utd_exploitation = max(utd_exploitation),
+         utd_medical_neglect = max(utd_medical_neglect),
+         utd_mental_health_neglect = max(utd_mental_health_neglect),
+         utd_physical_abuse = max(utd_physical_abuse),
+         utd_physical_neglect = max(utd_physical_neglect),
+         utd_sexual_abuse = max(utd_sexual_abuse),
+         valid_emotional_abuse = max(valid_emotional_abuse),
+         valid_exploitation = max(valid_exploitation),
+         valid_medical_neglect = max(valid_medical_neglect),
+         valid_mental_health_neglect = max(valid_mental_health_neglect),
+         valid_physical_abuse = max(valid_physical_abuse),
+         valid_physical_neglect = max(valid_physical_neglect),
+         valid_sexual_abuse = max(valid_sexual_abuse))
 ```
 
-### Discrepancies in invalid_exploitation     
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    invalid_exploitation_total = sum(invalid_exploitation),
-    invalid_exploitation = max(invalid_exploitation)) 
-```
-
-### Discrepancies in invalid_medical_neglect 
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    invalid_medical_neglect_total = sum(invalid_medical_neglect),
-    invalid_medical_neglect = max(invalid_medical_neglect))
-```
-
-### Discrepancies in invalid_mental_health_neglect
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    invalid_mental_health_neglect_total = sum(invalid_mental_health_neglect),
-    invalid_mental_health_neglect = max(invalid_mental_health_neglect))
-```
-
-### Discrepancies in invalid_physical_abuse   
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    invalid_physical_abuse_total = sum(invalid_physical_abuse),
-    invalid_physical_abuse = max(invalid_physical_abuse))
-```
-
-### Discrepancies in invalid_physical_neglect 
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    invalid_physical_neglect_total = sum(invalid_physical_neglect),
-    invalid_physical_neglect = max(invalid_physical_neglect))
-```
-
-### Discrepancies in invalid_sexual_abuse   
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    invalid_sexual_abuse_total = sum(invalid_sexual_abuse),
-    invalid_sexual_abuse = max(invalid_sexual_abuse))
-```
-
-### Discrepancies in other_emotional_abuse  
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    other_emotional_abuse_total = sum(other_emotional_abuse),
-    other_emotional_abuse = max(other_emotional_abuse))
-```
-
-### Discrepancies in other_exploitation     
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    other_exploitation_total = sum(other_exploitation),
-    other_exploitation = max(other_exploitation))
-```
-
-### Discrepancies in other_medical_neglect      
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    other_medical_neglect_total = sum(other_medical_neglect),
-    other_medical_neglect = max(other_medical_neglect))
-```
-
-### Discrepancies in other_mental_health_neglect 
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    other_mental_health_neglect_total = sum(other_mental_health_neglect),
-    other_mental_health_neglect = max(other_mental_health_neglect))
-```
-
-### Discrepancies in other_physical_abuse 
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    other_physical_abuse_total = sum(other_physical_abuse),
-    other_physical_abuse = max(other_physical_abuse))
-```
-
-### Discrepancies in other_physical_neglect  
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    other_physical_neglect_total = sum(other_physical_neglect),
-    other_physical_neglect = max(other_physical_neglect))
-```
-
-### Discrepancies in other_sexual_abuse 
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    other_sexual_abuse_total = sum(other_sexual_abuse),
-    other_sexual_abuse = max(other_sexual_abuse))
-```
-
-### Discrepancies in total_allegations_investigated
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    total_allegations_investigated = sum(total_allegations_investigated))
-```
-
-### Discrepancies in total_other_dispositions
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    total_other_dispositions = sum(total_other_dispositions))
-```
-
-### Discrepancies in utd_emotional_abuse
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    utd_emotional_abuse_total = sum(utd_emotional_abuse),
-    utd_emotional_abuse = max(utd_emotional_abuse))
-```
-
-### Discrepancies in utd_exploitation
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    utd_exploitation_total = sum(utd_exploitation),
-    utd_exploitation = max(utd_exploitation))
-```
-
-### Discrepancies in utd_medical_neglect
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    utd_medical_neglect_total = sum(utd_medical_neglect),
-    utd_medical_neglect = max(utd_medical_neglect))
-```
-
-### Discrepancies in utd_mental_health_neglect
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    utd_mental_health_neglect_total = sum(utd_mental_health_neglect),
-    utd_mental_health_neglect = max(utd_mental_health_neglect)) 
-```
-
-### Discrepancies in utd_physical_abuse
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    utd_physical_abuse_total = sum(utd_physical_abuse),
-    utd_physical_abuse = max(utd_physical_abuse))
-```
-
-### Discrepancies in utd_physical_neglect   
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    utd_physical_neglect_total = sum(utd_physical_neglect),
-    utd_physical_neglect = max(utd_physical_neglect))
-```
-
-### Discrepancies in utd_sexual_abuse       
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    utd_sexual_abuse_total = sum(utd_sexual_abuse),
-    utd_sexual_abuse = max(utd_sexual_abuse)) 
-```
-
-### Discrepancies in valid_emotional_abuse   
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    valid_emotional_abuse_total = sum(valid_emotional_abuse),
-    valid_emotional_abuse = max(valid_emotional_abuse)) 
-```
-
-### Discrepancies in valid_exploitation 
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    valid_exploitation_total = sum(valid_exploitation),
-    valid_exploitation = max(valid_exploitation))
-```
-
-### Discrepancies in valid_medical_neglect  
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    valid_medical_neglect_total = sum(valid_medical_neglect),
-    valid_medical_neglect = max(valid_medical_neglect)) 
-```
-
-### Discrepancies in valid_mental_health_neglect
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    valid_mental_health_neglect_total = sum(valid_mental_health_neglect),
-    valid_mental_health_neglect = max(valid_mental_health_neglect))
-```
-
-### Discrepancies in valid_physical_abuse 
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    valid_physical_abuse_total = sum(valid_physical_abuse),
-    valid_physical_abuse = max(valid_physical_abuse))
-```
-
-### Discrepancies in valid_physical_neglect 
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    valid_physical_neglect_total = sum(valid_physical_neglect),
-    valid_physical_neglect = max(valid_physical_neglect))
-```
-
-### Discrepancies in valid_sexual_abuse
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    valid_sexual_abuse_total = sum(valid_sexual_abuse),
-    valid_sexual_abuse = max(valid_sexual_abuse))
-```
 
 ### Discrepancies in zip
 
+Fixing rules:
+1. Reformat all zip codes to only include the first 5 digits because not all records' zip code was reported in the same format (some don't include the specific delivery route numbers (e.g., 75000-XXXX)
+2. If the mode of is NA, then the zip will be manually filled in with available/earliest instance's zip
+
 ```{r}
-# Not all zips include the specific delivery route 4 digits - reformat all zips to only include first 5 digits 
 aps_2$zip <- aps_2$zip %>% substr(1,5)
 
 #creating new data frame for ease of writing code in next step
 dz <- aps_2
 
-# fill NAs with mode zip by case_num. 
-# If there are only two cases, the latest instance's zip will be used.
 aps_2 <- aps_2 %>% group_by(case_num) %>% 
   mutate(zip = Mode(zip)) %>% select(case_num,starts_with("zip"), everything()) %>% 
   mutate( 
-    ## there are case_num that has NA, manually filling in with available/latest instance's zip
     zip = case_when(
       case_num == 43517870 ~ dz$zip[dz$case_num == 43517870 & dz$case_row == 2], 
       case_num == 44161813 ~ dz$zip[dz$case_num == 44161813 & dz$case_row == 1], 
@@ -943,35 +651,100 @@ aps_2 <- aps_2 %>% group_by(case_num) %>%
       case_num == 44261984 ~ dz$zip[dz$case_num == 44261984 & dz$case_row == 2], 
       case_num == 44339121 ~ dz$zip[dz$case_num == 44339121 & dz$case_row == 2], 
       case_num == 45285335 ~ dz$zip[dz$case_num == 45285335 & dz$case_row == 2], 
-      case_num == 45431722 ~ dz$zip[dz$case_num == 45431722 & dz$case_row == 3], # latest zip
+      case_num == 45431722 ~ dz$zip[dz$case_num == 45431722 & dz$case_row == 2],
       TRUE ~ zip
   ))
 ```
 
+
+Remove all new variables/columns end with (.x/.y) created from all_match() function 
+
 ```{r}
 aps_2 <- aps_2 %>% select(!ends_with(".y") & (!ends_with(".x")))
-
 ```
 
 ```{r}
-rm(aps_test, dnf, dnl, dz)
-
+rm(aps_test, dnf, dnl, dz, list=ls(pattern="^discrepancies_"))
 ```
 
 
+# Create dummy variable for reporter
+
+How many unique values are there for reporter? -- 14 different types
+
+```{r}
+unique(aps_2$reporter) 
+```
+
+Clean up the reporter names a little bit so that dummy columns are easier to read
+
+```{r}
+aps_2$reporter <- aps_2$reporter %>% 
+  str_replace("health care providers/staff -- ems/emt", "ems") %>% # Shorten EMS
+  str_replace_all(" |/|-", "_") %>% # Replaces spaces and special characters
+  str_replace_all("_{2,}", "_") # Replace more than one underscore with a single underscore
+```
+
+Create dummy variables for reporter types
+
+```{r}
+aps_2 <- aps_2 %>% 
+  fastDummies::dummy_cols(select_columns = "reporter")
+```
+
+```{r}
+aps_2 <- aps_2 %>% 
+  group_by(case_num) %>% 
+  mutate(
+    reporter_anonymous                               = max(reporter_anonymous),
+    reporter_blank_unknown                           = max(reporter_blank_unknown),
+    reporter_community_agencies_organizations        = max(reporter_community_agencies_organizations),
+    reporter_ems                                     = max(reporter_ems),
+    reporter_family_members_and_relatives            = max(reporter_family_members_and_relatives), 
+    reporter_financial_institution                   = max(reporter_financial_institution), 
+    reporter_friends_and_neighbors                   = max(reporter_friends_and_neighbors), 
+    reporter_health_care_providers_staff             = max(reporter_health_care_providers_staff), 
+    reporter_law_enforcement                         = max(reporter_law_enforcement), 
+    reporter_legal_and_court_related_services_staff  = max(reporter_legal_and_court_related_services_staff), 
+    reporter_other_providers                         = max(reporter_other_providers), 
+    reporter_others                                  = max(reporter_others), 
+    reporter_state_agencies                          = max(reporter_state_agencies), 
+    reporter_victim                                  = max(reporter_victim)) %>% 
+  ungroup()
+```
 
 
-# From Brad (Delete when done):
+# Create a total number of reporters variable
 
-1. Move code to create reporter dummy variables up here.
+```{r}
+aps_2 <- aps_2 %>% 
+  rowwise() %>% 
+  mutate(reporter_total = sum(reporter_anonymous + reporter_blank_unknown + 
+                                reporter_community_agencies_organizations + reporter_ems + 
+                                reporter_family_members_and_relatives + reporter_financial_institution + 
+                                reporter_friends_and_neighbors + reporter_health_care_providers_staff + 
+                                reporter_law_enforcement + reporter_legal_and_court_related_services_staff + 
+                                reporter_other_providers + reporter_others + 
+                                reporter_state_agencies + reporter_victim)) %>% 
+  ungroup()
+```
 
-2. Move the code to create earliest and latest report date.
+# Create min and max investigation date variables
+
+```{r}
+aps_2 <- aps_2 %>% 
+  group_by(case_num) %>% 
+  mutate(
+    investigate_date_min = min(intake_date),
+    investigate_date_max = max(intake_date)
+  ) %>% ungroup()
+```
+
 
 3. If all discrepancies are fixed at this point, then reduce the data down to 1 row per case_num. 
-
-
-
-
+```{r}
+aps_unique <- aps_2 %>% filter(case_row == 1)
+```
 
 
 
@@ -979,17 +752,17 @@ rm(aps_test, dnf, dnl, dz)
 
 According to [MedStar's website](http://www.medstar911.org/service-area), the cities they serve include: Blue Mound, Burleson, Edgecliff Village, Forest Hill, Fort Worth, Haltom City, Haslet, Lakeside, Lake Worth, River Oaks, Saginaw, Sansom Park, Westover Hills, Westworth Village, White Settlement.
 
-What cities appear in the data?
+What cities appear in the data? -- Total of 254 different cities
 
 ```{r eval=FALSE}
-aps_2 %>% 
-  freqtables::freq_table(city) # 254 different cities
+aps_unique %>% 
+  freqtables::freq_table(city)
 ```
 
 There are a lot of cities included in this data that are outside of MedStar's service area. Create a dummy variable to indicate cities included in MedStar's coverage area.
 
 ```{r}
-aps_2 <- aps_2 %>% 
+aps_unique <- aps_unique %>% 
   mutate(medstar_service_area = if_else(city %in% c(
     "blue mound", "burleson", "edgecliff village", "forest hill", "fort worth", 
     "haltom city", "haslet", "lake worth", "lakeside", "river oaks", "saginaw", 
@@ -1001,7 +774,7 @@ aps_2 <- aps_2 %>%
 Note: There are no APS investigations with a city address of Edgecliff Village or Westover Hills.
 
 ```{r}
-dim(aps_2) # 18,080 observations and 79 variables
+dim(aps_unique) # 15,283 observations and 66 variables
 ```
 
 Add a little information about the area this data covers
@@ -1009,7 +782,7 @@ Add a little information about the area this data covers
 What counties are represented in this data?
 
 ```{r echo=FALSE}
-aps_2 %>% 
+aps_unique %>% 
   mutate(
     `Medstar Service Area` = if_else(
       medstar_service_area == 0,
@@ -1024,10 +797,10 @@ aps_2 %>%
   )
 ```
 
-How many cities are inside and outside of the MedStar Service Area?
+How many cities are inside and outside of the MedStar Service Area? -- 13 inside and 241 outside. 
 
 ```{r echo=FALSE}
-aps_2 %>% 
+aps_unique %>% 
   mutate(
     `Medstar Service Area` = if_else(
       medstar_service_area == 0,
@@ -1046,12 +819,12 @@ aps_2 %>%
 # Create city_fw
 
 ```{r}
-aps_2 <- aps_2 %>% 
+aps_unique <- aps_unique %>% 
   mutate(city_fw = if_else(city == "fort worth", 1, 0))
 ```
 
 ```{r}
-dim(aps_2) # 18,080    80
+dim(aps_unique) # 15,283    67
 ```
 
 
@@ -1060,7 +833,7 @@ dim(aps_2) # 18,080    80
 Create a dummy variable corresponding to the dates when MedStar was using the DETECT tool.
 
 ```{r}
-aps_2 <- aps_2 %>% 
+aps_unique <- aps_unique %>% 
   group_by(case_num) %>% 
   mutate(
     detect = case_when(
@@ -1068,13 +841,13 @@ aps_2 <- aps_2 %>%
       as.Date(intake_date) >= "2017-02-01"                                        ~ 1,
       TRUE                                                                        ~ 0
     )
-  )
+  ) %>% ungroup()
 ```
 
 Also, create a 4-level study period identifier
 
 ```{r}
-aps_2 <- aps_2 %>% 
+aps_unique <- aps_unique %>% 
   mutate(
     study_period = case_when(
       as.Date(intake_date) < "2015-09-17" ~ 1,
@@ -1086,7 +859,7 @@ aps_2 <- aps_2 %>%
 ```
 
 ```{r}
-dim(aps_2) # 18,080 observations and 82 variables
+dim(aps_unique) # 15,283 observations and 69 variables
 ```
 
 
@@ -1097,21 +870,17 @@ dim(aps_2) # 18,080 observations and 82 variables
 What time period does the APS data cover?
 
 ```{r echo=FALSE}
-aps_2 %>% 
+aps_unique %>% 
   summarise(
-    `Earliest Date` = min(intake_date),
-    `Latest Date` = max(intake_date)
+    `Earliest Date` = min(investigate_date_min),
+    `Latest Date` = max(investigate_date_max)
   )
-
-# Earliest : "2014-12-31 10:26:00 UTC"
-# Latest:  "2018-02-28 18:09:00 UTC"
-
 ```
 
 ## Create a week number variable.
 
 ```{r}
-aps_2 <- aps_2 %>% 
+aps_unique <- aps_unique %>% 
   mutate(
     intake_year = format(intake_date, "%y"),
     year_add = case_when(
@@ -1128,18 +897,11 @@ aps_2 <- aps_2 %>%
   arrange(intake_date)
 ```
 
-```{r}
-# Data checks
-aps_2 %>% select(intake_date, intake_year, year_add, week, study_week, detect)
-```
-
 During which study weeks did DETECT screening occur?
 
 ```{r echo=FALSE}
-aps_2 %>% 
+aps_unique %>% 
   filter(detect == 1) %>% 
-  # For data checking
-  # select(intake_date, study_week)
   pull(study_week) %>% 
   unique()
 ```
@@ -1147,100 +909,14 @@ aps_2 %>%
 Drop unneeded variables
 
 ```{r}
-aps_2 <- aps_2 %>% 
+aps_unique <- aps_unique %>% 
   select(-year_add, -week)
 ```
 
 ```{r}
-dim(aps_2) # 18,080 observations and 84 variables
+dim(aps_unique) # 15,283 observations and 71 variables
 ```
 
-
-# Create dummy variable for reporter
-
-How many unique values are there for reporter?
-
-```{r}
-unique(aps_2$reporter) # 14 different types
-```
-
-Clean up the reporter names a little bit so that dummy columns are easier to read
-
-```{r}
-aps_2$reporter <- aps_2$reporter %>% 
-  str_replace("health care providers/staff -- ems/emt", "ems") %>% # Shorten EMS
-  str_replace_all(" |/|-", "_") %>% # Replaces spaces and special characters
-  str_replace_all("_{2,}", "_") # Replace more than one underscore with a single underscore
-```
-
-Create dummy variables
-
-```{r}
-aps_2 <- aps_2 %>% 
-  fastDummies::dummy_cols(select_columns = "reporter")
-```
-
-
-```{r}
-# reporter_anonymous
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    reporter_anonymous                               = max(reporter_anonymous),
-    reporter_blank_unknown                           = max(reporter_blank_unknown),
-    reporter_community_agencies_organizations        = max(reporter_blank_unknown),
-    reporter_ems                                     = max(reporter_ems),
-    reporter_family_members_and_relatives            = max(reporter_family_members_and_relatives), 
-    reporter_financial_institution                   = max(reporter_financial_institution), 
-    reporter_friends_and_neighbors                   = max(reporter_friends_and_neighbors), 
-    reporter_health_care_providers_staff             = max(reporter_health_care_providers_staff), 
-    reporter_law_enforcement                         = max(reporter_law_enforcement), 
-    reporter_legal_and_court_related_services_staff  = max(reporter_legal_and_court_related_services_staff), 
-    reporter_other_providers                         = max(reporter_other_providers), 
-    reporter_others                                  = max(reporter_others), 
-    reporter_other_providers                         = max(reporter_other_providers), 
-    reporter_others                                  = max(reporter_others), 
-    reporter_state_agencies                          = max(reporter_state_agencies), 
-    reporter_victim                                  = max(reporter_victim))
-
-dim(aps_2) # 18,080 observations and 98 variables
-
-```
-
-
-```{r}
-dim(aps_2) # 18,080 observations and 98 variables
-```
-
-# Create min and max investigation date variables
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(
-    investigate_date_min = min(intake_date),
-    investigate_date_max = max(intake_date)
-  )
-```
-
-
-# Create a number of reporters variable
-
-```{r}
-aps_2 <- aps_2 %>% 
-  group_by(case_num) %>% 
-  mutate(reporter_total = sum(reporter_anonymous + reporter_blank_unknown + 
-                                reporter_community_agencies_organizations + reporter_ems + 
-                                reporter_family_members_and_relatives + reporter_financial_institution + 
-                                reporter_friends_and_neighbors + reporter_health_care_providers_staff + 
-                                reporter_law_enforcement + reporter_legal_and_court_related_services_staff + 
-                                reporter_other_providers + reporter_others + reporter_other_providers + 
-                                reporter_others + reporter_state_agencies + reporter_victim))
-```
-
-```{r}
-dim(aps_2) # 18,080   101
-```
 
 # Valid/Invalid summary
 
@@ -1257,9 +933,7 @@ To do that, we will create a new variable called "any_valid" that is equal to 1 
 * If one disposition is other, and the rest are invalid, then any valid equals NA   
 
 ```{r}
-aps_2 <- aps_2 %>%
-  group_by(case_num) %>%
-  # select(case_num, starts_with("valid"), starts_with("invalid")) %>% 
+aps_unique <- aps_unique %>%
   rowwise() %>% 
   mutate(
     total_valid   = sum(c_across(starts_with("valid"))),
@@ -1277,7 +951,7 @@ Create 3-level summary variable
 3. Unable to determine or other finding
 
 ```{r}
-aps_2 <- aps_2 %>% 
+aps_unique <- aps_unique %>% 
   mutate(
     valid_3cat = case_when(
       any_valid == 1 ~ 1,
@@ -1288,37 +962,37 @@ aps_2 <- aps_2 %>%
 ```
 
 ```{r}
-dim(aps_2) # 18,080 observations and 104 variables
+dim(aps_unique) # 15,283 observations and 76 variables
 ```
-
-```{r}
-# Data checks
-# aps_2 %>% filter(case_num == 44885551)
-```
-
 
 # Check duplicate rows
 
 For the all subsequent analyses, we are interested in changes in the number of individual "reports" of EA. Results are hidden to protect participant privacy.
 
 ```{r}
-aps_2 %>% 
+aps_unique %>% 
   group_by(intake_stage_num, reporter) %>% 
   filter(n() > 1)
 ```
 
-So, there are 10 rows (5 reports to APS) where a report was made to APS (intake stage number) by two people at the same time, but both individuals were the same type of reporter (both health care providers/staff or both family members and relatives). Catherine told me that it was possible for two people to call-in at the same time.
+So, there are 2 rows (1 reporet to APS) where a report was made to APS (intake stage number) by two people at the same time, but both individuals were the same type of reporter (both health care providers/staff). Catherine told me that it was possible for two people to call-in at the same time.
 
 
 # Save data
 
 ```{r}
-readr::write_rds(aps_unique, "/Volumes/DETECT/one_year_data/aps_02_variable_management.rds")
+# readr::write_rds(aps_unique, "/Volumes/DETECT/one_year_data/aps_02_variable_management.rds")
+
+# For Steph to save data and upload to kiteworks
+readr::write_rds(aps_unique, "/Users/chiufengyap/OneDrive - The University of Texas Health Science Center at Houston/Research/MedStar_APS/delete/aps_02_variable_management.rds")
 ```
 
-
+ 
 ```{r}
-readr::write_csv(aps_unique, "/Volumes/DETECT/one_year_data/aps_02_variable_management.csv")
+# readr::write_csv(aps_unique, "/Volumes/DETECT/one_year_data/aps_02_variable_management.csv")
+
+# For Steph to save data and upload to kiteworks
+readr::write_csv(aps_unique, "/Users/chiufengyap/OneDrive - The University of Texas Health Science Center at Houston/Research/MedStar_APS/delete/aps_02_variable_management.csv")
 ```
 
 
@@ -1330,4 +1004,4 @@ rm(list = ls())
 
 ```{r echo=FALSE}
 sessionInfo()
-```wh
+```
