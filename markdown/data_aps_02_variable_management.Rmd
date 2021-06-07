@@ -535,6 +535,11 @@ aps_2 %>%
 
 for all of these variables we are going to be using the value of the most frequently occurring instance
 
+
+# Separate street addresses
+
+Separate the street address into the number part and the street name part
+
 ```{r}
 aps_2$county <- as.character(aps$county)
 aps_2$city <- as.character(aps$city)
@@ -547,14 +552,21 @@ aps_2 <- aps_2 %>%
   county = Mode(county))%>%
   ungroup()
 
-# Testing if there are any unfixed discrepancies
-aps_test <- aps_2 %>%
-  group_by(case_num) %>%
-  mutate(test_street = all_match(street),
-  test_city = all_match(city),
-  test_county = all_match(county)) 
+aps_2 <- aps_2 %>%
+  mutate(
+    address_num         = stringr::str_extract(street, "^\\d{1,5}") %>% as.numeric(),
+    address_street_name = stringr::str_trim(stringr::str_replace(street, "^\\d{1,5}", ""))
+  )
 ```
 
+Replaces spaces with underscores in address street name to compare with Medstar dataset during RecordLinkage
+
+```{r}
+aps_2 <- aps_2 %>%
+  mutate(
+    address_street_name = stringr::str_replace_all(address_street_name, "\\s", "_")
+  )
+```
 
 ### Discrepancies in age
 
@@ -774,7 +786,7 @@ aps_unique <- aps_unique %>%
 Note: There are no APS investigations with a city address of Edgecliff Village or Westover Hills.
 
 ```{r}
-dim(aps_unique) # 15,283 observations and 66 variables
+dim(aps_unique) # 15,283 observations and 68 variables
 ```
 
 Add a little information about the area this data covers
@@ -824,7 +836,7 @@ aps_unique <- aps_unique %>%
 ```
 
 ```{r}
-dim(aps_unique) # 15,283    67
+dim(aps_unique) # 15,283    69
 ```
 
 
@@ -859,7 +871,7 @@ aps_unique <- aps_unique %>%
 ```
 
 ```{r}
-dim(aps_unique) # 15,283 observations and 69 variables
+dim(aps_unique) # 15,283 observations and 71 variables
 ```
 
 
@@ -914,7 +926,7 @@ aps_unique <- aps_unique %>%
 ```
 
 ```{r}
-dim(aps_unique) # 15,283 observations and 71 variables
+dim(aps_unique) # 15,283 observations and 73 variables
 ```
 
 
@@ -975,7 +987,7 @@ aps_unique %>%
   filter(n() > 1)
 ```
 
-So, there are 2 rows (1 reporet to APS) where a report was made to APS (intake stage number) by two people at the same time, but both individuals were the same type of reporter (both health care providers/staff). Catherine told me that it was possible for two people to call-in at the same time.
+So, there are 2 rows (1 report to APS) where a report was made to APS (intake stage number) by two people at the same time, but both individuals were the same type of reporter (both health care providers/staff). Catherine told me that it was possible for two people to call-in at the same time.
 
 
 # Save data
@@ -999,9 +1011,9 @@ readr::write_csv(aps_unique, "/Users/chiufengyap/OneDrive - The University of Te
 # Session information
 
 ```{r echo=FALSE}
-rm(list = ls())
+# rm(list = ls())
 ```
 
 ```{r echo=FALSE}
-sessionInfo()
+# sessionInfo()
 ```
