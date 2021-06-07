@@ -17,7 +17,7 @@ library(readr)
 # 🌐Connect to server
 
 ```{bash}
-open 'smb://islgpcifs.uthouston.edu/sph_research/DETECT/one_year_data/'
+# open 'smb://islgpcifs.uthouston.edu/sph_research/DETECT/one_year_data/'
 ```
 
 # 📥Import data
@@ -29,7 +29,10 @@ This is the data that contains MedStar DETECT responses and demographics and hea
 Data from data_medstar_epcr_02_variable_management.Rmd
 
 ```{r}
-medstar_complete <- read_rds("/Volumes/one_year_data/medstar_epcr_02_variable_management.rds")
+# medstar_complete <- read_rds("/Volumes/one_year_data/medstar_epcr_02_variable_management.rds")
+
+# For Steph
+medstar_complete <- read_rds("/Users/chiufengyap/OneDrive - The University of Texas Health Science Center at Houston/Research/MedStar_APS/delete/medstar_epcr_02_variable_management.rds")
 ```
 
 ```{r}
@@ -49,22 +52,14 @@ APS [disposition](http://www.dfps.state.tx.us/handbooks/APS/Files/APS_pg_2700.as
 Data from data_aps_02_variable_management.Rmd
 
 ```{r}
-aps <- read_rds("/Volumes/one_year_data/aps_02_variable_management.rds")
+# aps <- read_rds("/Volumes/one_year_data/aps_02_variable_management.rds")
+
+# For Steph
+aps <- read_rds("/Users/chiufengyap/OneDrive - The University of Texas Health Science Center at Houston/Research/MedStar_APS/delete/aps_02_variable_management.rds")
 ```
 
 ```{r}
-dim(aps) # 18,080    64
-```
-
-
-# Prepared data for record matching
-
-```{r}
-medstar_complete %>% 
-  summarise(
-    Rows = n(),
-    `Unique PCR` = length(unique(incident_pcr)) 
-  )
+dim(aps) # 15,283    78
 ```
 
 
@@ -77,14 +72,15 @@ NOTE: We originally did this by nesting all variables that we didn't intend to m
 ```{r}
 medstar_complete <- medstar_complete %>% 
   mutate(
-    # Add row number for joining later
-    row_ms_complete = row_number(),
     # Paste together match vars to look for unique combinations
     match_vars = paste(
       name_first, name_last, birth_mnth, birth_day, birth_year, address_num, 
       address_street, sep = "_"
     )
-  )
+  ) %>% 
+  group_by(match_vars) %>% 
+  mutate(match_var_row = row_number()) %>% 
+  ungroup()
 ```
 
 ```{r}
@@ -99,53 +95,13 @@ The MedStar complete data has 28,228 rows and those rows contain 19,186 unique c
 
 Subset the MedStar data to include only unique combinations of name, DOB, and address:
 
-
-# 🔴Left off here... before completing this, I want to make sure it works in the simulated data. The code above pastes the matching variable together instead of nesting. I think that's what I should do next time. Not sure I want to do it this time because we've already done all the manual reviews.
-
-
-
-
-```{r}
-medstar_compare <- medstar_complete %>%
-  group_by(match_vars)
-  filter()
-  
-  # The variables you want to compare have to appear in the same order in both data sets
-  select(incident_pcr, arrival_time, name_first, name_last, starts_with("birth"),
-         address_num, address_street_name)
-```
-
-
-
-
-Nesting is convenient for the matching process. May want to look at changing in the future. Actually, it's totally unnecessary in this case. Come back and change accordingly in the future.
-
 ```{r message=FALSE}
-medstar_nested <- medstar_complete %>% 
-  # Nest all but the following columns - not needed for the RecordLinkage process
-  # and we want to reduce the dataset to one row per pcr.
-  # Important to use response_date instead of date_entered
-  tidyr::nest(
-    -arrival_time, -incident_pcr, -name_first, -name_last, -starts_with("birth"), 
-    -address_num, -address_street_name, .key = "medstar_nested"
-  ) %>% 
-  
-  # Ungroup
-  ungroup()
-```
-
-## Data check: How many rows are there and how many unique incident PCR numbers are there?
-
-```{r}
-medstar_nested %>% 
-  summarise(
-    Rows = n(),                                 # 28,228	
-    `Unique PCR` = length(unique(incident_pcr)) # 28,228	
-  )
+medstar_unique <- medstar_complete %>% 
+  filter(match_var_row == 1)
 ```
 
 ```{r}
-dim(medstar_nested) # 28,228    10
+dim(medstar_unique) # 19,186    58
 ```
 
 At this point each screening (incident_pcr_number) is a single row that can be matched to rows in the APS data.
@@ -161,73 +117,15 @@ Each time a report is made to APS about a person a unique intake stage number is
 
 Therefore, some case numbers in the client data will have multiple rows that are redundant aside from the intake stage (person who reported). When we match the APS data to the MedStar data below by name, individual people may get matched more than once (i.e., if they were treated by MedStar more than once, investigated by APS more than once, or both). We are fine with that. However, we don’t want people to be matched once per person who made a report (intake_stage).  
 
-Again, we will get around this by nesting all columns that may result in multiple rows per case number.
-
-Add hyphens -- move to variable management
-
-NOTE: Thought about trying to incorporate using person_id here, but it is also used inconsistently. See case_num == 43630694 for an example.
+Imported APS dataset (aps) contains only one row per case_num
 
 ```{r}
-aps <- aps %>% 
-  mutate(
-    address_street_name = stringr::str_replace_all(address_street_name, "\\s", "_")
-  )
+aps_unique <- aps
 ```
 
 ```{r}
-aps_nested <- aps %>% 
-  # Nest all but the following columns - not needed for the RecordLinkage process
-  # and we want to reduce the dataset to one row per case number
-  tidyr::nest(
-    -case_num, -intake_date, -name_first, -name_last, -starts_with("birth"),
-    -address_num, -address_street_name, .key = "aps_nested"
-  ) %>% 
-  
-  # Ungroup
-  ungroup()
+rm(aps, medstar_complete)
 ```
-
-
-### Data check: How many rows are there and how many unique case numbers are there?
-
-```{r}
-aps_nested %>% 
-  summarise(
-    Rows = n(),                               # 17,926
-    `Unique Cases` = length(unique(case_num)) # 15,280
-  )
-```
-
-That means that some case numbers are duplicated. Below we manually check for differences (results hidden to protect patient privacy).
-
-```{r eval=FALSE}
-bind_cols(
-  
-  # Use this part only if you want to view all records - even those that
-  # only differ by intake_start and intake_stage
-  aps_nested %>% 
-    group_by(case_num) %>% 
-    filter(max(row_number()) > 1) %>% 
-    tidyr::unnest(cols = c(aps_nested)),
-  
-  aps_nested %>% 
-    group_by(case_num) %>% 
-    filter(max(row_number()) > 1) %>% 
-    tidyr::unnest(cols = c(aps_nested)) %>% 
-    mutate_at(vars(-case_num), .funs = list(diff = ~length(unique(.)) > 1)) %>% 
-    ungroup() %>% 
-    select(ends_with("diff")) %>% 
-    mutate(diffs = rowSums(.))
-) %>%
-  
-  ungroup() %>%
-  # If a case number only differs by intake_start and intake_stage, 
-  # then I don't want to view it
-  mutate(keep = if_else(intake_date_diff == TRUE & diffs == 2,0, 1)) %>% 
-  filter(keep == 1)
-```
-
-After manual review, duplicates within case are due to different intake start dates (i.e., report dates), different spellings of names at different intakes (reports). There are also a couple differences in DOB between intakes. We should keep both spellings and DOB's for the matching process. We can filter them later as needed.
 
 [top](#top)
 
@@ -239,21 +137,19 @@ Below, we will use various functions from the [RecordLinkage package](https://cr
 ## Subset matching variables
 
 ```{r}
-medstar_compare <- medstar_nested %>%
-  select(-medstar_nested) %>%
+medstar_compare <- medstar_unique %>%
   # The variables you want to compare have to appear in the same order in both datasets
-  select(incident_pcr, arrival_time, name_first, name_last, starts_with("birth"),
-         address_num, address_street_name)
+  select(incident_pcr, arrival_time, name_first, name_last, dob, address_num, 
+         address_street_name)
 
-aps_compare <- aps_nested %>%
-  select(-aps_nested) %>%
+aps_compare <- aps_unique %>%
   # The variables you want to compare have to appear in the same order in both datasets
-  select(case_num, intake_date, name_first, name_last, starts_with("birth"), 
-         address_num, address_street_name)
+  select(case_num, intake_date, name_first, name_last, dob, address_num, 
+         address_street_name)
 ```
 
 ```{r}
-ncol(medstar_compare) == ncol(aps_compare)
+ncol(medstar_compare) == ncol(aps_compare) # TRUE
 ```
 
 
@@ -269,7 +165,7 @@ test_aps_compare <- sample_n(aps_compare, 1000)
 test_rpairs_jar <- RecordLinkage::RLBigDataLinkage(
   dataset1 = test_medstar_compare,
   dataset2 = test_aps_compare,
-  strcmp   = c("name_first", "name_last", "address_street_name"),
+  strcmp   = c("name_first", "name_last", "dob", "address_num", "address_street_name"),
   exclude  = c("incident_pcr", "arrival_time")
 )
 test_rpairs_epiwt <- RecordLinkage::epiWeights(test_rpairs_jar)
@@ -320,8 +216,8 @@ In the 0.6s:
 * If we were going to do manual checks, it should probably be in the .60s   
 
 ```{r}
-# rm(test_aps_compare, test_medstar_compare, test_pairs_possible_matches, 
-#    test_rpairs_epiwt, test_rpairs_jar, view_test)
+rm(test_aps_compare, test_medstar_compare, test_pairs_possible_matches,
+   test_rpairs_epiwt, test_rpairs_jar, view_test)
 ```
 
 
@@ -339,12 +235,31 @@ start_link <- lubridate::now()
 rpairs_jar <- RecordLinkage::RLBigDataLinkage(
   dataset1 = medstar_compare, 
   dataset2 = aps_compare,
-  strcmp   = c("name_first", "name_last", "address_street_name"),
+  strcmp   = c("name_first", "name_last", "dob", "address_num", "address_street_name"),
   exclude  = c("incident_pcr", "arrival_time")
 )
 finish_link <- lubridate::now()
 time_link <- finish_link - start_link
-time_link # ~4.5 hours
+time_link # ~24.32 mins
+```
+
+```{r}
+rpairs_epiwt <- RecordLinkage::epiWeights(rpairs_jar)
+pairs_possible_matches <- RecordLinkage::getPairs(rpairs_jar)
+pairs_possible_matches <- pairs_possible_matches %>%
+  filter(id != "") %>%
+  mutate(
+    dataset  = if_else(row_number() %% 2 == 1, "medstar", "aps"),
+    row      = id %>% as.character() %>% as.integer(),
+    pair_num = rep(seq(nrow(.) / 2), each = 2),
+    Weight   = if_else(Weight == "", lead(Weight), Weight) %>% as.character() %>% as.numeric()
+  ) %>%
+  select(dataset, row, pair_num, everything(), -id) %>%
+  rename(
+    "case_pcr_num" = "incident_pcr",
+    "date"         = "arrival_time"
+  ) %>%
+  mutate(date = as.Date(date))
 ```
 
 ```{r eval=FALSE}
@@ -383,6 +298,7 @@ saveRDS(rpairs_epiwt, "rpairs_epiwt.rds")
 ```{r eval=FALSE}
 # Don't run unless necessary
 rpairs_epiwt <- readRDS("/Volumes/sph_research/Detect/one_year_data/rpairs_epiwt.rds")
+
 ```
 
 
