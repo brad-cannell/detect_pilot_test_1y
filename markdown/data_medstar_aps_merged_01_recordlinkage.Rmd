@@ -216,8 +216,8 @@ In the 0.6s:
 * If we were going to do manual checks, it should probably be in the .60s   
 
 ```{r}
-rm(test_aps_compare, test_medstar_compare, test_pairs_possible_matches,
-   test_rpairs_epiwt, test_rpairs_jar, view_test)
+# rm(test_aps_compare, test_medstar_compare, test_pairs_possible_matches,
+#    test_rpairs_epiwt, test_rpairs_jar, view_test)
 ```
 
 
@@ -298,7 +298,6 @@ saveRDS(rpairs_epiwt, "rpairs_epiwt.rds")
 ```{r eval=FALSE}
 # Don't run unless necessary
 rpairs_epiwt <- readRDS("/Volumes/sph_research/Detect/one_year_data/rpairs_epiwt.rds")
-
 ```
 
 
@@ -321,6 +320,9 @@ time_paring # ~4 mins
 ```{r eval=FALSE}
 # Don't run unless necessary
 saveRDS(pairs_possible_matches, "pairs_possible_matches.rds")
+
+# save test file
+saveRDS(test_pairs_possible_matches, "/Users/chiufengyap/OneDrive - The University of Texas Health Science Center at Houston/Research/MedStar_APS/delete/test_pairs_possible_matches.rds")
 ```
 
 ## Clean up
