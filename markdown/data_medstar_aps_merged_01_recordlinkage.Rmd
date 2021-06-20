@@ -230,6 +230,11 @@ the range [0, 1], where 0 denotes maximal dissimilarity and 1 equality. This all
 Below we Compares each record in data set 1 to each record in data set 2 until all records are compared. For example, id1 - id1, id1-id2, idn-idm. For each pair, a probability match is given for each variable (i.e., first name, last name, etc.). In this case, we are using the Jaro-Winkler distance as our comparison measure ( [Winkler, 1990](http://eric.ed.gov/?id=ED325505), [Wikipedia, 2018](https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance)).
 
 ```{r eval=FALSE}
+# create smaller sample size - delete 
+set.seed(123)
+medstar_compare <- sample_n(medstar_compare, 1000)
+aps_compare <- sample_n(aps_compare, 1000)
+
 # Don't run unless necessary
 start_link <- lubridate::now()
 rpairs_jar <- RecordLinkage::RLBigDataLinkage(
@@ -240,7 +245,7 @@ rpairs_jar <- RecordLinkage::RLBigDataLinkage(
 )
 finish_link <- lubridate::now()
 time_link <- finish_link - start_link
-time_link # ~24.32 mins
+time_link # ~32.92113
 ```
 
 ```{r}
@@ -319,10 +324,10 @@ time_paring # ~4 mins
 
 ```{r eval=FALSE}
 # Don't run unless necessary
-saveRDS(pairs_possible_matches, "pairs_possible_matches.rds")
+# saveRDS(pairs_possible_matches, "pairs_possible_matches.rds")
 
 # save test file
-saveRDS(test_pairs_possible_matches, "/Users/chiufengyap/OneDrive - The University of Texas Health Science Center at Houston/Research/MedStar_APS/delete/test_pairs_possible_matches.rds")
+saveRDS(pairs_possible_matches, "/Users/chiufengyap/OneDrive - The University of Texas Health Science Center at Houston/Research/MedStar_APS/delete/test_pairs_possible_matches.rds")
 ```
 
 ## Clean up
