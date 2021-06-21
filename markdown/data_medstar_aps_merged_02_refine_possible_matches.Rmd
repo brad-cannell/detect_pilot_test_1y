@@ -19,11 +19,14 @@ Sys.setenv(TZ = "US/Central")
 
 ```{r message=FALSE}
 library(dplyr)
-library(bfuncs)
+# library(bfuncs)
+library(readr)
+library(tidyr)
+library(lubridate)
 ```
 
 ```{bash}
-open 'smb://islgpcifs.uthouston.edu/sph_research/DETECT/one_year_data/'
+# open 'smb://islgpcifs.uthouston.edu/sph_research/DETECT/one_year_data/'
 ```
 
 ## MedStar DETECT data
@@ -33,7 +36,10 @@ This is the data that contains MedStar DETECT responses and demographics and hea
 Data from data_medstar_epcr_02_variable_management.Rmd
 
 ```{r}
-medstar_complete <- feather::read_feather("/Volumes/DETECT/one_year_data/medstar_epcr_02_variable_management.feather")
+# medstar_complete <- feather::read_feather("/Volumes/DETECT/one_year_data/medstar_epcr_02_variable_management.feather")
+
+# For Steph 
+medstar_complete <- read_rds("/Users/chiufengyap/OneDrive - The University of Texas Health Science Center at Houston/Research/MedStar_APS/delete/medstar_epcr_02_variable_management.rds")
 ```
 
 ```{r}
@@ -55,11 +61,16 @@ APS [disposition](http://www.dfps.state.tx.us/handbooks/APS/Files/APS_pg_2700.as
 Data from data_aps_02_variable_management.Rmd
 
 ```{r}
-aps <- feather::read_feather("/Volumes/DETECT/one_year_data/aps_02_variable_management.feather")
+# aps <- feather::read_feather("/Volumes/DETECT/one_year_data/aps_02_variable_management.feather")
+
+# For Steph
+aps <- read_rds("/Users/chiufengyap/OneDrive - The University of Texas Health Science Center at Houston/Research/MedStar_APS/delete/aps_02_variable_management.rds")
 ```
 
 ```{r}
 dim(aps) # 18,080    64
+
+# For Steph - 15,283  78
 ```
 
 [top](#top)
@@ -70,7 +81,10 @@ dim(aps) # 18,080    64
 May eventually want to put here down into a separate file.
 
 ```{r}
-pairs_possible_matches <- readRDS("/Volumes/DETECT/one_year_data/pairs_possible_matches.rds")
+# pairs_possible_matches <- readRDS("/Volumes/DETECT/one_year_data/pairs_possible_matches.rds")
+
+# For Steph to load sample file
+pairs_possible_matches <- read_rds("/Users/chiufengyap/OneDrive - The University of Texas Health Science Center at Houston/Research/MedStar_APS/delete/test_pairs_possible_matches.rds")
 ```
 
 ```{r}
@@ -116,6 +130,7 @@ review_matches <- pairs_possible_matches
 ```{r}
 medstar_pairs <- review_matches %>% filter(dataset == "medstar")
 aps_pairs <- review_matches %>% filter(dataset == "aps")
+names(aps_pairs) <- paste0(names(aps_pairs), "1")
 review_matches_wide <- bind_cols(medstar_pairs, aps_pairs)
 ```
 
@@ -141,31 +156,33 @@ review_matches_wide <- review_matches_wide %>%
   mutate(
     name_first_match = is_match(name_first, name_first1),
     name_last_match = is_match(name_last, name_last1),
-    birth_mnth_match = is_match(birth_mnth,birth_mnth1),
-    birth_day_match = is_match(birth_day, birth_day1),
-    birth_year_match = is_match(birth_year, birth_year1),
+    dob_match = is_match(dob, dob1),
+    # birth_mnth_match = is_match(birth_mnth,birth_mnth1),
+    # birth_day_match = is_match(birth_day, birth_day1),
+    # birth_year_match = is_match(birth_year, birth_year1),
     address_num_match = is_match(address_num, address_num1),
     address_street_name_match = is_match(address_street_name, address_street_name1)
   ) %>% 
   # Does full name, dob, and address match within pair_num?
   mutate(
     name_full_match = name_first_match & name_last_match,
-    birth_full_match = birth_mnth_match & birth_day_match & birth_year_match,
+    dob_full_match = dob_match,
+    # birth_full_match = birth_mnth_match & birth_day_match & birth_year_match,
     address_full_match = address_num_match & address_street_name_match,
-    no_full_match = !name_full_match & !birth_full_match & !address_full_match,
+    no_full_match = !name_full_match & !dob_full_match & !address_full_match,
     # Pairs that have matching full name and dob, but different addresses
     # Use to keep as match below
-    diff_address_only = name_full_match & birth_full_match & !address_full_match,
+    diff_address_only = name_full_match & dob_full_match & !address_full_match,
     # Pairs that have no criteria in common except for an address element
     only_address_match = !name_first_match & !name_last_match & 
-                         !birth_mnth_match & !birth_day_match & !birth_year_match & 
-                         (address_num_match | address_street_name_match),
+                         !dob_match & 
+                         (address_num_match | address_street_name_match)
     # Pairs that have no criteria in common except for an address element and a
     # single birth element
-    only_add_1_birth_match = !name_first_match & !name_last_match & 
-                             !birth_full_match &
-                             (sum(birth_mnth_match, birth_day_match, birth_year_match == 1)) & 
-                             (address_num_match | address_street_name_match)
+    # only_add_1_birth_match = !name_first_match & !name_last_match & 
+    #                          !birth_full_match &
+    #                          (sum(birth_mnth_match, birth_day_match, birth_year_match == 1)) & 
+    #                          (address_num_match | address_street_name_match)
   )
 ```
 
@@ -175,10 +192,10 @@ Now that the exact match dummy variables have been created, we will convert the 
 
 ```{r}
 medstar_pairs <- review_matches_wide %>% 
-  select(dataset:Weight, ends_with("match"), diff_address_only)
+  select(dataset:Weight, ends_with("match"), diff_address_only, -(is_match1))
 
 aps_pairs <- review_matches_wide %>% 
-  select(dataset1:Weight1, ends_with("match"), diff_address_only)
+  select(dataset1:Weight1, ends_with("match"), diff_address_only, -(is_match))
 
 names(aps_pairs) <- stringr::str_replace_all(names(aps_pairs), "1$", "")
 
@@ -216,7 +233,15 @@ Keep if weight is 1.0
 RecordLinkage::jarowinkler("Jon", "John")
 
 ```{r}
-keep_matches <- 
+review_matches <- review_matches %>% 
+  mutate(Weight = if_else(diff_address_only, 0.99, Weight)) %>% 
+  # Remove potential pairs with a weight value below the previously determined
+  # lower bound.
+  filter(Weight >= 0.6497735) %>%
+  # Drop pairs that only have address in common
+  filter(!only_address_match)
+  # Drop pairs that share address and 1 birth element only
+  # filter(!only_add_1_birth_match)
 ```
 
 
