@@ -29,6 +29,12 @@ This is the data that contains MedStar DETECT responses and demographics and hea
 Data from data_medstar_epcr_02_variable_management.Rmd
 
 ```{r}
+# For Brad while testing code
+medstar_complete <- read_rds("/Users/bradcannell/Desktop/medstar_epcr_02_variable_management.rds")
+```
+
+
+```{r}
 # medstar_complete <- read_rds("/Volumes/one_year_data/medstar_epcr_02_variable_management.rds")
 
 # For Steph
@@ -50,6 +56,11 @@ APS [closure reason](http://www.dfps.state.tx.us/handbooks/APS/Files/APS_pg_2800
 APS [disposition](http://www.dfps.state.tx.us/handbooks/APS/Files/APS_pg_2700.asp#APS_2700) data contains information about the disposition for each allegation.
 
 Data from data_aps_02_variable_management.Rmd
+
+```{r}
+# For Brad while testing code
+aps <- read_rds("/Users/bradcannell/Desktop/aps_02_variable_management.rds")
+```
 
 ```{r}
 # aps <- read_rds("/Volumes/one_year_data/aps_02_variable_management.rds")
@@ -124,7 +135,7 @@ aps_unique <- aps
 ```
 
 ```{r}
-rm(aps, medstar_complete)
+# rm(aps, medstar_complete)
 ```
 
 [top](#top)
@@ -158,43 +169,43 @@ ncol(medstar_compare) == ncol(aps_compare) # TRUE
 Do a manual review to see what kinds of potential errors (false positives and false negatives) I should be looking for.
 
 ```{r eval=FALSE}
-set.seed(123)
-test_medstar_compare <- sample_n(medstar_compare, 1000)
-test_aps_compare <- sample_n(aps_compare, 1000)
-
-test_rpairs_jar <- RecordLinkage::RLBigDataLinkage(
-  dataset1 = test_medstar_compare,
-  dataset2 = test_aps_compare,
-  strcmp   = c("name_first", "name_last", "dob", "address_num", "address_street_name"),
-  exclude  = c("incident_pcr", "arrival_time")
-)
-test_rpairs_epiwt <- RecordLinkage::epiWeights(test_rpairs_jar)
-test_pairs_possible_matches <- RecordLinkage::getPairs(test_rpairs_epiwt)
-test_pairs_possible_matches <- test_pairs_possible_matches %>%
-  filter(id != "") %>%
-  mutate(
-    dataset  = if_else(row_number() %% 2 == 1, "medstar", "aps"),
-    row      = id %>% as.character() %>% as.integer(),
-    pair_num = rep(seq(nrow(.) / 2), each = 2),
-    Weight   = if_else(Weight == "", lead(Weight), Weight) %>% as.character() %>% as.numeric()
-  ) %>%
-  select(dataset, row, pair_num, everything(), -id) %>%
-  rename(
-    "case_pcr_num" = "incident_pcr",
-    "date"         = "arrival_time"
-  ) %>%
-  mutate(date = as.Date(date))
+# set.seed(123)
+# test_medstar_compare <- sample_n(medstar_compare, 1000)
+# test_aps_compare <- sample_n(aps_compare, 1000)
+# 
+# test_rpairs_jar <- RecordLinkage::RLBigDataLinkage(
+#   dataset1 = test_medstar_compare,
+#   dataset2 = test_aps_compare,
+#   strcmp   = c("name_first", "name_last", "dob", "address_num", "address_street_name"),
+#   exclude  = c("incident_pcr", "arrival_time")
+# )
+# test_rpairs_epiwt <- RecordLinkage::epiWeights(test_rpairs_jar)
+# test_pairs_possible_matches <- RecordLinkage::getPairs(test_rpairs_epiwt)
+# test_pairs_possible_matches <- test_pairs_possible_matches %>%
+#   filter(id != "") %>%
+#   mutate(
+#     dataset  = if_else(row_number() %% 2 == 1, "medstar", "aps"),
+#     row      = id %>% as.character() %>% as.integer(),
+#     pair_num = rep(seq(nrow(.) / 2), each = 2),
+#     Weight   = if_else(Weight == "", lead(Weight), Weight) %>% as.character() %>% as.numeric()
+#   ) %>%
+#   select(dataset, row, pair_num, everything(), -id) %>%
+#   rename(
+#     "case_pcr_num" = "incident_pcr",
+#     "date"         = "arrival_time"
+#   ) %>%
+#   mutate(date = as.Date(date))
 ```
 
 ```{r eval=FALSE}
-view_test <- test_pairs_possible_matches %>% 
-  # No need to look at the 1's. They are identical matches
-  filter(Weight < 1) %>% 
-  # The zeros look like true non-matches
-  filter(Weight > 0) %>% 
-  # As does everything below 0.06
-  # In the 0.6 range, I'm noticing some people who only have address in common.
-  filter(Weight > 0.60)
+# view_test <- test_pairs_possible_matches %>% 
+#   # No need to look at the 1's. They are identical matches
+#   filter(Weight < 1) %>% 
+#   # The zeros look like true non-matches
+#   filter(Weight > 0) %>% 
+#   # As does everything below 0.06
+#   # In the 0.6 range, I'm noticing some people who only have address in common.
+#   filter(Weight > 0.60)
 ```
 
 In the 0.9s:   
@@ -245,31 +256,12 @@ rpairs_jar <- RecordLinkage::RLBigDataLinkage(
 )
 finish_link <- lubridate::now()
 time_link <- finish_link - start_link
-time_link # ~32.92113
-```
-
-```{r}
-rpairs_epiwt <- RecordLinkage::epiWeights(rpairs_jar)
-pairs_possible_matches <- RecordLinkage::getPairs(rpairs_jar)
-pairs_possible_matches <- pairs_possible_matches %>%
-  filter(id != "") %>%
-  mutate(
-    dataset  = if_else(row_number() %% 2 == 1, "medstar", "aps"),
-    row      = id %>% as.character() %>% as.integer(),
-    pair_num = rep(seq(nrow(.) / 2), each = 2),
-    Weight   = if_else(Weight == "", lead(Weight), Weight) %>% as.character() %>% as.numeric()
-  ) %>%
-  select(dataset, row, pair_num, everything(), -id) %>%
-  rename(
-    "case_pcr_num" = "incident_pcr",
-    "date"         = "arrival_time"
-  ) %>%
-  mutate(date = as.Date(date))
+time_link # ~20.13765 mins
 ```
 
 ```{r eval=FALSE}
 # Don't run unless necessary
-saveRDS(rpairs_jar, "rpairs_jar.rds")
+saveRDS(rpairs_jar, "../rpairs_jar.rds")
 ```
 
 ```{r eval=FALSE}
@@ -292,12 +284,12 @@ start_weights <- lubridate::now()
 rpairs_epiwt <- RecordLinkage::epiWeights(rpairs_jar)
 finish_weights <- lubridate::now()
 time_weights <- finish_weights - start_weights
-time_weights # ~22 mins
+time_weights # ~12.86297 mins
 ```
 
 ```{r eval=FALSE}
 # Don't run unless necessary
-saveRDS(rpairs_epiwt, "rpairs_epiwt.rds")
+saveRDS(rpairs_epiwt, "../rpairs_epiwt.rds")
 ```
 
 ```{r eval=FALSE}
