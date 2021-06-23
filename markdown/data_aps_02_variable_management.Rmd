@@ -994,10 +994,10 @@ So, there are 2 rows (1 report to APS) where a report was made to APS (intake st
 ```{r}
 aps_unique <- aps %>% 
   mutate(
-    dob_year = format(dob, "%Y"),
-    dob_month= format(dob, "%m"),
-    dob_day = format(dob, "%d")) %>% 
-  select(case_num, case_row, name_last, name_first, name_full, dob, dob_year, dob_month, dob_day, everything())
+    birth_year   = format(dob, "%Y"),
+    birth_mnth   = format(dob, "%m"),
+    birth_day    = format(dob, "%d")) %>% 
+  select(case_num, case_row, name_last, name_first, name_full, dob, birth_year, birth_mnth, birth_day, everything())
 ```
 
 
