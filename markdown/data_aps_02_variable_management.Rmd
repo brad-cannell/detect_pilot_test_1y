@@ -990,6 +990,17 @@ aps_unique %>%
 So, there are 2 rows (1 report to APS) where a report was made to APS (intake stage number) by two people at the same time, but both individuals were the same type of reporter (both health care providers/staff). Catherine told me that it was possible for two people to call-in at the same time.
 
 
+# Split dob into separate elements for RecordLinkage()
+```{r}
+aps_unique <- aps %>% 
+  mutate(
+    dob_year = format(dob, "%Y"),
+    dob_month= format(dob, "%m"),
+    dob_day = format(dob, "%d")) %>% 
+  select(case_num, case_row, name_last, name_first, name_full, dob, dob_year, dob_month, dob_day, everything())
+```
+
+
 # Save data
 
 ```{r}
