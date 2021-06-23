@@ -586,17 +586,17 @@ Replacing the individual elements (year, month, and day) of dob using the Mode()
 # Mode() for individual year, month, and day
 aps_2 <- aps_2 %>%
   mutate(
-    dob_year = format(dob, "%Y"),
-    dob_month= format(dob, "%m"),
-    dob_day = format(dob, "%d")) %>% 
+    birth_year = format(dob, "%Y"),
+    birth_mnth = format(dob, "%m"),
+    birth_day  = format(dob, "%d")) %>% 
   group_by(case_num) %>%
   mutate(
-    dob_year = Mode(dob_year),
-    dob_month = Mode(dob_month),
-    dob_day = Mode(dob_day)) %>%
-  mutate(dob = paste(c(dob_year), c(dob_month), c(dob_day), sep="-"),
+    birth_year = Mode(birth_year),
+    birth_mnth = Mode(birth_mnth),
+    birth_day  = Mode(birth_day)) %>%
+  mutate(dob = paste(c(birth_year), c(birth_mnth), c(birth_day), sep="-"),
          dob = as.Date(dob, format="%Y-%m-%d")) %>% 
-  select(-c(dob_year, dob_month, dob_day))
+  select(case_num, case_row, name_last, name_first, name_full, dob, birth_year, birth_mnth, birth_day, everything())
 ```
 
 
@@ -676,7 +676,7 @@ aps_2 <- aps_2 %>% select(!ends_with(".y") & (!ends_with(".x")))
 ```
 
 ```{r}
-rm(aps_test, dnf, dnl, dz, list=ls(pattern="^discrepancies_"))
+rm(dnf, dnl, dz, list=ls(pattern="^discrepancies_"))
 ```
 
 
@@ -786,7 +786,7 @@ aps_unique <- aps_unique %>%
 Note: There are no APS investigations with a city address of Edgecliff Village or Westover Hills.
 
 ```{r}
-dim(aps_unique) # 15,283 observations and 68 variables
+dim(aps_unique) # 15,283 observations and 71 variables
 ```
 
 Add a little information about the area this data covers
@@ -836,7 +836,7 @@ aps_unique <- aps_unique %>%
 ```
 
 ```{r}
-dim(aps_unique) # 15,283    69
+dim(aps_unique) # 15,283    72
 ```
 
 
@@ -871,7 +871,7 @@ aps_unique <- aps_unique %>%
 ```
 
 ```{r}
-dim(aps_unique) # 15,283 observations and 71 variables
+dim(aps_unique) # 15,283 observations and 74 variables
 ```
 
 
@@ -926,7 +926,7 @@ aps_unique <- aps_unique %>%
 ```
 
 ```{r}
-dim(aps_unique) # 15,283 observations and 73 variables
+dim(aps_unique) # 15,283 observations and 76 variables
 ```
 
 
@@ -974,7 +974,7 @@ aps_unique <- aps_unique %>%
 ```
 
 ```{r}
-dim(aps_unique) # 15,283 observations and 76 variables
+dim(aps_unique) # 15,283 observations and 81 variables
 ```
 
 # Check duplicate rows
@@ -988,17 +988,6 @@ aps_unique %>%
 ```
 
 So, there are 2 rows (1 report to APS) where a report was made to APS (intake stage number) by two people at the same time, but both individuals were the same type of reporter (both health care providers/staff). Catherine told me that it was possible for two people to call-in at the same time.
-
-
-# Split dob into separate elements for RecordLinkage()
-```{r}
-aps_unique <- aps %>% 
-  mutate(
-    birth_year   = format(dob, "%Y"),
-    birth_mnth   = format(dob, "%m"),
-    birth_day    = format(dob, "%d")) %>% 
-  select(case_num, case_row, name_last, name_first, name_full, dob, birth_year, birth_mnth, birth_day, everything())
-```
 
 
 # Save data
