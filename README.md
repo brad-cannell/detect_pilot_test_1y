@@ -2,5 +2,4 @@
 
 # Detection of Elder Abuse Through Emergency Care Technicians (DETECT) 1-Year Pilot Study
 
-![](images/detect_under_construction.png)
-
+Please see [this article](https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2765655?resultClick=3) for information about the background, rationalle, and design of this study.
