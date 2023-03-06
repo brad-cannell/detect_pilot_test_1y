@@ -1,0 +1,139 @@
+---
+title: "Processing Data For ITS Analysis"
+date: "Created: 2019-01-17 <br> Updated: `r Sys.Date()`"
+---
+
+# Overview
+
+Preparing APS investigations data for Dr. Livingston's DDD analysis.
+
+**Some notes from APS about administrative variables:**
+
+* Each unique "Intake Stage #" (Column M) may be thought of as a unique report of ANE made on a particular date at a particular time. Each unique intake will generate a unique investigation, designated by an Investigation Stage # (Column L). So, each unique intake # is paired with an investigation #. With this a case is opened, assigned a case # (Column K)
+
+* Each row of data in this file may be best understood as a unique "reporter" which is the person making a report of abuse, neglect or exploitation (ANE) about a particular victim, on a particular date and time. The name and DOB and address information in the first several columns are that of the victim, not the reporter. The only information provided about the reporter is column O, reporter type. 
+
+* As already noted, each unique "Intake #" may be thought of as a unique report of ANE. However, there may be two reporters on the same intake, which appears as two rows with the same intake number. This reflects that two different people made the report at the same time, most likely in the way that one person speaks to the intake worker, then hands the phone to the other reporter. You may see a different reporter type in each row which is common when the victim is calling with a family member. Also common is the victim or a family member calling along with someone providing services or other assistance, maybe a health care provider, a community organization, or a law enforcement officer.  They are making the call together, hence together they are making the report of ANE. Two people, one report. 
+
+* In contrast to the above, you may see two rows with the same case number but different intake numbers which are on the same date.  This represents two different reports called in independently by two different people. Thus, they have different intake numbers, and they are regarded as two different reports of the same abuse. And again, as mentioned above, they have the same case numbers because it was determined that after the initial report was made, the subsequent report concerned the same mistreatment or self-neglect and therefore was merged into the already-created case.
+
+* For the ITS analysis, we are interested in changes in the number of individual "reports" of EA. So, each row should be a unique reporter/intake stage number combination.
+
+
+**Study dates:**
+
+* The initial 5-week pilot study took place between 2015-09-17 and 2015-10-26     
+* The 1-year pilot study began on 2017-02-01 and continues to this day.    
+* The APS data used for the ITS analysis spans 2014-12-31 to 2018-02-28.    
+
+
+# Load packages and data
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = NA)
+Sys.setenv(TZ = "US/Central")
+```
+
+```{r message=FALSE}
+library(dplyr)
+```
+
+
+# Read-in data
+
+* Make sure to connect to the UTHealth server using the path stored in NOTES.
+
+* aps_02_variable_management.rds was created in data_aps_02_variable_management.Rmd
+
+```{r}
+aps <- readr::read_rds("/Volumes/DETECT/one_year_data/aps_02_variable_management.rds")
+```
+
+```{r}
+dim(aps) # 18,080 observations and 64 variables
+```
+
+
+# Deidentify case numbers
+
+We want a case number identifier in the data that can't be linked back to APS records.
+
+```{r}
+aps <- aps %>% 
+  mutate(case = group_indices(aps, case_num))
+```
+
+```{r}
+dim(aps) # 18,080 observations and 65 variables
+```
+
+
+# Check duplicate rows
+
+For the DDD analysis, we are interested in changes in the number of individual "reports" of EA. So, each row should be a unique reporter/intake stage number combination. Results are hidden to protect participant privacy.
+
+```{r eval=FALSE}
+aps %>% 
+  group_by(intake_stage_num, reporter) %>% 
+  filter(n() > 1)
+```
+
+So, there are 10 rows (5 reports to APS) where a report was made to APS (intake stage number) by two people at the same time, but both individuals were the same type of reporter (both health care providers/staff or both family members and relatives). For the ITS analysis, we will keep these rows in the data. Catherine told me that it was possible for two people to call-in at the same time.
+
+
+# Dates included
+
+Check to see the minimum and maximum dates included in this data.
+
+```{r}
+aps %>% 
+  summarise(
+    `Earliest date in data` = min(intake_date) %>% as.Date(),
+    `Latest date in data` = max(intake_date) %>% as.Date()
+  )
+```
+
+Earliest date in data: 2014-12-31	   
+Latest date in data: 2018-02-28	
+
+
+# Subset columns
+
+Subset the data to include only the columns needed for the DDD analysis
+
+```{r}
+aps_ddd <- aps %>% 
+  select(
+    case, age, study_week, study_period, detect, reporter, ems, medstar_service_area, 
+    city_fw, any_valid, all_invalid, valid_3cat, closure_reason,
+    valid_emotional_abuse:total_other_dispositions, total_valid, total_invalid
+  )
+```
+
+```{r}
+dim(aps_ddd) # 18,080 observations and 45 variables
+```
+
+
+# Save the data
+
+```{r}
+readr::write_rds(aps_ddd, "/Volumes/DETECT/one_year_data/aps_ddd.rds")
+```
+
+Save in Excel format for Doug
+
+```{r}
+readr::write_csv(aps_ddd, "/Volumes/DETECT/one_year_data/aps_ddd.csv")
+```
+
+
+# Session information
+
+```{r echo=FALSE}
+rm(list = ls())
+```
+
+```{r echo=FALSE}
+sessionInfo()
+```

@@ -1,0 +1,82 @@
+---
+title: "Descriptive Analysis for Evaluation of the DETECT Elder Mistreatment Screening Tool"
+date: "Created: 2020-03-31 <br> Updated: `r Sys.Date()`"
+---
+
+# Overview
+
+Calculation of some descriptive statistics for the Evaluation of the DETECT Elder Mistreatment Screening Tool manuscript
+
+
+# Load packages
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = NA)
+Sys.setenv(TZ = "US/Central")
+```
+
+```{r message=FALSE}
+library(dplyr)
+```
+
+
+# Read-in data
+
+* Make sure to connect to the UTHealth server using the path stored in NOTES.
+
+* aps_02_variable_management.rds was created in data_aps_02_variable_management.Rmd
+
+```{r}
+aps <- readr::read_rds("/Volumes/DETECT/one_year_data/aps_02_variable_management.rds")
+```
+
+```{r}
+dim(aps) # 18,080 observations and 64 variables
+```
+
+# Dates included
+
+Check to see the minimum and maximum dates included in this data.
+
+```{r}
+aps %>% 
+  summarise(
+    `Earliest date in data` = min(intake_date) %>% as.Date(),
+    `Latest date in data` = max(intake_date) %>% as.Date()
+  )
+```
+
+Earliest date in data: 2014-12-31	   
+Latest date in data: 2018-02-28	
+
+
+# Unique people
+
+Based on the unique person id sent to me by APS
+
+```{r}
+length(unique(aps$person_id))
+```
+
+
+# Mean age
+
+Get the mean age by report, not person.    
+1. Our unit of analysis is the report.   
+2. A person's age can vary over time in this dataset.    
+
+```{r}
+aps %>% 
+  summarise(
+    mean_age = mean(age),
+    sd_age = sd(age)
+  )
+```
+
+
+
+# Session information
+
+```{r echo=FALSE}
+sessionInfo()
+```

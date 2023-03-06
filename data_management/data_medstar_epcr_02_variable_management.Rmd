@@ -1,0 +1,417 @@
+---
+title: "Manage Variables in MedStar EPCR Data"
+date: "Created: 2018-12-26 <br> Updated: `r Sys.Date()`"
+---
+
+# Overview
+
+* The raw MedStar epcr data was imported in data_medstar_epcr_01_import.Rmd
+
+* In this file we do some basic data cleaning and prepare the data to be merged with APS data.
+
+
+# Load packages and data
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = NA)
+Sys.setenv(TZ = "US/Central")
+```
+
+```{r message=FALSE}
+library(dplyr)
+```
+
+
+# Read-in data
+
+* Make sure to connect to the UTHealth server using the path stored in NOTES.
+
+* medstar_epcr_01_import.rds was created in data_medstar_epcr_01_import.Rmd
+
+```{r}
+medstar_epcr <- readr::read_rds("/Volumes/DETECT/one_year_data/medstar_epcr_01_import.rds")
+```
+
+```{r}
+dim(medstar_epcr) # 35,557    32
+```
+
+
+# Standardize character strings
+
+Because we will merge this data with other data sets in the future based on character strings (e.g., name), we need to go ahead and standardize their formats here. This will prevent mismatches during the merges. Specifically, we:
+
+1. Transform all characters to lower case   
+2. Remove any special characters (e.g., hyphens, periods)   
+3. Remove trailing spaces (e.g., "John Smith ")   
+4. Remove double spaces (e.g., "John  Smith")   
+
+```{r}
+vars <- quos(name_full, address_street, address_city, address_state)
+
+medstar_epcr <- medstar_epcr %>% 
+  mutate_at(vars(!!! vars), tolower) %>% 
+  mutate_at(vars(!!! vars), stringr::str_replace_all, "[^a-zA-Z\\d\\s]", " ") %>%
+  mutate_at(vars(!!! vars), stringr::str_replace, "[[:blank:]]$", "") %>% 
+  mutate_at(vars(!!! vars), stringr::str_replace_all, "[[:blank:]]{2,}", " ")
+
+rm(vars)
+```
+
+
+# Remove "city of" from address_city value 
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  mutate(address_city = stringr::str_replace(address_city, "city of ", ""))
+```
+
+
+# Separate names, dob's, and street addresses
+
+* Some names have three parts (e.g., Mary Jo Blake). Here, we split up full name into first name and last name. For now, we ignore middle name(s). We may need to change this later.
+
+* We also separate dob into its component parts: month, day, year.
+
+* We also separate the street address into the number part and the street name part
+
+```{r}
+medstar_epcr <- medstar_epcr %>%
+  mutate(
+    name_first          = stringr::str_extract(name_full, "\\w+(?=[[:blank:]])"),
+    name_last           = stringr::str_extract(name_full, "\\S*$"),
+    birth_mnth          = lubridate::month(dob),
+    birth_day           = lubridate::day(dob),
+    birth_year          = lubridate::year(dob),
+    address_num         = stringr::str_extract(address_street, "^\\d{1,5}") %>% as.numeric(),
+    address_street_name = stringr::str_trim(stringr::str_replace(address_street, "^\\d{1,5}", ""))
+  )
+```
+
+Replaces spaces with underscores in address street name.
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  mutate(
+    address_street_name = stringr::str_replace_all(address_street_name, "\\s", "_")
+  )
+```
+
+```{r}
+dim(medstar_epcr) # 35,557    39
+```
+
+
+# Recode categories
+
+* For select variables, recode variants of missing data (e.g. "Unknown") to NA
+
+* For select variables collapse categories
+
+## Missing
+
+```{r}
+medstar_epcr <- medstar_epcr %>%
+  mutate(
+    gender = case_when(
+      gender == "Unknown (Unable to Determine)" ~ NA_character_,
+      gender == "Not Applicable"                ~ NA_character_,
+      TRUE                                      ~ gender
+    ),
+    race = case_when(
+      race == "Not Applicable" ~ NA_character_,
+      race == "Not Recorded"   ~ NA_character_,
+      TRUE                     ~ race
+    )
+  ) %>% 
+  mutate_at(
+    vars(starts_with("detect")),
+    ~ if_else(. == "N/A", NA_character_, .)
+  )
+```
+
+
+## Collapse categories
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  mutate(
+    race_8cat = case_when(
+      race == "American Indian or Alaska Native"          ~ "American Indian or Alaska Native - non-Hispanic",
+      race == "Asian"                                     ~ "Asian - non-Hispanic",
+      race == "Black or African American"                 ~ "Black or African American - non-Hispanic",
+      race == "Hispanic or Latino"                        ~ "Hispanic or Latino, Any Race",
+      race == "Native Hawaiian or Other Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander - non-Hispanic",
+      race == "White"                                     ~ "White - non-Hispanic",
+      stringr::str_detect(race, "Hispanic")               ~ "Hispanic or Latino, Any Race",
+      is.na(race)                                         ~ NA_character_,
+      TRUE                                                ~ "Other Race - non-Hispanic"
+    )
+  )
+```
+
+```{r}
+dim(medstar_epcr) # 35,557    40
+```
+
+
+# Create indicator for completed DETECT screening
+
+```{r}
+medstar_epcr <- medstar_epcr %>%
+  mutate_at(
+    .vars = vars(starts_with("detect_")),
+    .funs = list(answered = ~ !is.na(.))
+  ) %>% 
+  mutate(
+    answered_count = select(., ends_with("answered")) %>% rowSums()
+  ) %>% 
+  mutate(
+    screened = answered_count > 0
+  )
+```
+
+```{r}
+dim(medstar_epcr) # 35,557    56
+```
+
+
+# Process numeric variables
+
+All numerical variables must be class numeric -- as opposed to integer -- to work in fastLink below.
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  mutate_if(is.integer, as.numeric)
+```
+
+```{r}
+dim(medstar_epcr) # 35,557    56
+```
+
+
+# Duplicate (almost) rows
+
+There were some rows with the same pcr number and only differed by whether or not DETECT screenings were completed.
+
+```{r}
+# Data checks
+# Multiple pcr's per response? Yes
+# medstar_epcr %>% 
+#   group_by(response_num) %>% 
+#   summarise(n = length(unique(incident_pcr))) %>% 
+#   filter(n > 1)
+
+# Multiple responses per pcr? No
+# medstar_epcr %>% 
+#   group_by(incident_pcr) %>% 
+#   summarise(n = length(unique(response_num))) %>% 
+#   filter(n > 1)
+```
+
+Add a dummy variable that indicates whether or not the pcr number is duplicated
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  group_by(incident_pcr) %>% 
+  mutate(pcr_dup = max(row_number()) > 1)
+```
+
+```{r}
+dim(medstar_epcr) # 35,557    57
+```
+
+How many pairs of duplicate pcr numbers are there?
+
+```{r}
+medstar_epcr %>% 
+  group_by(incident_pcr) %>% 
+  summarise(duplicate_pairs = any(pcr_dup == TRUE)) %>% 
+  pull(duplicate_pairs) %>% 
+  sum() # 7,282
+```
+
+There are 7,282 incident pcr numbers that are duplicated in the data.
+
+For each of those pcr numbers, if the only thing that differs between the two rows is that one has the DETECT tool filled out and the other doesn't, then we only want to keep the row with the DETECT screening information.
+
+So, for each variable of interest, create a dummy variable that indicates if if values are different within incident pcr number
+
+```{r}
+medstar_epcr <- medstar_epcr %>%
+  mutate_at(
+    .vars = vars(
+      arrival_time, response_num, incident_pcr, incident_complaint, age, 
+      name_full, dob, address_street, address_city, address_state,
+      address_zip, gender, race, symptoms, crew_sig, disposition
+    ),
+    .funs = list(diff = ~ as.numeric(length(unique(.)) > 1))
+  ) %>% 
+  ungroup()
+```
+
+Now, count the total number of differences between rows (within incident pcr number) for the variables above
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  mutate(
+    diff_count = select(., ends_with("_diff")) %>% rowSums()
+  )
+```
+
+```{r}
+# Data checking
+# medstar_epcr %>%
+#   filter(pcr_dup) %>%
+#   select(incident_pcr, pcr_dup, ends_with("_diff"), aps_report, answered_count, diff_count)
+```
+
+
+## Add row numbers
+
+Below we will need to drop selected rows from the data. Adding row numbers to the data set here will make it easier to do so without using any potential personal identifiers to filter the data.
+
+```{r}
+medstar_epcr <- medstar_epcr %>% mutate(row = row_number()) %>% select(row, everything())
+```
+
+
+## Check: Differences
+
+Are there any cases where there is a duplicated incident pcr number and there are differences between the values in the rows other than DETECT screenings? Results are hidden to protect participant privacy.
+
+```{r eval=FALSE}
+medstar_epcr %>% 
+  filter(pcr_dup & diff_count > 0)
+```
+
+Yes. There is one duplicated incident pcr with differing information between rows for race (row 16530 = White, row 16531 = Missing) and disposition (row 16530 = Transported, row 16531 = Canceled False Call). Additionally, row 16530 has a completed DETECT screening. Therefore, we will drop row 16531 and change pcr_dup to FALSE for row 16530.
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  filter(row != 16531) %>% 
+  mutate(pcr_dup = if_else(row == 16530, FALSE, pcr_dup))
+```
+
+At this point, all remaining duplicate incident pcr numbers have identical values for each of the variables compared above and diff_counts of 0. There is no need to keep those variables in the data.
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  select(-ends_with("_diff"), -diff_count)
+```
+
+```{r}
+dim(medstar_epcr) # 35,556    58
+```
+
+
+## Check: No DETECT answers
+
+Are there any cases where there is a duplicated incident pcr number and answered count is 0 for all rows? Results are hidden to protect participant privacy.
+
+```{r eval=FALSE}
+medstar_epcr %>%
+  filter(pcr_dup) %>%
+  group_by(incident_pcr) %>%
+  filter(all(answered_count == 0))
+```
+
+Yes, there is one such incident pcr number. The only difference between the two rows is that the value for aps_report_num in row 4467 is "homeless" and missing in row 4468. Therefore, we will drop row 4468 and change pcr_dup to FALSE for 4467.
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  filter(row != 4468) %>% 
+  mutate(pcr_dup = if_else(row == 4467, FALSE, pcr_dup))
+```
+
+```{r}
+dim(medstar_epcr) # 35,555    58
+```
+
+
+## Check: Conflicting DETECT answers
+
+Are there any cases where there is a duplicated incident pcr number and answered counts differ, but the answered count is not 0 for any of the rows. In other words, a different number of screening items was answered. Results are hidden to protect participant privacy.
+
+```{r eval=FALSE}
+medstar_epcr %>% 
+  filter(pcr_dup) %>% 
+  group_by(incident_pcr) %>% 
+  filter(!any(answered_count == 0)) %>% 
+  ungroup() %>% 
+  # I already know there are no differences in name etc. We cleaned that up
+  # above.
+  select(row, name_full, crew_sig, aps_report_num, aps_report, 
+         starts_with("detect_"), answered_count, -ends_with("_answered"))
+```
+
+Yes, there are 130 rows (63 unique incident pcr numbers) where more than one row has the DETECT screening filled out.
+
+There doesn't appear to be an systematic differences between the rows. For example, the first row in a pair is always more complete or something like that. Therefore, we're going to filter in stages in such a way as to maximize information retention.   
+
+1. Keep the row with the highest answered count   
+2. If there is a tie for highest answered count, keep row with aps report number   
+3. If there is a tie for highest answered count and both rows have an aps report number, then arbitrarily keep the first row.   
+
+```{r}
+medstar_epcr <- medstar_epcr %>%
+  arrange(desc(pcr_dup), incident_pcr, desc(answered_count), aps_report_num) %>% 
+  group_by(incident_pcr) %>% 
+  mutate(
+    group_row = row_number(),
+    keep_row = group_row == 1
+  ) %>% 
+  ungroup() %>% 
+  arrange(row)
+```
+
+NOTE: If there is only one row for a given incident pcr number, then it will always have keep_row == 1.
+
+```{r}
+# Data checks
+# medstar_epcr %>% 
+#   filter(pcr_dup) %>%
+#   select(row, row, incident_pcr, group_row, keep_row, answered_count, aps_report_num) %>% 
+#   group_by(incident_pcr) %>% 
+#   filter(any(group_row > 2))
+```
+
+Drop duplicate rows and unneeded variables
+
+```{r}
+medstar_epcr <- medstar_epcr %>% 
+  filter(keep_row) %>% 
+  select(-row, -pcr_dup, -group_row, -keep_row)
+```
+
+```{r}
+dim(medstar_epcr) # 28,228    56
+```
+
+
+# Save data
+
+```{r}
+readr::write_rds(
+  medstar_epcr, 
+  "/Volumes/DETECT/one_year_data/medstar_epcr_02_variable_management.rds"
+)
+```
+
+```{r}
+readr::write_csv(
+  medstar_epcr, 
+  "/Volumes/DETECT/one_year_data/medstar_epcr_02_variable_management.csv"
+)
+```
+
+
+# Session information
+
+```{r}
+rm(list = ls())
+```
+
+```{r echo=FALSE}
+sessionInfo()
+```
