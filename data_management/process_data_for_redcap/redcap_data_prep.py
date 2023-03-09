@@ -2,6 +2,14 @@
 import csv
 import pandas as pd
 
+"""
+Versioning:
+    
+Python: 3.9.12
+CSV: 1.0
+Pandas: 1.5.2
+"""
+
 ## MAIN ##
 def main():
     pass
