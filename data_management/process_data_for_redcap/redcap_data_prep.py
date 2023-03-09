@@ -1,11 +1,25 @@
+## IMPORTS ##
 import csv
 import pandas as pd
+"""
+Versioning:
+    
+Python: 3.9.12
+CSV: 1.0
+Pandas: 1.5.2
+"""
+## MAIN ##
+def main():
+    pass
 
+
+
+## FUNCTIONS ##
 def redcap_get_variables(source_file_path,out_path,mode=False,form_id="form_1"):
     """
     
     This function takes in an exisitng CSV Data Set and assists in generating
-    a REDCap compatible Data Dictionary
+    a REDCap compatible Data Dictionary by extracting all variable names
     
     Parameters
     ----------
@@ -66,16 +80,15 @@ def redcap_get_variables(source_file_path,out_path,mode=False,form_id="form_1"):
         df = pd.DataFrame(index=range(len(headers)),columns=fields)
         
         df["Field Label"]=headers
-        df["Form Name"] = form_id*len(df)
-        df["Field Type"] = "text" *len(df)
+        df["Form Name"] = form_id
+        #Sets value of "record_id" to form_1 for consistency
+        df["Form Name"].iloc[0] = "form_1"
+        df["Field Type"] = "text"
         
         with open(out_path,"w") as outfile:
-            df.to_csv(outfile,encoding="utf-8")
+            df.to_csv(outfile,encoding="utf-8",index=False,lineterminator="\n")
         return df
     
-    
-
-
 def redcap_filemod_variables(source_acro,source_file_path,data_dict_path,form_id="form_1",out_path=False):
     """
     
@@ -108,7 +121,7 @@ def redcap_filemod_variables(source_acro,source_file_path,data_dict_path,form_id
     """
     
     #get source data as pandas data frame
-    #this allows renaming and reorganizing variables without using up memory
+    #this allows renaming and reorganizing variables without using up too much memory
     
     with open(source_file_path,encoding="utf-8-sig") as file:
         df = pd.read_csv(file)
@@ -149,7 +162,5 @@ def redcap_filemod_variables(source_acro,source_file_path,data_dict_path,form_id
     return df
 
 
-
-
-
-
+if __name__ == "__main__":
+    main()
