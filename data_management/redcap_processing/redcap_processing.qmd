@@ -1,0 +1,259 @@
+---
+title: "Processing MedStar and APS Data for REDCap Upload"
+format: html
+editor: visual
+---
+
+# Imports and Versioning
+
+### Imports:
+
+-   `readxl` is used to read and import XLSX files
+
+-   `here` is used to ensure compatibility with Quarto and RProject directories
+
+-   `dplyr` is used for renaming variables
+
+-   `keyring` is used to protect confidential information such as passwords
+
+```{r}
+library(readxl)
+suppressPackageStartupMessages(library(here))
+suppressPackageStartupMessages(library(dplyr))
+library(keyring)
+```
+
+### Versioning
+
+```{r}
+print(paste("R:",getRversion()))
+print(paste(rep("-",18),collapse=""))
+for (package in sort(loadedNamespaces())){
+  print(paste(paste(package,":",sep=""),packageVersion(package)))}
+```
+
+## Source Paths
+
+#### Source Prefixes
+
+Source prefixes were set following conventions outlined in the [Project Wiki](https://github.com/brad-cannell/detect_pilot_test_1y/wiki) and Style Guides.
+
+| Source Data        | Source Prefix |
+|--------------------|---------------|
+| record_id          | form_1        |
+| APS                | aps           |
+| MedStar ePCR       | ms_epcr       |
+| MedStar Compliance | ms_comp       |
+
+```{r}
+source_prefixes <- c(ms_epcr="ms_epcr",aps="aps",ms_comp="ms_comp")
+```
+
+#### Setting Source File Paths
+
+```{r}
+data_paths <- c(ms_epcr = here("data/DETECT Shared GRAs/medstar_epcr.xlsx"),aps=here("data/DETECT Shared GRAs/aps_data.xlsx"),ms_comp=here("data/DETECT Shared Meadows/medstar_compliance.xlsx"))
+```
+
+#### Packing Source Data Frame
+
+```{r}
+sources <- data.frame(paths = data_paths, prefixes = source_prefixes)
+```
+
+## Development of Processing Script
+
+### Task Overview
+
+-   REDCap:
+
+    -   REDCap can accept data from both direct upload and API interactions
+
+    ```{=html}
+    <!-- -->
+    ```
+        -    Direct upload requires CSV format
+
+        -    API allows for CSV, JSON, or XML formats
+
+        -    A "record_id" is required, even when requesting for dynamic numbering
+
+    -   REDCap requires any uploaded data to be compatible with the project **DataDictionary**
+
+        -   DataDictionaries are CSV files, which have columns for `Variable / Field Name`, `Form Name` `Section Header`, `Field Type`, `Field Label`, `Choices, Calculations, OR Slider Labels`, `Field Note`, `Text Validation Type OR Show Slider Number`, and many more options
+
+        -   DataDictionary has `Identifier?` column which specifies contents are identifiers in Personally Identifiable Information
+
+        -   DataDictionaries may also be uploaded to the REDCap project in the same way as data
+
+        -   DataDictionary fields specifying data validation are optional, but strict - incompatible data is rejected on any attempted upload
+
+-   Existing Data:
+
+    -   Existing data is in XLSX format
+
+Process Goals:
+
+1.  Extract variable names from existing data to TXT file for ease of manipulating the DataDictionary CSV file in Excel through copy/pasting variables into rows of `Field Name`
+
+2.  Manually set **standardized variable names** in the `Variable / Field Name` section of the DataDictionary
+
+3.  Create and add a unique "Source Index" variable to the DataDictionary to maintain trace-ability of processed data back to the source files
+
+4.  Process source data, utilizing the DataDictionary as a map, to rename and variables
+
+5.  Upload source data to REDCap project utilizing API
+
+MedStar ePCR data was chosen to develop a script to process study data into a REDCap compatible format due to the inclusion of many variables of interest and variety of data formats.
+
+### Goal 3: Create and add a unique "Source Index" variable to maintain trace-ability of processed data back to the source files
+
+#### Processing Single Data Set: MedStar ePCR
+
+MedStar ePCR Data was read in:
+
+```{r}
+medstar_epcr <- suppressWarnings(read_excel(sources[1,]$paths))
+```
+
+Column bind was utilized to generate a new variable, which contained the original source index of each variable
+
+```{r}
+medstar_epcr <- cbind(index = 1:nrow(medstar_epcr),medstar_epcr)
+```
+
+The index column was renamed to include the Source Prefix
+
+```{r}
+colnames(medstar_epcr)[colnames(medstar_epcr) == "index"] = paste("Index from",toString(sources[1,]$prefixes))
+```
+
+### Goal 1: Write TXT with Column Names
+
+#### Retrieving all column names.
+
+All column names were retrieved into a simple vector for export.
+
+```{r}
+original_cols <- colnames(medstar_epcr)
+```
+
+#### Writing TXT file
+
+To facilitate copy/paste entry into Excel (or any CSV editor), all column names should be separated by a newline `"\n"` . R's column names and row names should be excluded, as should quotations around the string variables.
+
+```{r}
+write.table(c("record_id",original_cols),file=here("data/DETECT Shared GRAs/redcap_processing/medstar_epcr_cols.txt"), sep="\n",col.names=FALSE,row.names=FALSE,quote=FALSE)
+```
+
+#### Function to Repeat Process
+
+A `get_source_columns` function was made to facilitate repeating this process with multiple sources.
+
+```{r}
+get_source_columns<-function(source,prefix){
+    data <- suppressWarnings((read_excel(source)))  
+    data <- cbind(index = 1:nrow(data),data)
+    colnames(data)[colnames(data) == "index"] = paste("Index from",toString(prefix))
+    cols <- colnames(data)
+     
+     file_name <- paste("data/DETECT Shared GRAs/redcap_processing/",
+ tools::file_path_sans_ext(basename(source)),"_variables_for_redcap_datadictionary_prep.txt",sep="")
+     write.table(c("record_id",cols),file=here(file_name), sep="\n",col.names=FALSE,row.names=FALSE,quote=FALSE)
+}
+
+```
+
+The `get_source_columns` function was called on all sources.
+
+```{r}
+for (i in seq_len(nrow(sources))){
+  get_source_columns(sources[i,]$paths,sources[i,]$prefixes)
+}
+```
+
+### Goal 2: Manually set standardized variable names in the Variable / Field Name section of the DataDictionary
+
+This was performed manually, following conventions outlined in the [Project Wiki](https://github.com/brad-cannell/detect_pilot_test_1y/wiki) and Style Guides. Form IDs were set to reflect the source of the contained variables (also reflected in source prefixes) according to the following table:
+
+| Source Data        | Form_ID |
+|--------------------|---------|
+| record_id          | form_1  |
+| APS                | aps     |
+| MedStar ePCR       | ms_epcr |
+| MedStar Compliance | ms_comp |
+
+### Goal 4: Process source data, utilizing the DataDictionary as a map, to rename and variables
+
+#### Importing the finalized Data Dictionary
+
+The finalized DataDictionary was imported to facilitate processing
+
+```{r}
+data_dictionary <- read.csv(here("data/DETECT Shared GRAs/redcap_processing/redcap_datadictonary_medstar_epcr_medstar_compliance_aps.csv"))
+```
+
+#### Processing Single Data Set: MedStar ePCR
+
+Original and Desired variable names were extracted from the data dictionary, only for variables matching the targeted data set (MedStar ePCR).
+
+```{r}
+cols$new <- c(subset(data_dictionary, Form.Name == sources[1,]$prefixes)$Variable...Field.Name)
+cols$old <- c(subset(data_dictionary, Form.Name == sources[1,]$prefixes)$Field.Label)
+```
+
+The `recode` function of the `dplyr` package was utilized to facilitate variable renaming.
+
+```{r}
+colnames(medstar_epcr) <- dplyr::recode(
+  colnames(medstar_epcr),
+  !!!setNames(as.character(cols$new),cols$old))
+```
+
+The processed data set was then exported in CSV format
+
+```{r}
+write.csv(medstar_epcr,file=here("data/DETECT Shared GRAs/redcap_processing/medstar_epcr_redcap_processed.csv"),row.names=FALSE)
+```
+
+#### Function to Repeat Process
+
+A `redcap_process_data` function was made to facilitate repeating this process with multiple sources.
+
+```{r}
+redcap_process_data <- function(source_path,prefix){
+    data <- suppressWarnings((read_excel(toString(source_path))))  
+    data <- cbind(index = 1:nrow(data),data)
+    colnames(data)[colnames(data) == "index"] = paste("Index from",toString(prefix))
+
+    cols$new <- c(subset(data_dictionary, Form.Name == prefix)$Variable...Field.Name)
+    cols$old <- c(subset(data_dictionary, Form.Name == prefix)$Field.Label)
+    
+    colnames(data) <- dplyr::recode(
+      colnames(data),
+      !!!setNames(as.character(cols$new),cols$old))
+    
+    file_name <- here(paste("data/DETECT Shared GRAs/redcap_processing/", tools::file_path_sans_ext(basename(source_path)),"_redcap_processed.csv",sep=""))
+    write.csv(data,file=file_name,row.names=FALSE)
+}
+
+```
+
+The `redcap_process_data` function was called on all sources.
+
+```{r}
+for (i in seq_len(nrow(sources))){
+  redcap_process_data(sources[i,]$paths,sources[i,]$prefixes)
+}
+```
+
+### Goal 5: Upload source data to REDCap project utilizing API
+
+*This is giving me a hard time. It doesn't seem like R and REDCap are playing nicely with the way they list their files*
+
+```{r}
+library(keyring)
+library(RCurl)
+library(jsonlite)
+library(digest)
+```
