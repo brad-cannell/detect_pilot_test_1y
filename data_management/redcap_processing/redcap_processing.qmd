@@ -16,11 +16,26 @@ editor: visual
 
 -   `keyring` is used to protect confidential information such as passwords
 
+-   `httr` is used for working with URLS and HTTP
+
+-   `RCurl` is used for API HTTP requests
+
+-   `jsonlite` is used to decode JSON data with `httr`
+
+-   `digest` is used to create compact hashes of R objects for transport in requests by `httr`
+
+-   `readr` is used to read rectangular text data, such as CSVs, for use in `httr`
+
 ```{r}
 library(readxl)
 suppressPackageStartupMessages(library(here))
 suppressPackageStartupMessages(library(dplyr))
 library(keyring)
+library(RCurl)
+library(httr)
+library(jsonlite)
+library(digest)
+library(readr)
 ```
 
 ### Versioning
@@ -69,9 +84,8 @@ sources <- data.frame(paths = data_paths, prefixes = source_prefixes)
 
     -   REDCap can accept data from both direct upload and API interactions
 
-    ```{=html}
     <!-- -->
-    ```
+
         -    Direct upload requires CSV format
 
         -    API allows for CSV, JSON, or XML formats
@@ -198,6 +212,7 @@ data_dictionary <- read.csv(here("data/DETECT Shared GRAs/redcap_processing/redc
 Original and Desired variable names were extracted from the data dictionary, only for variables matching the targeted data set (MedStar ePCR).
 
 ```{r}
+cols = list()
 cols$new <- c(subset(data_dictionary, Form.Name == sources[1,]$prefixes)$Variable...Field.Name)
 cols$old <- c(subset(data_dictionary, Form.Name == sources[1,]$prefixes)$Field.Label)
 ```
@@ -224,6 +239,7 @@ A `redcap_process_data` function was made to facilitate repeating this process w
 redcap_process_data <- function(source_path,prefix){
     data <- suppressWarnings((read_excel(toString(source_path))))  
     data <- cbind(index = 1:nrow(data),data)
+    data <- cbind(record_id = 1:nrow(data),data)
     colnames(data)[colnames(data) == "index"] = paste("Index from",toString(prefix))
 
     cols$new <- c(subset(data_dictionary, Form.Name == prefix)$Variable...Field.Name)
@@ -249,11 +265,95 @@ for (i in seq_len(nrow(sources))){
 
 ### Goal 5: Upload source data to REDCap project utilizing API
 
-*This is giving me a hard time. It doesn't seem like R and REDCap are playing nicely with the way they list their files*
+#### API Variables
+
+Values for the API URL and API Token are entered. Keyring is utilized to ensure privacy of the API Token.
 
 ```{r}
-library(keyring)
-library(RCurl)
-library(jsonlite)
-library(digest)
+api_url <- "https://redcap.uth.tmc.edu/api/"
+api_token <- key_get("redcap_ms_aps")
+```
+
+#### Data Dictionary Upload:
+
+Data Dictionary is read in from CSV. The `check.names` option is set to `FALSE` to ensure that variable names remain verbatim from source.
+
+The DataDictionary is converted into a CSV string to pass through the API. The `na` option is set to `""` to ensure that any missing values are left blank, rather than filled as `NA`, which REDCap rejects.
+
+```{r}
+data_dictionary <- read.csv(here("data/DETECT Shared GRAs/redcap_processing/redcap_datadictonary_medstar_epcr_medstar_compliance_aps.csv"),check.names = FALSE)
+csv <- readr::format_csv(data_dictionary,na="")
+```
+
+This data is then sent to REDCap through the API.
+
+```{r}
+formData <- list("token"=api_token,
+    content='metadata',
+    format='csv',
+    data=csv,
+    returnFormat='xml'
+)
+response <- httr::POST(api_url, body = formData, encode = "form")
+print(httr::http_status(response))
+result <- httr::content(response,"text")
+print(result)
+```
+
+#### Uploading Source Data into REDCap
+
+Source data is large. However, the primary barrier to successful API upload is actually internet-based time constraints, rather than memory constraints. To go around this, the data is divided into smaller chunks in upload. Trial and error demonstrated that at least for the direct author, a chunk size of 100 was reasonably achievable and timely.
+
+```{r}
+chunk_api_upload <-function(api_url,api_token,data_path,chunk_size){
+
+  data <- read.csv(data_path, check.names = FALSE)
+  print(paste("Data from",basename(data_path),"read in. Contains",nrows(data),"rows"))
+  i<- 1
+  j<- chunk_size
+  
+  num_chunks <- (nrow(data)%/%chunk_size)+1
+  range<- 1:num_chunks
+  print(paste("Forming",num_chunks,"chunks"))
+  for (x in range){
+    chunk<- dplyr::slice(data,i:j)
+    
+    csv <- readr::format_csv(chunk,na="")
+    print(paste("Chunk number",x,"formed"))
+    formData <- list("token"=api_token,
+      content='record',
+      action='import',
+      format='csv',
+      type='flat',
+      overwriteBehavior='normal',
+      forceAutoNumber='true',
+      data=csv,
+      dateFormat='MDY',
+      returnContent='count',
+      returnFormat='json'
+    )
+    print(paste("Sending chunk number: ", x,"of size", chunk_size))
+    response <- httr::POST(api_url, body = formData, encode = "form")
+    print(httr::http_status(response))
+    print(httr::content(response,"text"))
+    
+    i<-j+1
+    j<-j+chunk_size
+
+  }
+}
+```
+
+The path to all processed data is provided
+
+```{r}
+upload_paths <- list(here("data/DETECT Shared GRAs/redcap_processing/medstar_epcr_redcap_processed.csv"),here("data/DETECT Shared GRAs/redcap_processing/medstar_compliance_redcap_processed.csv"),here("data/DETECT Shared GRAs/redcap_processing/aps_data_redcap_processed.csv"))
+```
+
+And the function is called on all data sources
+
+```{r}
+for (path in upload_paths){
+  chunk_api_upload(api_url,api_token,path,100)
+}
 ```
