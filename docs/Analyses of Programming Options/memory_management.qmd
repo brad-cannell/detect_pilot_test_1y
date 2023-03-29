@@ -1,0 +1,235 @@
+---
+title: Memory Management
+date: last-modified
+date-format: DD MMMM YYYY
+execute:
+  debug: true
+
+toc: true
+toc-depth: 4
+number-sections: false
+bibliography: bibliography.bib
+csl: https://www.zotero.org/styles/american-medical-association-brackets
+
+format:
+  html:
+    embed-resources: true
+    code-tools: true
+    code-annotations: hover
+  pdf:
+    documentclass: report
+
+engine: knitr
+editor: visual
+---
+
+# Memory Management
+
+Both Python and R were based on C, but have lost C's ability to manually allocate or control memory.
+
+## General Concepts
+
+### Threads
+
+A thread is a sequential execution stream, and a *process* can be composed of one or many threads. Being a sequential execution stream, threads must execute their tasks in a sequential order, one instruction at a time [@stanf_threads].
+
+A process (program) is composed of it's thread(s) and a specific *execution state.* The execution state may include any code, data, call stacks, open files, network connections, register/memory allocation, or anything else that may affect, or be affected by, a thread. In a single-threaded process, the entire process is contained within a single thread. In a multi-threaded process, there may be elements of the *execution state* which are shared between threads, and elements which are private to each thread [@stanf_threads].
+
+The earliest computing systems were all single-threaded. Some computing advancements allowed for the implementation of *Monitors,* which could manage concurrent single-threaded programs by allocating the program's access to the CPU thread, blocking other programs during that time. This wasn't true concurrency, but facilitated more complex computing tasks by maximizing the CPU's throughput [@armsearlytimesharing]. In practice, this means that at any given time, a thread is either *running*, *blocked* and waiting for an event (such as a network packet or disk I/O access), or *ready* and waiting for CPU time [@stanf_threads].
+
+The concept of a Monitor evolved in complexity into the modern day concept of an *Operating System* (OS) [@oshistory].
+
+### Multithreading
+
+Tasks with a large number of intake/output operations (IO bound) can take advantage of multithreading. Multithreading is primarily limited by CPU throughput (clock speed).
+
+In multithreading, tasks within a process are divided into threads within a shared memory space which can execute instructions *simultaneously* and *independently.* This is what allows parallel processing in multi-threading to function: each thread is performing processing *independently* and *simultaneously* [@stanf_threads].
+
+Even if not processed simultaneously, multi-threading has many advantages for complex computations. Threads of a singular process share much of their *execution state*, which means that each thread individually only requires additional memory allocation for it's private portion of the *execution state.* This additional memory allocation is relatively quite small in comparison to an additional process. Additionally, the *Operating System* is able to optimise the CPU throughput of these individual threads, even if the CPU can only process a single thread at one time. [@ibm_threads].
+
+The possibility of simultaneous processing lead to a need to solve the *race condition*:
+
+-   If two threads are attempting to update the same variable in the shared memory space at the same time, what happens?
+-   If one thread is attempting to read a variable at the same time another thread is attempting to update that variable, what happens?
+-   If a thread gets interrupted, what happens?
+
+Solutions to the race condition can depend on the CPU's ability to handle multithreading, a system's ability for multiprocessing, and the constraints of a programming language [@kstate_racecond].
+
+Historically, CPUs could only process one thread at any given moment. This meant that the race condition was solved through timing: only one thread was processed by the CPU at a time. Any computationally-heavy tasks, which are CPU-bound, would have an upper-boundary of efficiency set by the CPU's throughput. In order to increase CPU throughput, one would have to increase clock speed. Increases to clock speed ran the risk of increased heat production and damage to hardware components. Multiprocessing helps address these limitations [@intel_clockspd].
+
+### Multiprocessing
+
+CPU-bound, computationally-heavy tasks benefit most from multiprocessing. Multiprocessing may be memory-heavy in execution.
+
+Multiprocessing involves the support of multiple processors and the ability to allocate processes between them. This increases the complexity of the computing system. Each processor is similar to having multiple identical copies of a computing system [@stanf_threads].
+
+Because multiprocessing cannot allocate threads between processors, and instead allocates processes, multiprocessing can be a memory heavy task. Each processor running a copy of the process will have to allocate memory for the execution state of the *entire process,* rather than just a thread. There are some mechanisms which may be used to facilitate communication between these parallel processes, but these mechanisms may be limited by a programming language [@ibm_threads].
+
+Modern CPU chips are actually microprocessors which contain multiple cores, each of which is functionally a complete CPU and can execute a thread. Many of these modern processors also support *hyper-threading,* where each physical core behaves as if it were actually multiple cores [@stanf_threads]. For example, the Intel Core i7-11370H Processor has 4 physical cores (Quad-Core), but each core supports up to two threads (2-way hyper-threading), for a practical total of 8 threads [@inteli7]. These modern microprocessor CPUs facilitate both multithreading and multiprocessing.
+
+## Python
+
+### General Principles
+
+Python has many interpreters, but the reference interpreter CPython is most commonly used; essentially, CPython is a C program that takes the Python code and interprets it based on the rules of Python [@python3ref].
+
+There are a few common elements to any Python program [@python3ref]:
+
+-   Methods: all functions, operations, and instructions
+
+-   Objects: all objects used by the program
+
+-   Register: "memory addresses" to all objects.
+
+When a Python program is executed, it passes through the Python interpreter and generates elements of an *execution state* that require memory to function [@python3ref]:
+
+-   Code: the interpreted instructions that the computer understands, and will follow-line by-line, step-by-step
+
+-   Heap: the dynamic memory which stores objects
+
+-   Stack: the static, temporary form of memory where actual processing occurs; functions and variables are loaded in from the *Heap* to the *Stack* based on the instructions in the *Code*, return their output to the *Heap* based on the *Code*, and are then removed to free memory
+
+While *Stack* memory must be on the RAM at all times, the *Heap* may include both disc memory and RAM [@python3ref, "Memory Management"].
+
+CPython operates with a *Global Interpreter Lock* (GIL). This GIL is like a "baton" -- if a resource wishes to access the same Python object bytecode, it must wait for that "baton" to be available. For many programs, this may lock them into single threading, which blocks the parallelism of a multi-processor machine. The GIL is always released when doing I/O tasks, and there are extension modules designed to carefully release the GIL for computationally heavy tasks that benefit from multi-threading, such as compression and hashing [@python3ref, "Memory Management"].
+
+The Python Interpreter contains a Python Memory Manager, which interacts directly with the OS Memory Manager using C to allocate a Private Heap of Python-exclusive memory. This Private Heap of memory is exclusively allocated to the Python process, and is not able to be accessed by anything else. It contains elements such as Object-specific Memory, the Python Core Non-object memory, Object Memory, and Internal Buffers. *This Private Heap is not exclusively RAM!* Rather, Heap memory includes both disc and RAM, and can be dynamically swapped as needed in operations of a program [@python3ref, "Memory Management"].
+
+The Python Memory Manager communicates with Object-Specific Memory Allocators, which may "instruct" the Python Memory Manager about the peculiarities of an Object Type (specifically type, value, and reference count). This facilitates the Python Memory Manager in assuring these Objects are able to operate within the bounds of the Private Heap. As everything in Python is an object, these rules are highly influential to memory management in Python [@python3ref, "Memory Management"].
+
+A programmer *can* allocate and release memory blocks within the C library allocator for individual purposes but should never attempt to operate on Python Objects with the functions of the C library allocator. Because the C library allocator and the Python Memory Manager operate on different heaps and implement different algorithms, such attempts are likely to have a fatal result [@python3ref, "Memory Management"].
+
+There are few circumstances when it's recommended to allocate memory from the Python Heap due to its control by the Python Memory Manager [@python3ref, "Memory Management"]:
+
+-   When the interpreter is extended with new object types written in C
+-   When needing to *inform* the Python Memory Manager about the memory needs of an extension module
+
+There are environment variables that can configure the Memory Allocators used by Python [@python3ref, "Memory Management"].
+
+### Multithreading and Multiprocessing in Python
+
+The Python GIL theoretically locks Python into single-threading, and this single-processing. However, mechanisms to enable multithreading and multiprocessing are built into CPython. Many packages and libraries make use of these mechanisms to facilitate efficiency [@python3ref, "Memory Management"].
+
+Each Python thread keeps its own *Register* and *Stack*, but can share any *Code* or *Heap* on a single processor. Multiprocessing, by its definition, requires a unique process for each processor, and thus requires full duplication of the entire *execution state*. The libraries and packages in Python thus have to address the *race condition* inherent to multithreading and multiprocessing that are absent in single-thread serial execution that is the default of Python [@python3ref, "Memory Management"].
+
+Due to the flexibility inherent in Python's *Heap* structure, which can dynamically buffer objects between RAM and disc memory space, the management of large data for processing can be handled with multiple methods such as chunking and lazy evaluations [@python3ref, "Memory Management"].
+
+### Memory Domains
+
+There are three primary domains of Memory Allocator Functions, which are subservient to the General Allocator. While there is no hard requirement to use memory returned by that domain only for the suggested purposes of that domain, it is recommended practice [@python3ref, "Memory Management"].
+
+#### Raw Domain
+
+Allocates memory for general-purpose memory buffers. Memory is requested directly to the system. It ensures there is enough memory for all the data of the Python process [@python3ref, "Memory Management"].
+
+Used when:
+
+-   Allocation *must* go where the Memory Allocator can operate without the GIL
+
+-   Allocating space for the Private Heap if additional memory is needed
+
+#### "Mem" Domain
+
+Allocates memory for Python buffers and general-purpose memory buffers. This memory is taken from the Private Heap [@python3ref, "Memory Management"].
+
+Used when:
+
+-   Allocation *must* go where the Memory Allocation operates with the GIL held
+
+#### Object Domain
+
+Allocates memory for Python Objects. This memory is taken from the Private Heap [@python3ref, "Memory Management"].
+
+Used when:
+
+-   Allocating space for small objects (512 bytes or less)
+
+-   Allocation of space for large objects(\>512 bytes) also calls the *Raw Allocator* to ensure enough space in the Private Heap
+
+##### Object-Specific Allocators
+
+Object-specific allocators dictate memory management for specific data types. Integers, floats, strings, and lists have Object-Specific Allocators built into Python. It may interact with the Object Domain or the Raw Allocator if needed [@python3ref, "Memory Management"].
+
+### Memory Allocation & Release
+
+#### Allocating/Claiming Memory
+
+Memory Allocation occurs in *Arenas* and *Pools* [@python3ref, "Memory Management"].
+
+*Arenas* are the blocks of memory reserved into the Private Heap in allocation by the *Raw Memory Allocator*. They are 256 KB in size. Even the smallest program will take at least 256 KB of memory to function. The most heavily allocated Arena is always used first, if possible, to increase efficiency. Similarly *Python releases memory at the level of Arenas* [@python3ref, "Memory Management"].
+
+*Pools* are subsections of Arenas that are 4 KB in size. This gives up to 64 Pools per Arena. The division aims to help organize and efficiently use memory. Each pool consists of blocks of only one size class. Pools are only designated within Arenas when necessary (no other Pool with a block of the requested size class is available). *Used* Pools have blocks available, *Full* Pools do not, and *Empty* pools have no size class yet associated with them [@python3ref, "Memory Management"].
+
+*Blocks* are subsections of Pools that are the smallest unit of memory that can be allocated to an object. An individual object can only be allocated to one block, so objects have either one block or no blocks at all. Blocks are sized in multiples of 8 bytes, and range from 8 to 512 bytes. Block allocation sizes round up to the next multiple of 8 bytes, by necessity [@python3ref, "Memory Management"].
+
+#### Garbage Collection
+
+Garbage collection is a process of memory optimization: when the program no longer needs allocated memory, it is to be released [@python3ref, "Memory Management"].
+
+##### By Reference Count
+
+When the *Reference Count* of an Object is zero, Python seeks to remove it from memory. This may trigger a cascade of deletions [@python3ref, "Memory Management"]. For example:
+
+```{python}
+c = 10
+x = [c,20]
+print(x)
+```
+
+The variable `x` references a list object `[c,20]`. This list object contains a references to the Integer Object that holds the value of `10` through the variable `c`, as well as a direct reference to the Integer Object that holds the value of `20`. In essence, there are two objects: a list object, and an integer object.
+
+If we deleted `x`'s reference to the list object, the list object would have a Reference Count of 0. The list object `[c,20]` would be slated for deletion. Once deleted, the Reference Count for the variable `c` held by the Integer Object `10` could also become 0, and so it could also be deleted.
+
+Garbage Collection by Reference Count is the main garbage collection algorithm of Python, and cannot be disabled. It does not work if there are cyclic references [@python3ref, "Memory Management"].
+
+##### Cyclic References
+
+Since Garbage Collection by Reference Count does not work with cyclic references, Python has a Generational Garbage Collection Algorithm it uses instead [@python3ref, "Memory Management"].
+
+Since cyclic references are only possible with container references, such as tuples and lists, Python scans these objects to determine if they are only referenced cyclically (and thus eligible for deletion). Tuples only containing immutable types are ignored [@python3ref, "Memory Management"].
+
+This process is time consuming, and only triggered periodically. The objects that survive each cycle are advanced in generation. Each object type has a threshold of generations, beyond which it is not scanned again [@python3ref, "Memory Management"].
+
+## R
+
+### General Principles
+
+R, like Python, is an interpreted language. The R interpreter is a program written primarily in C (with some C++, R and Fortran), which takes the R code and interprets it based on the rules of R [@r_internals].
+
+R has a variable-sized work-space, but also works on a static in-memory model. As such, all memory for an R program must be stored in the RAM. While this provides for high computational efficiency and speed, the size of memory allocation is a much greater concern in R than it is in Python due to the lack of dynamic allocation between RAM and disc memory. Many OS's place hard limits on the amount of memory R can allocate for itself. In a 64-bit Windows system there is an OS limit of 4 Gb (0.5 GB) for a 32-bit build of R, and 8 Tb (1 TB) for a 64-bit build of R [@r_manual, "Memory Limits"].
+
+The memory limits on R can be bypassed with certain implementations and packages that call `malloc` directly, which allocates memory in addition to the allocation for the R work-space. However, it should be ensured that this memory is freed on error, user interrupt, or exit [@r_writing_extensions, "Memory Allocation"]
+
+### Multithreading and Multiprocessing in R
+
+R was built for single-threaded operations with an optimized pipeline. There are a few packages which enable multiprocessing, but they should only be used when the computational load can be reasonably performed in parallel, and the memory burden is not an issue.
+
+### Memory Domains
+
+#### Heap Cells
+
+Heap cells of memory are where all vectors, processing, and actual "products" of R are stored. They are parceled into 8-byte *Vcells.* Vcells are considered to be "variable."Default values for the R compiler request 6Mb (0.75 MB) of Vcells on start-up [@r_manual, "Memory Available for Data Storage"]
+
+#### Cons Cells
+
+Cons cells (also called *Ncells)* of memory primarily handle the R language itself, and any objects. Each cell occupies 28 bytes on a 32-bit build of R, and 56 bytes on a 64-bit build of R. This memory also stores the "administrative overhead" of vector objects, such as type and length metadata, called *nodes*. These nodes may be highly recursive in that they point at other nodes and/or values within *Vcells*. Cons cells are considered "fixed." Default values for the R compiler request 350,000 *Ncells* on start-up (9.8 MB on a 32-bit build of R, 19.6 MB on a 64-bit build of R) [@r_manual, "Memory Available for Data Storage"]
+
+### Memory Allocation
+
+#### Allocating/Claiming Memory
+
+R's Memory Allocators are written primarily in C. Vectors of up to 128 bytes are allocated places in memory by R, from the existing held data. Vectors larger than 128 bytes result in a calling the C function `malloc` to allocate additional memory to the heap. All memory allocation methods are described by the R Core team as "relatively expensive." There is the option of the faster C `alloca` method to call additional memory to the stack, but it is listed as "fragile" and causes "danger of overflowing the C stack" [@r_internals, "Allocation Classes"].
+
+#### Garbage Collection
+
+R's Garbage Collector runs based on a "lazy" execution model: it only runs when R is running out of space in its currently allocated memory, and it tries to "clean up" existing memory before requesting additional memory allocation from the OS. However, it will not trigger to reduce memory below the memory allocation requested by R in start-up [@r_manual,"Memory"]
+
+R's Garbage Collector is a *tracing* Garbage Collector: it searches every object and environment reachable from the stack, and the objects reachable from those objects. Anything that the Garbage Collector could not mark as "in use" is marked as eligible for deletion, and released [@r_internals].
+
+The Garbage Collector can be called manually, using the `gc()` command. This is primarily useful after a large object has been removed, or to receive a report on memory usage [@r_manual, "Garbage Collector"].
+
+```{r}
+gc()  # <1>
+```
+
+1.  The `gc()` function calls the Garbage Collector, and returns a memory use report
