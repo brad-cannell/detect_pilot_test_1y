@@ -246,7 +246,7 @@ As such, any modification of an immutable object *by necessity* requires enough 
 The most common individual Data Types in Python have known sizes [@python3ref, "Built-In Types"]. The table below specifically references the Data Types recognized by the Pandas package [@pypkg_pandas].
 
 | Data Type       | Size (Bytes)          | Description                                   |
-|-----------------|------------------|-------------------------------------|
+|------------------|------------------|------------------------------------|
 | bool            | 1 bit (1/8 byte)      | True/False                                    |
 | int8            | 1                     | -128 to 127                                   |
 | int32           | 4                     | -32768 to 23767                               |
@@ -277,7 +277,7 @@ c = [6,7,8,9]                                                             # <4>
 print(f"The size of a: {sys.getsizeof(a)}, b: {sys.getsizeof(c)}, c: {sys.getsizeof(c)}") # <5>
 array = [a,b,c]                                                           # <6>
 print(f"The array: {array}")                                              # <7>
-print(f"The size of the array is: {sys.getsizeof(array)}, but with all elements is: {sys.getsizeof(array)+sys.getsizeof(a)+sys.getsizeof(c)}")                # <8>
+print(f"The size of the array is: {sys.getsizeof(array)}, but with all elements is: {sys.getsizeof(array)+sys.getsizeof(a)+sys.getsizeof(b)+sys.getsizeof(c)}") # <8>
 print(f"The first row of the array: {array[0]}")                          # <9>
 print(a is array[0])                                                      # <9>                  
 print(f"The first column of the second row of the array: {array[1][0]}")  # <10>
@@ -317,7 +317,7 @@ print(f"The base memory size of 'c': {c.itemsize*c.size}")  # <7>
 
 ```
 
-1.  The *NumPy* package is imported as `np` for arrays [@pypkg_numpy]
+1.  The *NumPy* package is imported using the customary abbreviation of `np` for arrays [@pypkg_numpy]
 2.  The variable `a` is set to refer to a List Object that contains ordered references to the Integer Objects `1`, `2`, `3`, `4`, `5`, `6`, `7`, and `8`
 3.  The variable `b` is set to refer to the Array Object created by passing the List Object referred to by variable `a` through the `np.array()` method
 4.  The variable `c` is set to refer to the Array Object created by passing a List Object that is equivalent to the List Object in `a` directly though the `np.array()` method
@@ -342,7 +342,7 @@ print(type(c),c, id(c))                                         # <8>
 print(f"The base memory size of 'c': {c.itemsize*b.size}")      # <8>
 ```
 
-1. The *NumPy* package is imported as `np` for arrays [@pypkg_numpy]
+1.  The *NumPy* package is imported using the customary abbreviation of `np` for arrays [@pypkg_numpy]
 
 2.  The variable `a` is set to refer to a List Object that contains ordered references to the Integer Objects `1`, `2`, `3`, `4`, `5`, `6`, `7`, and `8`
 
@@ -362,7 +362,231 @@ NumPy is almost guaranteed to be a prerequisite for any of Python's DataFrame pa
 
 ### Data Frame Packages for Python
 
-#### Pandas
+#### pandas
+The most ubiquitous Data Frame package in Python is pandas [@pypkg_pandas], which directly builds from (and is dependent on) NumPy. 
+
+Pandas can read and write in multiple file types, including CSV, JSON, HTML, Excel, SQL, and Pickle files [@pypkg_pandas]. There is a package called *pyreadr* which enables reading and writing R's Rds files [@pypkg_pyreadr].
+
+##### Arrays (Series)
+Pandas builds on the concept of arrays, provided by NumPy, with Series Objects. These Series Objects are relatively identical to NumPy arrays, but with a few modifications for flexibility: the addition of a catch-all `dtype` of object to facilitate mixed data types in a single Series, and assignment of an index value [@pypkg_pandas]. 
+
+A Series Object can be created from any "array-like" object, including Lists, Iterables, and Dictionaries. The simplest example of this is using a List Object [@pypkg_pandas].
+
+```{python}
+import pandas as pd                         # <1>
+
+a = [1,2,3,4,5,6,7,8]                       # <2>
+series = pd.Series(a)                       # <3>
+print(series)                               # <4>
+b = [1,"apple",3,"book",5,False,7,8]        # <5>
+series_b = pd.Series(b)                     # <6>
+print(series_b)                             # <6>
+```
+1. The *pandas* package is imported with the customary abbreviation of `pd` [@pypkg_pandas]
+2. The variable `a` is set to refer to a List Object that contains ordered references to the Integer Objects `1`, `2`, `3`, `4`, `5`, `6`, `7`, and `8`
+3. The variable `series` is set to refer to a *pandas* Series Object which refers to the values referenced by variable `a`. Since an `index` is not passed, one is automatically created.
+4. `print()` displays the values referenced by the Series Object referenced by `series`. The Series is assigned a `dtype` of int64 as all references in the series are to Integer Objects.
+5. The variable `b` is set to refer to a List Object that contains ordered references to mixed object types that refer to the values `1`, `apple`, `3`, `book`, `5`, `False`, `7`, and `8`
+6. Steps 3 and 4 are repeated to demonstrate that the Series can contain mixed object types, which causes the `dtype` to be object
+
+NumPy arrays can be directly converted into a pandas Series Object [@pypkg_pandas].
+
+```{python}
+import numpy as np                                # <1>
+import pandas as pd                               # <2>
+
+a = np.array([1,2,3,4,5,6,7,8])                   # <3>
+print(a)                                          # <4>
+series = pd.Series(a)                             # <5>
+print(series)                                     # <6>
+```
+1.  The *NumPy* package is imported using the customary abbreviation of `np` for arrays [@pypkg_numpy]
+2. The *pandas* package is imported with the customary abbreviation of `pd` [@pypkg_pandas]
+3. The variable `a` is set to refer to a *NumPy* Array Object that contains ordered references to the Integer Objects `1`, `2`, `3`, `4`, `5`, `6`, `7`, and `8`
+4. `print()` displays the contents referenced by variable `a`
+5. The variable `series` is set to refer to a *pandas* Series Object created from the NumPy Array Object referenced by variable `a`
+6. `print()` displays the contents referenced by variable `series`
+
+As we've seen, pandas Series Objects display their index. While pandas can automatically assign a simple numerical index, alternative values for the indexes can be specified. Similarly, there is also an option to give a `name` to the Series [@pypkg_pandas].
+
+This allows for flexible indexing, similar to R [@pypkg_pandas].
+
+```{python}
+import pandas as pd                             # <1>
+
+a = [1,2,3,4,5,6,7,8]                           # <2>
+a_index = ["a","b","c","d","e","f","g","h"]     # <3>
+series = pd.Series(a,index = a_index, name="Series") # <4>
+print(series.iloc[2])                           # <5>
+print(series["c"])                              # <6>
+```
+1. The *pandas* package is imported with the customary abbreviation of `pd` [@pypkg_pandas]
+2. The variable `a` is set to refer to a List Object that contains ordered references to the Integer Objects `1`, `2`, `3`, `4`, `5`, `6`, `7`, and `8`
+3. The variable `a_index` is set to refer to a List Object that contains ordered references to the String Objects `'a'`, `'b'`, `'c'`, `'d'`, `'e'`, `'f'`, `'g'`, and `'h'`
+4. The variable `series` is set to refer to a *pandas* Series Object created from the List Object referenced by variable `a`, with index value defined by the List Object referenced by variable `a_index`
+5. `print()` displays the result of taking the `iloc()` integer-based index of the Series Object `series`. Since Python indexes from 0, we would expect the 3rd value: `3`
+6. `print()` displays the result of indexing the Series Object `series` by the index value `"c"`.
+
+Since pandas objects have a built in memory-assessment method, `.memory_usage()`, we can easily do a memory comparison [@pypkg_pandas].
+```{python}
+import numpy as np                                              # <1>
+import pandas as pd                                             # <2>
+
+list_a = [1,2,3,4,5,6,7,8]                                      # <3>
+np_array = np.array(list_a)                                     # <4>
+pd_series = pd.Series(list_a)                                   # <5>
+
+print(type(list_a),list_a)                                      # <6>
+print(f"The size of 'list_a' is: {sys.getsizeof(list_a)}")      # <6>
+print(type(np_array),np_array)                                  # <7>
+print(f"The base memory size of 'np_array': {np_array.itemsize*np_array.size}")  # <7>
+print(type(pd_series),pd_series)                                # <8>
+print(f"The base memory size of 'pd_series': {pd_series.memory_usage(index=True,deep=True)}")  # <8>
+```
+1.  The *NumPy* package is imported using the customary abbreviation of `np` for arrays [@pypkg_numpy]
+2. The *pandas* package is imported with the customary abbreviation of `pd` [@pypkg_pandas]
+3. The variable `list_a` is set to refer to a List Object that contains ordered references to the Integer Objects `1`, `2`, `3`, `4`, `5`, `6`, `7`, and `8`
+4. The variable `np_array` is set to refer the *NumPy* Array Object created by passing the List Object referred to by variable `list_a` through the `np.array()` method
+5. The variable `pd_series` is set to refer to a *pandas* Series Object which contains the values referenced by variable `list_a`. Since an `index` is not passed, one is automatically created.
+6. `print()` displays the type, content, and "memory address" of the Object referred to by `list_a`
+7. `print()` displays the type, content, and "memory address" of the Object referred to by `np_array`
+8. `print()` displays the type, content, and "memory address" of the Object referred to by `pd_series`
+
+##### Data Frames
+
+The biggest attraction to pandas is its DataFrames, which function as a list of Series Objects that share a common index. This is similar to how DataFrames are handled in R [@pypkg_pandas].
+
+These DataFrames can be created from "array-like" objects, such as Lists, Lists, Arrays, Dictionaries, and Iterables. If the passed data have indexes, they will automatically be matched based on those values [@pypkg_pandas].
+
+The simplest DataFrame is very similar to a Series, in which each Series "name" becomes an index to the Series. If no name is passed, columns are numbered similar to the generation of index values [@pypkg_pandas].
+
+```{python}
+import pandas as pd                                             # <1>
+
+a = [1,2,3,4,5,6,7,8]                                           # <2>
+df_a = pd.DataFrame(a)                                          # <3>
+print(df_a)                                                     # <4>
+b = pd.Series(a, name="a")                                      # <5>
+df_b = pd.DataFrame(b)                                          # <6>
+print("\n"*2, df_b)                                             # <7>
+```
+1. The *pandas* package is imported with the customary abbreviation of `pd` [@pypkg_pandas]
+2. The variable `a` is set to refer to a List Object that contains ordered references to the Integer Objects `1`, `2`, `3`, `4`, `5`, `6`, `7`, and `8`
+3. The variable `df_a` is set to refer to a *pandas* DataFrame created from the List Object referred to by variable `a`. Since there was no `name` for the series, it is automatically created
+4. `print()` displays the contents of variable `df_a`
+5. The variable `b` is set to refer to a *pandas* Series Object which contains the values referenced by variable `a`. Since an `index` is not passed, one is automatically created. The Series is given the `name` `"a"`.
+6. The variable `df_b` is set to refer to a *pandas* DataFrame created from the Series Object referred to by variable `b`
+7. `print()` displays the contents of variable `df_b`, and we can see the Series name displayed
+
+For a more typical example would, of course, have more than a single column within the DataFrame.
+```{python}
+import pandas as pd                                                   # <1>
+
+a = pd.Series([1,2,3,4,5,6,7,8], name = "numbers")                    # <2>
+b = pd.Series(["a","b","c","d","e","f","g"], name = "letters")        # <3>
+df = pd.DataFrame((a,b))                                              # <4>
+print(df, "\n")                                                       # <5>
+print(df.transpose())                                                 # <6>
+```
+1. The *pandas* package is imported with the customary abbreviation of `pd` [@pypkg_pandas]
+2. The variable `a` is set to refer to a *pandas* Series Object with the `name` "numbers" that contains ordered references to the Integer Objects `1`, `2`, `3`, `4`, `5`, `6`, `7`, and `8`
+3. The variable `b` is set to refer to a *pandas* Series Object with the `name` "letters" that contains ordered references to the String Objects `'a'`, `'b'`, `'c'`, `'d'`, `'e'`, `'f'`, and `'g'`
+4. The variable `df` is set to refer to a *pandas* DataFrame created from the Series Objects referred to by variables `a` and `b`
+5. `print()` displays the contents of variable `df` - we can see that each Series was placed into a row. Since `a` was longer than `b`, the last value of "letters" is `NaN`
+6. `print()` displays the results of the `transpose()` method built-in to *pandas* DataFrames, which transposes columns and rows
+
+Indexing of DataFrames is primarily "label based", in a "column first" extraction similar to R. This means that the `.iloc()` and `.loc()` methods used before (which refer to index integers and labels respectively) would return rows [@pypkg_pandas].
+```{python}
+import pandas as pd                                                   # <1>
+
+a = pd.Series([1,2,3,4,5,6,7,8], name = "numbers")                    # <2>
+b = pd.Series(["a","b","c","d","e","f","g"], name = "letters")        # <3>
+df = pd.DataFrame((a,b))                                              # <4>
+print(f"Printing the contents of the row labeled 'letters' with .loc: \n {df.loc['letters']} \n") # <5>
+print(f"Printing the contents of the second row with .iloc: \n {df.iloc[1,]} \n") # <6>
+print(f"Printing the contents of the column labeled `2` with [2]: \n{df[2]}")               # <7>
+print(f"Printing the value of 'letters' in the column labeled `2` with [2]['letters']: \n{df[2]['letters']}") # <8>
+```
+1. The *pandas* package is imported with the customary abbreviation of `pd` [@pypkg_pandas]
+2. The variable `a` is set to refer to a *pandas* Series Object with the `name` "numbers" that contains ordered references to the Integer Objects `1`, `2`, `3`, `4`, `5`, `6`, `7`, and `8`
+3. The variable `b` is set to refer to a *pandas* Series Object with the `name` "letters" that contains ordered references to the String Objects `'a'`, `'b'`, `'c'`, `'d'`, `'e'`, `'f'`, and `'g'`
+4. The variable `df` is set to refer to a *pandas* DataFrame created from the Series Objects referred to by variables `a` and `b`
+5. `print()` displays the contents of the row labeled `letters`, retrieved with the `.loc[]` method
+6. `print()` displays the contents of the second row, retrieved with the `.iloc[]` method
+7. `print()` displays the contents of the column labeled `2`, retrieved with `[]` key-calling
+7. `print()` displays the of the row labeled `letters` in the column labeled `2`, retrieved with `[]` key-calling
+
+This is important to remember when the DataFrame is transposed - each row label now becomes a column key, and vice versa.
+```{python}
+import pandas as pd                                                   # <1>
+
+a = pd.Series([1,2,3,4,5,6,7,8], name = "numbers")                    # <2>
+b = pd.Series(["a","b","c","d","e","f","g"], name = "letters")        # <3>
+df = pd.DataFrame((a,b))                                              # <4>
+df = df.transpose()                                                   # <5>
+print(f"Printing the contents of the second column with .iloc: \n {df.iloc[:,1]} \n") # <6>
+print(f"Printing the contents of the column labeled 'letters' with ['letters']: \n {df['letters']} \n") # <7>
+print(f"Printing the contents of the row labeled '3' with .loc: \n {df.loc[3]} \n") # <8>
+print(f"Printing the value in the row labeled `3` in 'letters' with ['letters'][3]: \n {df['letters'][3]} \n") # <9>
+```
+
+1. The *pandas* package is imported with the customary abbreviation of `pd` [@pypkg_pandas]
+2. The variable `a` is set to refer to a *pandas* Series Object with the `name` "numbers" that contains ordered references to the Integer Objects `1`, `2`, `3`, `4`, `5`, `6`, `7`, and `8`
+3. The variable `b` is set to refer to a *pandas* Series Object with the `name` "letters" that contains ordered references to the String Objects `'a'`, `'b'`, `'c'`, `'d'`, `'e'`, `'f'`, and `'g'`
+4. The variable `df` is set to refer to a *pandas* DataFrame created from the Series Objects referred to by variables `a` and `b`
+5. The variable `df` is set to refer to the result of the `.transpose()` built-in method called on its existing reference
+6. `print()` displays the contents of the second column, retrieved with the `.iloc[]` method
+7. `print()` displays the contents of the column labeled `letters`, retrieved with `[]` key-calling
+8. `print()` displays the contents of the row labeled `3`, retrieved with the `.loc[]` method
+9. `print()` displays the contents of the row labeled `3` in the column labeled `letters`, retrieve with `[]` key-calling
+
+In comparison to NumPy's 2 dimensional arrays, NumPy is much more memory efficient for initial storage when all data is of a single type. When data must be of mixed types, the pandas DataFrame is the standard format in Python. Even when data is not of mixed types, we do not need to rely on indexing for a pandas DataFrame - by utilizing key-calling methods of labels, we can bypass any need for iteration or numeric indexing in order to take subsets. Additionally, the fact that each column in a pandas DataFrame is treated as an isolated (but key-connected) Series provides similar memory-efficiency for modification operations to R's DataFrames [@pypkg_pandas].
+
+```{python}
+import numpy as np                                              # <1>
+import pandas as pd                                             # <2>
+
+a = [1,2,3,4,5,6,7,8]                                           # <3>
+b = np.array(a)                                                 # <4>
+c = b.reshape(2,4)                                              # <5>
+df = pd.DataFrame(c)                                            # <6>
+print(type(c),c, id(c))                                         # <7>
+print(f"The base memory size of 'c': {c.itemsize*b.size}")      # <7>
+print(type(df),df, id(df))                                      # <8>
+print(f"The base memory size of 'df': {df.memory_usage(index=True,deep=True).sum()}") # <8>
+```
+1. The *NumPy* package is imported using the customary abbreviation of `np` for arrays [@pypkg_numpy]
+2. The *pandas* package is imported with the customary abbreviation of `pd` [@pypkg_pandas]
+3. The variable `a` is set to refer to a List Object that contains ordered references to the Integer Objects `1`, `2`, `3`, `4`, `5`, `6`, `7`, and `8`
+4. The variable `b` is set to refer to the *NumPy* Array Object created by passing the List Object referred to by variable `a` through the `np.array()` method
+5.  The variable `c` is set to refer to the *NumPy* Array Object created by passing the Array Object referred to by variable `b` through the `array.reshape()` method, requesting 2 rows of 4 columns filled in the default row-wise order
+6. The variable `df` is set to refer to the *pandas* DataFrame Object created from the Array Object referred to by variable `c`
+7.  `print()` displays the type, content, "memory address," and memory burden of the Object referred to by `c`
+8.  `print()` displays the type, content, "memory address," and memory burden of the Object referred to by `df`
+
+###### Data Types
+There are several potential data types in pandas, which impact the memory usage of any DataFrame. In its default, pandas does attempt to minimize the memory impact of any files it reads into a DataFrame object. These object types can also be specified in the creation of the DataFrame, or modified as needed [@pypkg_pandas]. 
+
+The most common Data Types in Pandas [@pypkg_pandas]:
+
+| Data Type     | Size (Bytes)             | Description                                   |
+|---------------|--------------------------|-----------------------------------------------|
+| bool          | 1 bit (1/8 byte)         | True/False                                    |
+| int8          | 1                        | -128 to 127                                   |
+| int32         | 4                        | -32768 to 23767                               |
+| int64         | 8                        | -9223372036854775808 to 9223372036854775807*  |
+| uint8         | 1                        | 0 to 225                                      |
+| uint32        | 4                        | 0 to 65535                                    |
+| uint64        | 8                        | 0 to 18446744073709551615                     |
+| float16       | 2                        | half-precision float                          |
+| float32       | 4                        | single precision float                        |
+| float64       | 8                        | double precision float*                       |
+| complex64     | 8                        | Complex number, two float32                   |
+| complex128    | 16                       | Complex number, two float64                   |
+| datetime64    | 64                       | Dates and Times                               |
+| timedelta[ns] | 64                       | Differences of Dates and Times                |
+| category      | (number of categories)/8 | Categorical Data                              |
+
 
 #### Polars
 
@@ -372,7 +596,57 @@ NumPy is almost guaranteed to be a prerequisite for any of Python's DataFrame pa
 
 #### Vaex
 
+## Summary Comparison
 
+### List of Integers (1D)
+For this comparison, we have used a list containing the Integers from 1-8, inclusive: `a=[1,2,3,4,5,6,7,8]`
+
+|   | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+|---|---|---|---|---|---|---|---|---|
+| a | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+
+
+| Structure        | Memory Burden (Bytes) |
+|------------------|-----------------------|
+| List             | 120                   |
+| NumPy Array      | 32                    |
+| pandas Series    | 192                   |
+| pandas DataFrame | 192                   |
+
+
+### DataFrames (2D)
+For this comparison, we have used the following 2-dimensional structure: `a=[[1,2,3,4],[5,6,7,8]]`
+
+|   | 0 | 1 | 2 | 3 |
+|---|---|---|---|---|
+| 0 | 1 | 2 | 3 | 4 |
+| 1 | 5 | 6 | 7 | 8 |
+
+
+| Structure            | Memory Burden (Bytes) |
+|----------------------|-----------------------|
+| Nested Lists         | 72                    |
+| NumPy Array "Matrix" | 32                    |
+| Pandas DataFrame     | 192                   |
+
+
+
+```{python}
+import sys
+import numpy as np
+import pandas as pd
+
+a = [[1,2,3,4],[5,6,7,8]]
+print(f"The size of a: {sys.getsizeof(a)}")
+print(a)
+b = np.array(a)
+print(f"The base memory size of 'b': {b.itemsize*b.size}")
+print(b)
+c = pd.DataFrame(a)
+print(f"The base memory size of 'c': {c.memory_usage(index=True,deep=True).sum()}")
+print(c)
+
+```
 
 ## R
 
@@ -546,4 +820,3 @@ print(obj_size(a_tibble))                 # <7>
 7.  `print()` displays the results of `obj_size()`, which returns the memory size of the referenced object
 
 Even though these objects were created referencing the same data, we can see that the increasing memory demand with increasing object complexity and "metadata" overhead: Vectors \< Matrices \< Data Frames \< Tibbles
-
