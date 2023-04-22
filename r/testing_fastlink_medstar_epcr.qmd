@@ -1,0 +1,304 @@
+---
+title: "MedStar ePCR with fastLink"
+html:
+  embed-resources: true
+editor: visual
+---
+
+# Summary
+
+While the size of the data set itself has an impact on the performance of fastLink, the more limiting factor appears to be the *number of variables for matching*.
+
+In this document, testing was performed to assess the significance of the number of variables and the computational time and memory demands of processing for the same data set (MedStar ePCR records). Testing was performed on a Windows 11 system with 11th Gen Intel i7-11370H 3.30GHz quad-core processor and 32 GB RAM; during testing, all programs except for R and Resource Monitor were closed to limit any potential interference from competing computational processes.
+
+The limit for our data set appeared to be roughly 10 variables.
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(fastLink)
+library(here)
+```
+
+## Data
+
+```{r}
+ms_epcr <- readRDS(file=here("data","DETECT Shared GRAs","cleaning_with_phi",
+                             "medstar","medstar_epcr.rds"))
+```
+
+# Testing fastLink
+
+## Baseline:
+
+In the original sample data for [fastLink issue #36](https://github.com/kosukeimai/fastLink/issues/36), the sample data was processed with the following code:
+
+```{r}
+#| eval: false
+fastlink_out <- fastLink::fastLink(
+  dfA = df_unique_combo,
+  dfB = df_unique_combo,
+  varnames = c("nm_first", "nm_last", "birth_mnth", "birth_year", "add_num", 
+               "add_street"),
+  stringdist.match = c("nm_first", "nm_last", "add_street"),
+  numeric.match = c("birth_mnth", "birth_year", "add_num"),
+  dedupe.matches = FALSE,
+  return.all = TRUE
+  )
+```
+
+Unfortunately the data for the MedStar ePCR records did not have address number as a numeric (due to the use of letters in some street addresses in our data sample, largely due to [the complex history of house numbering and addressing in the U.S.A.](https://www.planning.org/pas/reports/report13.htm). As such, we could not directly test a proxy for this format.
+
+### Baseline: Name (FIRST, LAST), Address (STREET)
+
+```{r}
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street")
+num_vars <- c("pt_dob_month","pt_dob_year")
+```
+
+Peak CPU: 100% capacity (briefly, usually 15-30%), 100% maximum frequency\
+Peak RAM: 13 GB \~ 40% (briefly, usually \~ 15-30%), 2 Hard Faults/sec\
+Peak Disk: 300 KB/sec (briefly, usually \< 200 Kb/sec), 2% highest active time
+
+Time: 1.42 minutes
+
+Verbose Timings:
+
+-   Calculating matches for each variable: 0.88 minutes
+
+-   Getting counts for parameter estimation: 0.26 minutes
+
+-   Running the EM algorithm: 0.06 seconds
+
+-   Getting the indices of estimated matches: 0.18 minutes
+
+-   Calculating the posterior for each matched pair: 0.08 minutes
+
+-   Getting the match patterns for each estimated match: 0.02 minutes
+
+```{r}
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr)))),
+  varnames = append(str_vars,num_vars),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE,
+  return.all = TRUE,
+  threshold.match = 0,
+  verbose = TRUE # for troubleshooting and times
+  )
+```
+
+### Baseline: Adding Address (NUM) as String
+
+```{r}
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street",
+              "pt_address_num")
+num_vars <- c("pt_dob_month","pt_dob_year")
+```
+
+Peak CPU: 100% capacity (briefly, usually 20-40%), 100% maximum frequency\
+Peak RAM: 14.5 GB \~ 45% (briefly, usually \~ 15-30%), 2 Hard Faults/sec\
+Peak Disk: 300 KB/sec (briefly, usually \< 200 Kb/sec), 2% highest active time
+
+Time: 1.95 minutes
+
+Verbose Timings:
+
+-   Calculating matches for each variable: 1.04 minutes
+
+-   Getting counts for parameter estimation: 0.33 minutes
+
+-   Running the EM algorithm: 0.03 seconds
+
+-   Getting the indices of estimated matches: 0.24 minutes
+
+-   Calculating the posterior for each matched pair: 0.28 minutes
+
+-   Getting the match patterns for each estimated match: 0.06 minutes
+
+```{r}
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr)))),
+  varnames = append(str_vars,num_vars),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE,
+  return.all = TRUE,
+  threshold.match = 0,
+  verbose = TRUE # for troubleshooting and times
+  )
+```
+
+## Date of Birth (Y/M/D), Name (FIRST/LAST), Address (STREET,NUM,ZIP)
+
+```{r}
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street",
+              "pt_address_num")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year","pt_address_zip")
+```
+
+Peak CPU: 100% capacity (briefly, usually 20-40%), 100% maximum frequency\
+Peak RAM: 13GB \~ 40% (briefly, usually \~ 20-30%), 2 Hard Faults/sec\
+Peak Disk: 1 MB/sec (briefly, usually \< 200 Kb/sec), 3% highest active time
+
+Time: 2.99 minutes
+
+Verbose Timings:
+
+-   Calculating matches for each variable: 1.21 minutes
+
+-   Getting counts for parameter estimation: 0.77 minutes
+
+-   Running the EM algorithm: 0.08 seconds
+
+-   Getting the indices of estimated matches: 0.56 minutes
+
+-   Calculating the posterior for each matched pair: 0.38 minutes
+
+-   Getting the match patterns for each estimated match: 0.07 minutes
+
+```{r}
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr)))),
+  varnames = append(str_vars,num_vars),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE,
+  return.all = TRUE,
+  threshold.match = 0,
+  verbose = TRUE # for troubleshooting and times
+  )
+```
+
+## Adding Name (MIDDLE)
+
+```{r}
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street",
+              "pt_address_num","pt_name_middle")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year","pt_address_zip")
+```
+
+Peak CPU: 100% capacity (intermittently, otherwise 30-50%), 100% maximum frequency\
+Peak RAM: 16GB \~ 50% (briefly, usually 30-40%), 3 Hard Faults/sec\
+Peak Disk: 1 MB/sec (briefly, usually \< 200 KB/sec), 3% highest active time
+
+Time: 5.75 minutes
+
+Verbose Timings:
+
+-   Calculating matches for each variable: 1.28 minutes
+
+-   Getting counts for parameter estimation: 2.29 minutes
+
+-   Running the EM algorithm: 0.13 seconds
+
+-   Getting the indices of estimated matches: 1.68 minutes
+
+-   Calculating the posterior for each matched pair: 0.43 minutes
+
+-   Getting the match patterns for each estimated match: 0.07 minutes
+
+```{r}
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr)))),
+  varnames = append(str_vars,num_vars),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE,
+  return.all = TRUE,
+  threshold.match = 0,
+  verbose = TRUE # for troubleshooting and times
+  )
+```
+
+## Removing Name (MIDDLE), Adding Address (UNIT, CITY)
+
+```{r}
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street",
+              "pt_address_num","pt_address_city","pt_address_unit")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year","pt_address_zip")
+```
+
+Peak CPU: 100% capacity (briefly, usually 50-70%), 100% maximum frequency\
+Peak RAM: 22.4GB \~ 70% (briefly, usually \~ 30-40%), 7 Hard faults/sec\
+Peak Disk: 6 MB/sec (briefly, usually \< 200 Kb/sec), 8% highest active time
+
+Time: 6.29 minutes
+
+Verbose Timings:
+
+-   Calculating matches for each variable: 1.3 minutes
+
+-   Getting counts for parameter estimation: 2.57 minutes
+
+-   Running the EM algorithm: 0.18 seconds
+
+-   Getting the indices of estimated matches: 1.85 minutes
+
+-   Calculating the posterior for each matched pair: 0.49 minutes
+
+-   Getting the match patterns for each estimated match: 0.08 minutes
+
+```{r}
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr)))),
+  varnames = append(str_vars,num_vars),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE,
+  return.all = TRUE,
+  threshold.match = 0,
+  verbose = TRUE # for troubleshooting and times
+  )
+```
+
+## Adding Address (STATE) - Point of Failure
+
+```{r}
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street",
+              "pt_address_num","pt_address_city","pt_address_unit",
+              "pt_address_state")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year","pt_address_zip")
+```
+
+Peak CPU: 100% capacity, 100% maximum frequency\
+Peak RAM: 29GB \~ 95%, 7 Hard Faults/sec\
+Peak Disk: 5 MB/sec (briefly, usually \< 200 KB/sec), 12% highest active time
+
+Verbose Timings:
+
+-   Calculating matches for each variable: 1.34 minutes
+
+-   Getting counts for parameter estimation: 3.13 minutes
+
+-   Running the EM algorithm: 0.6 seconds
+
+-   Getting the indices of estimated matches: 2.77 minutes
+
+At this point fastLink hangs the system. It fails to even initialize the process of getting the posterior for each matched pair, and requires terminating the R process.
+
+```{r}
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr)))),
+  varnames = append(str_vars,num_vars),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE,
+  return.all = TRUE,
+  threshold.match = 0,
+  verbose = TRUE # for troubleshooting and times
+  )
+```
