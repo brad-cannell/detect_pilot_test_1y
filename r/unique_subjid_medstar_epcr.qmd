@@ -1,0 +1,1467 @@
+---
+title: "Getting a Unique Subject ID for all Subjects: MedStar ePCR"
+format: html
+editor: visual
+---
+
+# Summary
+
+Variables utilized in fastLink adjusted the weighting of each difference in entries. As such, we evaluated potential combinations of variables to generate a range of posterior probabilities that would be useful in creating Unique Subject IDs, with a reasonably sized useful range of posterior probabilities for manual verification and threshold setting.
+
+Variables for matching were determined to be:
+
+-   Patient Name: First Name, Last Name (`pt_name_first`,`pt_name_last`)
+
+    -   Many middle name values were missing in the original data set, or were otherwise widely inconsistent
+
+-   Patient Date of Birth: Year, Month, Day (`pt_dob_year`,`pt_dob_month`,`pt_dob_day`)
+
+    -   This weighting allowed for slight typos in one field of date of birth to have limited influence, while entirely different dates of birth had increasingly significant influence (most useful for familial relations with similar names and addresses)
+
+-   Patient Address: Street Name (`pt_address_street`)
+
+    -   Using all values for address overly weighted values
+    -   Zip code proved to be too broad of a category
+    -   While neighbors may live on the same street, they are not likely to also have similar names or dates of birth
+    -   Using a single value avoided overly-weighting address for familial relations with similar names and addresses, and subjects which resided at the same multi-residence location (such as an apartment complex, senior living community, or nursing home)
+
+-   Patient Gender: `pt_gender`
+
+    -   Blocking based on gender was not successful due to a significant number of entries in which otherwise identical individuals were listed as "Male" or "Female" in different encounters
+    -   Utilizing gender as an exact-match variable provided a degree of correction for husband-wife mismatching, and strengthened matches made between otherwise identical individuals where only some observations had missing (`NA`) values instead of a street address
+
+-   Partial Matching was utilized for Patient Name and Patient Address
+
+    -   This increased true-matches between observations with human-recognizeable similar names, which had significant transpositions or typos
+
+-   A threshold of 0.903 was established for "true matches", and a threshold of 0.55 was established for "false matches"
+
+    -   Matches between 0.55 and 0.903 (approximately 793 potential matching pairs) would benefit from manual verification and assignment
+    
+    -   
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(here)
+library(fastLink)
+```
+
+## Data Imports
+
+MedStar ePCR data set was loaded for processing.
+
+```{r}
+ms_epcr <- readRDS(here("data","DETECT Shared GRAs","cleaning_with_phi",
+                             "medstar","medstar_epcr.rds"))
+
+```
+
+## Functions
+
+### Unique Value Summary
+
+```{r}
+get_unique_value_summary <- function(df,cols){
+  val <- unique(as.factor(as.vector(as.matrix(df[cols]))))
+  unique_summary <- data.frame("value"=val)
+  
+  for (i in cols){
+    table <- as.data.frame(table(df[i]))
+  colnames(table) <- c("value","freq")
+  table<- add_row(table, value = NA, freq = sum(is.na(df[i])))
+  colnames(table) <- c("value",i)
+    unique_summary <- left_join(unique_summary,table, by="value")
+    }
+  
+  unique_summary
+}
+```
+
+### Match Check
+
+A function was written by Dr. Cannell to permit examination of potential matches with posterior probabilities.
+
+```{r}
+fmr_fastlink_stack_matches <- function(.x, df) {
+  
+  # ===========================================================================
+  # Error checks
+  # ===========================================================================
+  if (!("fastLink" %in% class(.x))) {
+    stop('.x must be of class "fastLink"')
+  }
+  
+  
+  # ===========================================================================
+  # Create data frame of potential matches to compare
+  # ===========================================================================
+  potential_matches <- tibble::tibble(
+    row = .x$matches$inds.b,
+    matching_row = .x$matches$inds.a,
+    posterior_probability = .x$posterior
+  )
+  
+  # Keep only unique combinations of rows (e.g., not 1-3 and 3-1)
+  potential_matches <- potential_matches %>%
+    dplyr::mutate(
+      combo = purrr::map2_chr(
+        .x = row,
+        .y = matching_row,
+        .f = function(x, y) {
+          min <- min(x, y)
+          max <- max(x, y)
+          out <- paste(min, max, sep = "_")
+          out
+        }
+      ),
+      dup = duplicated(combo)
+    ) %>%
+    dplyr::filter(!dup) %>%
+    dplyr::select(-combo, -dup)
+  
+  
+  # ===========================================================================
+  # Manipulate the potential matches data frame
+  # Stack row and matching row on top of each other
+  # Add a pair number to each row and matching row
+  # ===========================================================================
+  stacked_potential_matches <- tibble::tibble(
+    row = c(rbind(potential_matches[["row"]], potential_matches[["matching_row"]])),
+    pair = rep(seq(1, length(row) / 2), each = 2),
+    posterior_probability = rep(potential_matches[["posterior_probability"]], each = 2)
+  )
+  
+  
+  # ===========================================================================
+  # Add substantive variables of interest to matched pairs for review
+  # ===========================================================================
+  out <- stacked_potential_matches %>% 
+    dplyr::left_join(
+      df %>% 
+        dplyr::mutate(row = dplyr::row_number()),
+      by = "row"
+    )
+  
+  
+  # ===========================================================================
+  # Return data frame of potential matches to compare
+  # ===========================================================================
+  out
+}
+```
+
+### Subject ID Creation
+
+A function was written by Dr. Cannell to create a unique ID based on fastLink output.
+
+```{r}
+fmr_add_unique_id <- function(df, fastLink_obj) {
+  
+  # ===========================================================================
+  # Create tibble of matching rows
+  # ===========================================================================
+  
+  # Turn fastLink results into tibble of rows and their matches
+  matches <- tibble::tibble(
+    row = fastLink_obj$matches$inds.b,
+    matching_row = fastLink_obj$matches$inds.a
+  )
+  
+  # Nest all matches for each row
+  matches <- matches %>% 
+    dplyr::group_by(row) %>% 
+    dplyr::mutate(matches = list(matching_row)) %>%
+    dplyr::ungroup()
+  
+  # Reduce to unique sets of matching rows
+  # i.e. 1,2,3 is the same as 3,2,1
+  matches <- matches %>% 
+    dplyr::mutate(matches = purrr::map_chr(
+      matches,
+      function(x) {
+        x = sort(x) # 1,2,3 is the same as 3,2,1
+        x = paste(x, collapse = ",") # Convert list to character string
+        x
+      })
+    ) %>% 
+    dplyr::select(matches) %>%
+    distinct() # Reduce to 1 row per group of matches
+  
+  # Sequentially number each group of matches
+  # This will become the unique id
+  matches <- matches %>%
+    dplyr::mutate(
+      id = row_number(),
+      row = purrr::map( # Turn back into list
+        matches,
+        ~ scan(text = ., what = 0L, sep = ",", quiet = TRUE)
+      )
+    ) 
+  
+  # Covert to data frame with the appropriate id number for each row in the 
+  # original data set
+  matches <- matches %>%
+    tidyr::unnest(cols=c(row)) %>% 
+    dplyr::select(id, row)
+  
+  # Join id number back to original data set
+  out <- matches %>% 
+    dplyr::right_join(
+      df %>% 
+        dplyr::mutate(row = dplyr::row_number()),
+      by = "row"
+    ) %>% 
+    select(-row)
+  
+  # ===========================================================================
+  # Return original data frame with unique id added
+  # ===========================================================================
+  out
+}
+```
+
+# Determination of Variables
+
+As there were 28,228 unique PCR response numbers in our data set, we expected at least 28,228 pairs with perfect matches (as each row is compared to each row, so each row should at minimum be a perfect match with itself). 
+
+## Initial Attempt
+
+Initial attempts to link records matched based on 10 identifying variables: Patient Name (First and Last), Patient DOB (Year, Month, and Day), and Patient Address (Street Number, Street Name, City, State, and Zip).
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street","pt_address_num","pt_address_city","pt_address_state")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year","pt_address_zip")
+
+
+## fastLink
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,
+              as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr), 
+                                   dimnames = list(list(),colnames(ms_epcr))))),
+  varnames = c(str_vars,num_vars),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE,
+  )
+```
+
+We used the fastLink output to generate our stacked pairs for inspection, and a version of the data set with unique IDs based on these matches.
+
+```{r}
+test_stack <- fmr_fastlink_stack_matches(fl_out,ms_epcr)
+
+test_id <- fmr_add_unique_id(ms_epcr,fl_out)
+```
+
+### Output Summary
+
+In addition to the relatively prodigious processing time (\> 10 minutes), this produced an incredibly large number of potential pairs, with a total of 771,342 pairs (1,542,684 stacked rows).
+
+Posterior probabilities ranged from 0.8538482286349 to 1.0. 129,652 entries had posterior probabilities of 1.0, indicating a perfect match.
+
+```{r}
+sum(is.na(test_stack$posterior_probability))
+
+nrow(test_stack)
+
+nrow(test_stack)/2
+
+sum(test_stack$posterior_probability == 1)
+
+summary(test_stack$posterior_probability)
+```
+
+Cursory examination for observations with posteriors just below 1.0 included a large number of mismatches and duplicates. Many mismatches included transposed names, relatively common first or last names, individuals that appeared to be family members such as siblings and spouses, and individuals residing at in a multi-residence location such as apartment complexes, senior living facilities, and nursing homes. Similarly, pairs at lower values of posterior probability indicated a large number of actual matches intermixed with false matches.
+
+A total of 856,829 observations were generated in the ID-containing data set. There were 18,412 unique subject IDs created.
+
+```{r}
+nrow(test_id)
+length(unique(test_id$id))
+```
+
+### Duplicate Checking
+
+We found 855,739 observations with repeat PCR report numbers, with 27,138 unique PCR report numbers. This indicated that only 1090 of the 28,228 PCR report numbers were *not* duplicated.
+
+```{r}
+duplicates <- test_id %>%
+  filter((duplicated(response_pcr) | duplicated(response_pcr, fromLast=TRUE)))
+
+nrow(duplicates) == length(unique(duplicates$response_pcr))
+nrow(duplicates)
+length(unique(duplicates$response_pcr))
+```
+
+We found no duplicates that were missing a row number from the original data set, and we did not lose any observations based on PCR report numbers.
+
+```{r}
+sum(is.na(duplicates$ms_epcr_row))
+length(unique(test_id$response_pcr))
+```
+
+We flagged all observations with a matching `ms_epcr_row` or `id` from the duplicated observations for a manual review.
+
+```{r}
+test_id$flag <- FALSE
+
+test_id <- test_id %>%
+  mutate(flag = case_when(id %in% duplicates$id ~ TRUE,
+                          ms_epcr_row %in% duplicates$ms_epcr_row ~ TRUE,
+                          TRUE ~ flag)
+         )
+
+get_unique_value_summary(test_id,"flag")
+```
+
+In checking these values, we saw that many of them appeared to be caused by a prodigious number of false matches, similar to the cursory examination.
+
+```{r}
+checking <- filter(test_id, flag)
+```
+
+## Gender Blocking
+
+A secondary attempt was made in which observations were divided into blocks based on Patient Gender.
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street","pt_address_num","pt_address_city","pt_address_state")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year","pt_address_zip")
+
+
+## Defining Data Sets
+df_A <- ms_epcr
+df_dummy <- rbind(ms_epcr,
+              as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr), 
+                                   dimnames = list(list(),colnames(ms_epcr)))))
+
+blockgender_out <- blockData(df_A, df_dummy, varnames = "pt_gender")
+
+## Subset df_A into blocks
+dfA_block1 <- df_A[blockgender_out$block.1$dfA.inds,]
+dfA_block2 <- df_A[blockgender_out$block.2$dfA.inds,]
+
+## Subset df_dummy into blocks
+dfB_block1 <- df_dummy[blockgender_out$block.1$dfB.inds,]
+dfB_block2 <- df_dummy[blockgender_out$block.2$dfB.inds,]
+
+## fastLink
+
+fl_out_block1 <- fastLink(
+  dfA = dfA_block1,
+  dfB = dfB_block1,
+  varnames = c(str_vars,num_vars),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE,
+  )
+
+fl_out_block2 <- fastLink(
+  dfA = dfA_block2,
+  dfB = dfB_block2,
+  varnames = c(str_vars,num_vars),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE,
+  )
+
+```
+
+We used the fastLink output to generate our stacked pairs for inspection.
+
+```{r}
+stacked_1 <- fmr_fastlink_stack_matches(fl_out_block1,dfA_block1)
+stacked_2 <- fmr_fastlink_stack_matches(fl_out_block2,dfA_block2)
+```
+
+We also used the fastLink output to a version of the blocked data sets with unique IDs based on these matches.
+
+```{r}
+ids_1 <- fmr_add_unique_id(dfA_block1,fl_out_block1)
+ids_2 <- fmr_add_unique_id(dfA_block2,fl_out_block2)
+```
+
+### Output Summary
+
+While this method prohibited husband-wife mismatches, a cursory inspection of the output revealed it was a flawed method. Several individuals that had separate PCR report numbers (multiple encounters) were listed in both the "Male" and "Female" blocks. Similarly, there were observations missing values for Patient Gender, which were potentially excluded by this method.
+
+## Reduction of Breadth for Address Fields
+
+Both initial and gender-blocked attempts for linkage revealed that address values were disproportionately significant, likely due to the number of address fields used in matching. This appeared to cause individuals that lived within the same multi-residence facility (including senior living facilities, nursing homes, and apartment complexes) to have high posterior probabilities, despite significantly different Names and Dates of Birth. For this attempt at refining the process, *all address fields except zip code were excluded*.
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year","pt_address_zip")
+
+## fastLink
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,
+              as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr), 
+                                   dimnames = list(list(),colnames(ms_epcr))))),
+  varnames = c(str_vars,num_vars),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE,
+  )
+
+```
+
+We used the fastLink output to generate our stacked pairs for inspection, and a version of the data set with unique IDs based on these matches.
+
+```{r}
+test_stack <- fmr_fastlink_stack_matches(fl_out,ms_epcr)
+test_id <- fmr_add_unique_id(ms_epcr,fl_out)
+```
+
+### Output Summary
+
+This reduced search produced 79,259 pairs (158,512 stacked rows). Posterior probabilities ranged from 0.9023521230271 to 0.9999908567089. There were no entries with a posterior probability of 1.0, indicating there were no perfect matches.
+
+```{r}
+sum(is.na(test_stack$posterior_probability))
+
+nrow(test_stack)
+
+nrow(test_stack)/2
+
+sum(test_stack$posterior_probability == 1)
+
+summary(test_stack$posterior_probability)
+```
+
+A total of 29,221 observations were generated in the ID-containing data set. There were 16,964 unique subject IDs created.
+
+```{r}
+nrow(test_id)
+
+length(unique(test_id$id))
+```
+
+### Duplicate Checking
+
+We found 1595 observations with repeat PCR report numbers, with 612 unique PCR report numbers. This indicated that 27,616 of the 28,228 PCR report numbers were *not* duplicated.
+
+```{r}
+duplicates <- test_id %>%
+  filter((duplicated(response_pcr) | duplicated(response_pcr, fromLast=TRUE)))
+
+nrow(duplicates) == length(unique(duplicates$response_pcr))
+nrow(duplicates)
+length(unique(duplicates$response_pcr))
+```
+
+We found no duplicates that were missing a row number from the original data set, and we did not lose any observations based on PCR report numbers.
+
+```{r}
+sum(is.na(duplicates$ms_epcr_row))
+length(unique(test_id$response_pcr))
+```
+
+We flagged all observations with a matching `ms_epcr_row` or `id` from the duplicated observations for manual review.
+
+```{r}
+test_id$flag <- FALSE
+
+test_id <- test_id %>%
+  mutate(flag = case_when(id %in% duplicates$id ~ TRUE,
+                          ms_epcr_row %in% duplicates$ms_epcr_row ~ TRUE,
+                          TRUE ~ flag)
+         )
+
+get_unique_value_summary(test_id,"flag")
+```
+
+In checking these values, we saw that many of them appeared to be caused by false matches, including potential spouse and sibling mismatches.
+
+```{r}
+checking <- filter(test_id, flag)
+```
+
+## Reintroduction of Street Name
+
+We reintroduced Street Name as an additional address parameter.
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year","pt_address_zip")
+
+## fastLink
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,
+              as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr), 
+                                   dimnames = list(list(),colnames(ms_epcr))))),
+  varnames = c(str_vars,num_vars),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE,
+  )
+```
+
+We used the fastLink output to generate our stacked pairs for inspection, and a version of the data set with unique IDs based on these matches.
+
+```{r}
+test_stack <- fmr_fastlink_stack_matches(fl_out,ms_epcr)
+test_id <- fmr_add_unique_id(ms_epcr,fl_out)
+```
+
+### Output Summary
+
+This reduced search produced 79,781 pairs (159,562 stacked rows). Posterior probabilities ranged from 0.8506721384209 to 0.9999999896546. There were no entries with a posterior probability of 1.0, indicating there were no perfect matches - this is contrary to existing knowledge of our data set, in which we identified several observations which were identical for Patient Name, Date of Birth, and all Address fields.
+
+```{r}
+sum(is.na(test_stack$posterior_probability))
+
+nrow(test_stack)
+
+nrow(test_stack)/2
+
+sum(test_stack$posterior_probability == 1)
+
+summary(test_stack$posterior_probability)
+```
+
+Cursory examination of the lowest posterior probabilities revealed several observations which should be linked due to identical Patient Name and Date of Birth, but an entirely missing street address in an observation within the pair.
+
+A total of 29,402 observations were generated in the ID-containing data set. There were 16,783 unique subject IDs created.
+
+```{r}
+nrow(test_id)
+
+length(unique(test_id$id))
+```
+
+### Duplicate Checking
+
+We found 1,871 observations with repeat PCR report numbers, with 697 unique PCR report numbers. This indicated that 19,529 of the 27,531 PCR report numbers were *not* duplicated.
+
+```{r}
+duplicates <- test_id %>%
+  filter((duplicated(response_pcr) | duplicated(response_pcr, fromLast=TRUE)))
+
+nrow(duplicates) == length(unique(duplicates$response_pcr))
+nrow(duplicates)
+length(unique(duplicates$response_pcr))
+```
+
+We found no duplicates that were missing a row number from the original data set, and we did not lose any observations based on PCR report numbers.
+
+```{r}
+sum(is.na(duplicates$ms_epcr_row))
+length(unique(test_id$response_pcr))
+```
+
+We flagged all observations with a matching `ms_epcr_row` or `id` from the duplicated observations for manual review.
+
+```{r}
+test_id$flag <- FALSE
+
+test_id <- test_id %>%
+  mutate(flag = case_when(id %in% duplicates$id ~ TRUE,
+                          ms_epcr_row %in% duplicates$ms_epcr_row ~ TRUE,
+                          TRUE ~ flag)
+         )
+
+get_unique_value_summary(test_id,"flag")
+```
+
+In checking these values, we saw that many of them appeared to be caused by over differentiation into groups, with identical individuals placed into more than one group. This appeared particularly common in subjects with shorter first names, even if all other variables were the same. There were also several mismatches based on identical Street Addresses for individuals that did not have similar names, but similar (non-identical) birth dates.
+
+```{r}
+checking <- filter(test_id, flag)
+```
+
+## Removal of Zip Code
+
+Despite the fact that a single street may appear in more than one city or state, we trialed a removal of ZIP code in favor of keeping Street Address as the primary address parameter.
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year")
+
+## fastLink
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,
+              as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr), 
+                                   dimnames = list(list(),colnames(ms_epcr))))),
+  varnames = c(str_vars,num_vars),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE,
+  )
+```
+
+We used the fastLink output to generate our stacked pairs for inspection, and a version of the data set with unique IDs based on these matches.
+
+```{r}
+test_stack <- fmr_fastlink_stack_matches(fl_out,ms_epcr)
+test_id <- fmr_add_unique_id(ms_epcr,fl_out)
+```
+
+### Output Summary
+
+This reduced search produced 79,534 pairs (159,068 stacked rows). Posterior probabilities ranged from 0.8877255527817 to 0.9999998782455. There were no entries with a posterior probability of 1.0, indicating there were no perfect matches - this is contrary to existing knowledge of our data set, in which we identified several observations which were identical for Patient Name, Date of Birth, and all Address fields.
+
+```{r}
+sum(is.na(test_stack$posterior_probability))
+
+nrow(test_stack)
+
+nrow(test_stack)/2
+
+sum(test_stack$posterior_probability == 1)
+
+summary(test_stack$posterior_probability)
+```
+
+Cursory examination of the lowest posterior probabilities revealed several observations which should be linked due to identical Patient Name and Date of Birth, but an entirely missing street address in an observation within the pair.
+
+A total of 29,419 observations were generated in the ID-containing data set. There were 16,877 unique subject IDs created.
+
+```{r}
+nrow(test_id)
+
+length(unique(test_id$id))
+```
+
+### Duplicate Checking
+
+We found 1,920 observations with repeat PCR report numbers, with 729 unique PCR report numbers. This indicated that 27,541 of the 27,499 PCR report numbers were *not* duplicated.
+
+```{r}
+duplicates <- test_id %>%
+  filter((duplicated(response_pcr) | duplicated(response_pcr, fromLast=TRUE)))
+
+nrow(duplicates) == length(unique(duplicates$response_pcr))
+nrow(duplicates)
+length(unique(duplicates$response_pcr))
+```
+
+We found no duplicates that were missing a row number from the original data set, and we did not lose any observations based on PCR report numbers.
+
+```{r}
+sum(is.na(duplicates$ms_epcr_row))
+length(unique(test_id$response_pcr))
+```
+
+We flagged all observations with a matching `ms_epcr_row` or `id` from the duplicated observations for manual review.
+
+```{r}
+test_id$flag <- FALSE
+
+test_id <- test_id %>%
+  mutate(flag = case_when(id %in% duplicates$id ~ TRUE,
+                          ms_epcr_row %in% duplicates$ms_epcr_row ~ TRUE,
+                          TRUE ~ flag)
+         )
+
+get_unique_value_summary(test_id,"flag")
+```
+
+In checking these values, we saw multiple individuals with a large number of observations were linked into multiple groups, relating to different addresses or name spellings in the particular encounter. A single group for each individual would either have a single additional match entry, or a duplicated existing match entry in comparison to other "ID groups".
+
+```{r}
+checking <- filter(test_id, flag)
+```
+
+## Gender as Exact-Match Variable
+
+As fastLink was already operating under a model which was considered optimized for missing data, we attempted to strengthen the association between observations which were otherwise identical by adding Patient Gender as an exact-match variable.
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year")
+
+## fastLink
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,
+              as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr), 
+                                   dimnames = list(list(),colnames(ms_epcr))))),
+  varnames = c(str_vars,num_vars,"pt_gender"),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE,
+  )
+```
+
+We used the fastLink output to generate our stacked pairs for inspection, and a version of the data set with unique IDs based on these matches.
+
+```{r}
+test_stack <- fmr_fastlink_stack_matches(fl_out,ms_epcr)
+test_id <- fmr_add_unique_id(ms_epcr,fl_out)
+```
+
+### Output Summary
+
+This refined search produced 79,580 pairs (159,160 stacked rows). Posterior probabilities ranged from 0.8598458055251 to 0.9999999407736. There were no entries with a posterior probability of 1.0, indicating there were no perfect matches - this is contrary to existing knowledge of our data set, in which we identified several observations which were identical for Patient Name, Date of Birth, and all Address fields.
+
+```{r}
+sum(is.na(test_stack$posterior_probability))
+
+nrow(test_stack)
+
+nrow(test_stack)/2
+
+sum(test_stack$posterior_probability == 1)
+
+summary(test_stack$posterior_probability)
+```
+
+Cursory examination of the lowest posterior probabilities revealed several observations which were questionable matches. Some pairs appeared to be matches with typographical errors contributing to the match probability, while others appeared to be Junior/Senior relationships without suffix due to identical names and addresses, but entirely different birth dates with \> 15 years difference in ages.
+
+A total of 29,488 observations were generated in the ID-containing data set. There were 16876 unique subject IDs created.
+
+```{r}
+nrow(test_id)
+
+length(unique(test_id$id))
+```
+
+### Duplicate Checking
+
+We found 2033 observations with repeat PCR report numbers, with 773 unique PCR report numbers. This indicated that 27,455 of the 28228 PCR report numbers were *not* duplicated.
+
+```{r}
+duplicates <- test_id %>%
+  filter((duplicated(response_pcr) | duplicated(response_pcr, fromLast=TRUE)))
+
+nrow(duplicates) == length(unique(duplicates$response_pcr))
+nrow(duplicates)
+length(unique(duplicates$response_pcr))
+```
+
+We found no duplicates that were missing a row number from the original data set, and we did not lose any observations based on PCR report numbers.
+
+```{r}
+sum(is.na(duplicates$ms_epcr_row))
+length(unique(test_id$response_pcr))
+```
+
+We flagged all observations with a matching `ms_epcr_row` or `id` from the duplicated observations for manual review.
+
+```{r}
+test_id$flag <- FALSE
+
+test_id <- test_id %>%
+  mutate(flag = case_when(id %in% duplicates$id ~ TRUE,
+                          ms_epcr_row %in% duplicates$ms_epcr_row ~ TRUE,
+                          TRUE ~ flag)
+         )
+
+get_unique_value_summary(test_id,"flag")
+```
+
+In checking these values, we saw multiple individuals with a large number of observations were linked into multiple groups, relating to different addresses or name spellings in the particular encounter. A single group would either have a single additional match entry, or a duplicated existing match entry in comparison to other "ID groups". There appeared to be fewer duplicates relating to mismatches.
+
+```{r}
+checking <- filter(test_id, flag)
+```
+
+## Removal of First Name
+
+Due to the heavy influence of the permutations of short first names, we assessed fastLink's performance when First Name was excluded.
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_last","pt_address_street")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year")
+
+## fastLink
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,
+              as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr), 
+                                   dimnames = list(list(),colnames(ms_epcr))))),
+  varnames = c(str_vars,num_vars,"pt_gender"),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE,
+  )
+```
+
+We used the fastLink output to generate our stacked pairs for inspection, and a version of the data set with unique IDs based on these matches.
+
+```{r}
+test_stack <- fmr_fastlink_stack_matches(fl_out,ms_epcr)
+test_id <- fmr_add_unique_id(ms_epcr,fl_out)
+```
+
+### Output Summary
+
+This reduced search produced 79,682 pairs (159,364 stacked rows). Posterior probabilities ranged from 0.9205884243050 to 0.9999873835908. There were no entries with a posterior probability of 1.0, indicating there were no perfect matches - this is contrary to existing knowledge of our data set, in which we identified several observations which were identical for Patient Name, Date of Birth, and all Address fields.
+
+```{r}
+sum(is.na(test_stack$posterior_probability))
+
+nrow(test_stack)
+
+nrow(test_stack)/2
+
+sum(test_stack$posterior_probability == 1)
+
+summary(test_stack$posterior_probability)
+```
+
+Cursory examination of the lowest posterior probabilities revealed there was a significant increase in overt mismatching.
+
+A total of 29672 observations were generated in the ID-containing data set. There were 16780 unique subject IDs created.
+
+```{r}
+nrow(test_id)
+
+length(unique(test_id$id))
+```
+
+## Partial Matching of First Names
+
+As excluding First Names produced poor results, we instead requested that partial matches be considered in the model.
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year")
+
+## fastLink
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,
+              as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr), 
+                                   dimnames = list(list(),colnames(ms_epcr))))),
+  varnames = c(str_vars,num_vars,"pt_gender"),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  partial.match = c("pt_name_first"),
+  dedupe.matches = FALSE,
+  )
+```
+
+We used the fastLink output to generate our stacked pairs for inspection, and a version of the data set with unique IDs based on these matches.
+
+```{r}
+test_stack <- fmr_fastlink_stack_matches(fl_out,ms_epcr)
+test_id <- fmr_add_unique_id(ms_epcr,fl_out)
+```
+
+### Output Summary
+
+This refined search produced 79,955 pairs (159,910 stacked rows). Posterior probabilities ranged from 0.8716323059554 to 0.9999999746130. There were no entries with a posterior probability of 1.0, indicating there were no perfect matches - this is contrary to existing knowledge of our data set, in which we identified several observations which were identical for Patient Name, Date of Birth, and all Address fields.
+
+```{r}
+sum(is.na(test_stack$posterior_probability))
+
+nrow(test_stack)
+
+nrow(test_stack)/2
+
+sum(test_stack$posterior_probability == 1)
+
+summary(test_stack$posterior_probability)
+```
+
+Cursory examination of the lowest posterior probabilities appeared to indicate that all pairs were acceptable matches.
+
+A total of 29,041 observations were generated in the ID-containing data set. There were 16,743 unique subject IDs created.
+
+```{r}
+nrow(test_id)
+
+length(unique(test_id$id))
+```
+
+### Duplicate Checking
+
+We found 1315 observations with repeat PCR report numbers, with 502 unique PCR report numbers. This indicated that 27,726 of the 28,228 PCR report numbers were *not* duplicated.
+
+```{r}
+duplicates <- test_id %>%
+  filter((duplicated(response_pcr) | duplicated(response_pcr, fromLast=TRUE)))
+
+nrow(duplicates) == length(unique(duplicates$response_pcr))
+nrow(duplicates)
+length(unique(duplicates$response_pcr))
+```
+
+We found no duplicates that were missing a row number from the original data set, and we did not lose any observations based on PCR report numbers.
+
+```{r}
+sum(is.na(duplicates$ms_epcr_row))
+length(unique(test_id$response_pcr))
+```
+
+We flagged all observations with a matching `ms_epcr_row` or `id` from the duplicated observations for manual review.
+
+```{r}
+test_id$flag <- FALSE
+
+test_id <- test_id %>%
+  mutate(flag = case_when(id %in% duplicates$id ~ TRUE,
+                          ms_epcr_row %in% duplicates$ms_epcr_row ~ TRUE,
+                          TRUE ~ flag)
+         )
+
+get_unique_value_summary(test_id,"flag")
+```
+
+In checking these values, we saw multiple individuals with a large number of observations were linked into multiple groups, relating to different addresses or small differences in Date of Birth fields in the particular encounter. A single group would either have a single additional match entry, or a duplicated existing match entry in comparison to other "ID groups". There appeared to be fewer duplicates relating to mismatches.
+
+```{r}
+checking <- filter(test_id, flag)
+```
+
+
+## Partial Matching of Street Address
+
+Due to the heavy influence of the permutations of similar street addresses, we extended the inclusion of partial matches to street address values.
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year")
+
+## fastLink
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,
+              as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr), 
+                                   dimnames = list(list(),colnames(ms_epcr))))),
+  varnames = c(str_vars,num_vars,"pt_gender"),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  partial.match = c("pt_name_first", "pt_address_street"),
+  dedupe.matches = FALSE,
+  )
+```
+
+We used the fastLink output to generate our stacked pairs for inspection, and a version of the data set with unique IDs based on these matches.
+
+```{r}
+test_stack <- fmr_fastlink_stack_matches(fl_out,ms_epcr)
+test_id <- fmr_add_unique_id(ms_epcr,fl_out)
+```
+
+### Output Summary
+
+This refined search produced 79,602 pairs (159,204 stacked rows). Posterior probabilities ranged from 0.8657975776129 to 0.9999999915820. There were no entries with a posterior probability of 1.0, indicating there were no perfect matches - this is contrary to existing knowledge of our data set, in which we identified several observations which were identical for Patient Name, Date of Birth, and all Address fields.
+
+```{r}
+sum(is.na(test_stack$posterior_probability))
+
+nrow(test_stack)
+
+nrow(test_stack)/2
+
+sum(test_stack$posterior_probability == 1)
+
+summary(test_stack$posterior_probability)
+```
+
+Cursory examination of the lowest posterior probabilities appeared to provide valid matches.
+
+A total of 29,457 observations were generated in the ID-containing data set. There were 16,829 unique subject IDs created.
+
+```{r}
+nrow(test_id)
+
+length(unique(test_id$id))
+```
+
+### Duplicate Checking
+
+We found 1986 observations with repeat PCR report numbers, with 757 unique PCR report numbers. This indicated that 27,471 of the 28228 PCR report numbers were *not* duplicated.
+
+```{r}
+duplicates <- test_id %>%
+  filter((duplicated(response_pcr) | duplicated(response_pcr, fromLast=TRUE)))
+
+nrow(duplicates) == length(unique(duplicates$response_pcr))
+nrow(duplicates)
+length(unique(duplicates$response_pcr))
+```
+
+We found no duplicates that were missing a row number from the original data set, and we did not lose any observations based on PCR report numbers.
+
+```{r}
+sum(is.na(duplicates$ms_epcr_row))
+length(unique(test_id$response_pcr))
+```
+
+We flagged all observations with a matching `ms_epcr_row` or `id` from the duplicated observations for manual review.
+
+```{r}
+test_id$flag <- FALSE
+
+test_id <- test_id %>%
+  mutate(flag = case_when(id %in% duplicates$id ~ TRUE,
+                          ms_epcr_row %in% duplicates$ms_epcr_row ~ TRUE,
+                          TRUE ~ flag)
+         )
+
+get_unique_value_summary(test_id,"flag")
+```
+
+In checking these values, we saw multiple individuals with a large number of observations were linked into multiple groups, relating to significantly different addresses (but with other identifiers largely identical. A single group would either have a single additional match entry, or a duplicated existing match entry in comparison to other "ID groups". There appeared to be fewer duplicates relating to mismatches.
+
+```{r}
+checking <- filter(test_id, flag)
+```
+
+## Exact-Matching for State
+
+We tested the addition of State as an exact-match, to support the connection between observations within the same state, while weakening observations in different states.
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year")
+
+## fastLink
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,
+              as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr), 
+                                   dimnames = list(list(),colnames(ms_epcr))))),
+  varnames = c(str_vars,num_vars,"pt_gender","pt_address_state"),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  partial.match = c("pt_name_first", "pt_address_street"),
+  dedupe.matches = FALSE,
+  )
+```
+
+We used the fastLink output to generate our stacked pairs for inspection, and a version of the data set with unique IDs based on these matches.
+
+```{r}
+test_stack <- fmr_fastlink_stack_matches(fl_out,ms_epcr)
+test_id <- fmr_add_unique_id(ms_epcr,fl_out)
+```
+
+### Output Summary
+
+This refined search produced 291,102 pairs (582,204 stacked rows). Posterior probabilities ranged from 0.8539619476439 to 0.9999999999540 . There were no entries with a posterior probability of 1.0, indicating there were no perfect matches - this is contrary to existing knowledge of our data set, in which we identified several observations which were identical for Patient Name, Date of Birth, and all Address fields.
+
+```{r}
+sum(is.na(test_stack$posterior_probability))
+
+nrow(test_stack)
+
+nrow(test_stack)/2
+
+sum(test_stack$posterior_probability == 1)
+
+summary(test_stack$posterior_probability)
+```
+
+Cursory examination of the lowest posterior probabilities revealed an increase in mismatching.
+
+A total of 286,316 observations were generated in the ID-containing data set. There were 18124 unique subject IDs created.
+
+```{r}
+nrow(test_id)
+
+length(unique(test_id$id))
+```
+
+### Duplicate Checking
+
+We found 283,941 observations with repeat PCR report numbers, with 25,853 unique PCR report numbers. This indicated that only 2,375 of the 28228 PCR report numbers were *not* duplicated.
+
+```{r}
+duplicates <- test_id %>%
+  filter((duplicated(response_pcr) | duplicated(response_pcr, fromLast=TRUE)))
+
+nrow(duplicates) == length(unique(duplicates$response_pcr))
+nrow(duplicates)
+length(unique(duplicates$response_pcr))
+```
+
+We found no duplicates that were missing a row number from the original data set, and we did not lose any observations based on PCR report numbers.
+
+```{r}
+sum(is.na(duplicates$ms_epcr_row))
+length(unique(test_id$response_pcr))
+```
+
+We flagged all observations with a matching `ms_epcr_row` or `id` from the duplicated observations for manual review.
+
+```{r}
+test_id$flag <- FALSE
+
+test_id <- test_id %>%
+  mutate(flag = case_when(id %in% duplicates$id ~ TRUE,
+                          ms_epcr_row %in% duplicates$ms_epcr_row ~ TRUE,
+                          TRUE ~ flag)
+         )
+
+get_unique_value_summary(test_id,"flag")
+```
+
+In checking these values, we a drastic increase in mismatching.
+
+```{r}
+checking <- filter(test_id, flag)
+```
+
+## Partial Matching of Last Names
+
+Due to the heavy influence of the permutations of similar Last Names, we extended the inclusion of partial matches to last name values.
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year")
+
+## fastLink
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,
+              as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr), 
+                                   dimnames = list(list(),colnames(ms_epcr))))),
+  varnames = c(str_vars,num_vars,"pt_gender"),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  partial.match = c("pt_name_first","pt_name_last", "pt_address_street"),
+  dedupe.matches = FALSE,
+  )
+```
+
+We used the fastLink output to generate our stacked pairs for inspection, and a version of the data set with unique IDs based on these matches.
+
+```{r}
+test_stack <- fmr_fastlink_stack_matches(fl_out,ms_epcr)
+test_id <- fmr_add_unique_id(ms_epcr,fl_out)
+```
+
+### Output Summary
+
+This reduced search produced 79,859 pairs (159,718 stacked rows). Posterior probabilities ranged from 0.8683520942711 to 0.9999999971540. There were no entries with a posterior probability of 1.0, indicating there were no perfect matches - this is contrary to existing knowledge of our data set, in which we identified several observations which were identical for Patient Name, Date of Birth, and all Address fields.
+
+```{r}
+sum(is.na(test_stack$posterior_probability))
+
+nrow(test_stack)
+
+nrow(test_stack)/2
+
+sum(test_stack$posterior_probability == 1)
+
+summary(test_stack$posterior_probability)
+```
+
+Cursory examination of the lowest posterior probabilities revealed there was some apparent familial mismatching.
+
+A total of 29,313 observations were generated in the ID-containing data set. There were 16,758 unique subject IDs created.
+
+```{r}
+nrow(test_id)
+
+length(unique(test_id$id))
+```
+
+### Duplicate Checking
+
+We found 1,714 observations with repeat PCR report numbers, with 629 unique PCR report numbers. This indicated that 27,599 of the 28228 PCR report numbers were *not* duplicated.
+
+```{r}
+duplicates <- test_id %>%
+  filter((duplicated(response_pcr) | duplicated(response_pcr, fromLast=TRUE)))
+
+nrow(duplicates) == length(unique(duplicates$response_pcr))
+nrow(duplicates)
+length(unique(duplicates$response_pcr))
+```
+
+We found no duplicates that were missing a row number from the original data set, and we did not lose any observations based on PCR report numbers.
+
+```{r}
+sum(is.na(duplicates$ms_epcr_row))
+length(unique(test_id$response_pcr))
+```
+
+We flagged all observations with a matching `ms_epcr_row` or `id` from the duplicated observations for manual review.
+
+```{r}
+test_id$flag <- FALSE
+
+test_id <- test_id %>%
+  mutate(flag = case_when(id %in% duplicates$id ~ TRUE,
+                          ms_epcr_row %in% duplicates$ms_epcr_row ~ TRUE,
+                          TRUE ~ flag)
+         )
+
+get_unique_value_summary(test_id,"flag")
+```
+
+In checking these values, we saw multiple individuals with a large number of observations were linked into multiple groups, relating to different addresses or name spellings in the particular encounter. A single group would either have a single additional match entry, or a duplicated existing match entry in comparison to other "ID groups". There appeared to be few duplicates relating to mismatches.
+
+```{r}
+checking <- filter(test_id, flag)
+```
+
+## Addition of Street Number
+
+We assessed for the re-introduction of Street Number as an additional matching criteria.
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street","pt_address_num")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year")
+
+## fastLink
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,
+              as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr), 
+                                   dimnames = list(list(),colnames(ms_epcr))))),
+  varnames = c(str_vars,num_vars,"pt_gender"),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  partial.match = c("pt_name_first","pt_name_last", "pt_address_street"),
+  dedupe.matches = FALSE,
+  )
+```
+
+We used the fastLink output to generate our stacked pairs for inspection, and a version of the data set with unique IDs based on these matches.
+
+```{r}
+test_stack <- fmr_fastlink_stack_matches(fl_out,ms_epcr)
+test_id <- fmr_add_unique_id(ms_epcr,fl_out)
+```
+
+### Output Summary
+
+This reduced search produced 80,965 pairs (161,930 stacked rows). Posterior probabilities ranged from 0.8628086149821 to 0.9999999999955. There were no entries with a posterior probability of 1.0, indicating there were no perfect matches - this is contrary to existing knowledge of our data set, in which we identified several observations which were identical for Patient Name, Date of Birth, and all Address fields.
+
+```{r}
+sum(is.na(test_stack$posterior_probability))
+
+nrow(test_stack)
+
+nrow(test_stack)/2
+
+sum(test_stack$posterior_probability == 1)
+
+summary(test_stack$posterior_probability)
+```
+
+Cursory examination of the lowest posterior probabilities appeared to indicate a mix of true matches and false matches with significant similarities.
+
+A total of 30,197 observations were generated in the ID-containing data set. There were 16,665 unique subject IDs created.
+
+```{r}
+nrow(test_id)
+
+length(unique(test_id$id))
+```
+
+### Duplicate Checking
+
+We found 3,060 observations with repeat PCR report numbers, with 1091 unique PCR report numbers. This indicated that 27,137 of the 28228 PCR report numbers were *not* duplicated.
+
+```{r}
+duplicates <- test_id %>%
+  filter((duplicated(response_pcr) | duplicated(response_pcr, fromLast=TRUE)))
+
+nrow(duplicates) == length(unique(duplicates$response_pcr))
+nrow(duplicates)
+length(unique(duplicates$response_pcr))
+```
+
+We found no duplicates that were missing a row number from the original data set, and we did not lose any observations based on PCR report numbers.
+
+```{r}
+sum(is.na(duplicates$ms_epcr_row))
+length(unique(test_id$response_pcr))
+```
+
+We flagged all observations with a matching `ms_epcr_row` or `id` from the duplicated observations for manual review.
+
+```{r}
+test_id$flag <- FALSE
+
+test_id <- test_id %>%
+  mutate(flag = case_when(id %in% duplicates$id ~ TRUE,
+                          ms_epcr_row %in% duplicates$ms_epcr_row ~ TRUE,
+                          TRUE ~ flag)
+         )
+
+get_unique_value_summary(test_id,"flag")
+```
+
+In checking these values, we unfortunately saw a significant rise in mismatches where individuals living at the same multi-residence address were incorrectly matched.
+
+```{r}
+checking <- filter(test_id, flag)
+```
+
+# Determination of Posterior Probability Ranges
+
+## fastLink
+
+We utilized fastLink and requested all matches with posterior probabilities greater than 0.001.
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year")
+
+## fastLink
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,
+              as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr), 
+                                   dimnames = list(list(),colnames(ms_epcr))))),
+  varnames = c(str_vars,num_vars,"pt_gender"),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  partial.match = c("pt_name_first","pt_name_last", "pt_address_street"),
+  dedupe.matches = FALSE,
+  return.all = TRUE,
+  )
+```
+
+We used the fastLink output to generate our stacked pairs for inspection, and a version of the data set with unique IDs based on these matches.
+
+```{r}
+test_stack <- fmr_fastlink_stack_matches(fl_out,ms_epcr)
+test_id <- fmr_add_unique_id(ms_epcr,fl_out)
+```
+
+### Output Summary
+
+This reduced search produced 94,277 pairs (188,554 stacked rows). Posterior probabilities ranged from 0.001039344561423 to 0.999999997154056. There were no entries with a posterior probability of 1.0, indicating there were no perfect matches - this is contrary to existing knowledge of our data set, in which we identified several observations which were identical for Patient Name, Date of Birth, and all Address fields.
+
+```{r}
+sum(is.na(test_stack$posterior_probability))
+
+nrow(test_stack)
+
+nrow(test_stack)/2
+
+sum(test_stack$posterior_probability == 1)
+
+summary(test_stack$posterior_probability)
+```
+
+A total of 43,254 observations were generated in the ID-containing data set. There were 16078 unique subject IDs created.
+
+```{r}
+nrow(test_id)
+
+length(unique(test_id$id))
+```
+
+### Evaluation of Posterior Probability Ranges
+
+#### 0.90 - 0.95
+
+The 198 observations (99 pairs) with posteriors between 0.90 - 0.95 were examined. 
+
+```{r}
+checking <- test_stack %>%
+  filter( (between(posterior_probability,0.90,0.95)))
+```
+
+One pair with a posterior probability of 0.9428615536617934 appeared to potentially be either twin siblings cohabitating, or a true match for an individual that potentially goes by a different name than their legal first name. The highest posterior probability for a highly suspect match occurred with a posterior probability of 0.9027029726807781.
+
+#### 0.80 - 0.85
+
+The 260 observations (130 pairs) with posteriors between 0.80 - 0.85 were examined.
+
+```{r}
+checking <- test_stack %>%
+  filter( (between(posterior_probability,0.80,0.85)))
+```
+
+All pairs observed appear to be a mix of true matches, and false matches between spouses wherein one observation in the pair lacks a value for Gender.
+
+#### 0.75 - 0.80
+
+The 12 observations (6 pairs) with posteriors between 0.75 - 0.80 were examined
+
+```{r}
+checking <- test_stack %>%
+  filter( (between(posterior_probability,0.75,0.80)))
+```
+
+All pairs observed appear to be a mix of true matches, and false matches between spouses wherein one observation in the pair lacks a value for Gender.
+
+#### 0.70 - 0.75
+
+The 460 observations (230 pair) with posteriors between 0.70 - 0.75 was examined
+
+```{r}
+checking <- test_stack %>%
+  filter( (between(posterior_probability,0.70,0.75)))
+```
+
+All observed pairs appear to be a mix of true matches and false matches. Many true matches appeared to be caused by transposition of birth date entries, where month was entered as day or vice versa.
+
+#### 0.65 - 0.70
+
+The 84 observations (42 pairs) with posteriors between 0.65 - 0.70 were examined
+
+```{r}
+checking <- test_stack %>%
+  filter( (between(posterior_probability,0.65,0.70)))
+```
+
+Pairs within the entire range appeared to be a mixture of true and false matches; most true matches appeared to be observations where Patient Name and Date of Birth are identical, but the patient appears to have moved to a new address between observations.
+
+#### 0.60 - 0.65
+
+The 364 observations (182 pairs) with posteriors between 0.60 - 0.65 were examined
+
+```{r}
+checking <- test_stack %>%
+  filter( (between(posterior_probability,0.60,0.65)))
+```
+
+All pairs within this range were a mix of true and false matches. The bulk of true matches appeared to be observations where one observation in each pair was missing a significant number of identifying variables.
+
+#### 0.55 - 0.60
+
+The 18 observations (9 pairs) with posteriors between 0.55 - 0.60 were examined
+
+```{r}
+checking <- test_stack %>%
+  filter( (between(posterior_probability,0.55,0.60)))
+```
+
+All pairs within this range appeared to be true matches, with significant alternative spellings of short first names
+
+#### 0.50 - 0.55
+
+The 78 observations (39 pairs) with posteriors between 0.50 - 0.55 were examined
+
+```{r}
+checking <- test_stack %>%
+  filter( (between(posterior_probability,0.50,0.55)))
+```
+
+No pairs within this range appeared to be true matches.
+
+#### Summary (0.54 - 0.903)
+
+There were 1586 observations (793 pairs) with reverse probabilities within the range of 0.54 - 0.903, which would require manual verification of proper pairing and ID. As such, only 0.84% of potential matches were likely to benefit from manual verification. 
+
+```{r}
+checking <- test_stack %>%
+  filter( (between(posterior_probability,0.54,0.903)))
+```
