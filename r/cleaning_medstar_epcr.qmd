@@ -34,14 +34,14 @@ The data set was found to contain 28228 unique observations and 8,076 duplicates
 -   Modification of entries for Patient Address Street which reference homelessness to a new variable, and conversion in `pt_address_street` to missing (`NA`) values
 
     -   `pt_homeless`
-    
+
 -   Modification of Patient Race from list to categorical (Black or African American, White, Native Hawaiian or Other Pacific Islander, Asian, Multiracial, American Indian or Alaska Native, Other), with the Ethnic Identifier of Hispanic/Latino in a separate variable
 
     -   `pt_race`, `pt_hispanic`
 
--   Addition of Response Year, Month, Day, and Time variables from original aggregate variable for Response Date/Time, without removal of original aggregate variable
+-   Addition of Response Year, Month, Day, Date, and Time variables from original aggregate variable for Response Date/Time, without removal of original aggregate variable
 
-    -   `response_dt`, `response_year`, `response_month`, `response_day`, `response_time`
+    -   `response_dt`, `response_year`, `response_month`, `response_day`, `response_date`, `response_time`
 
 -   Addition of Patient Date of Birth Year, Month, and Day variables, from original aggregate variable, without removal of original aggregate variable
 
@@ -54,6 +54,8 @@ The data set was found to contain 28228 unique observations and 8,076 duplicates
     -   `detect_report_aps_unable`, `detect_report_aps_onscene`, `detect_report_aps_existing`, `detect_facility`, `detect_other_reporter`, `detect_uta`, `detect_report_comment`
 
 ## Data Cleaning
+
+-   Conversion of Patient Date of Birth values to missing values (`NA`) for observations where Patient Date of Birth was identical to Response Date
 
 -   Conversion of string data into uppercase to avoid case-mismatch
 
@@ -76,7 +78,7 @@ The data set was found to contain 28228 unique observations and 8,076 duplicates
 -   Manual cleaning and verification of 69 names:
 
     -   1 anomalous entry which appeared to have 2 separate names within the name field due to an ambiguous hyphenated last name provided without the hyphen (required PHI to clean)
-    
+
     -   8 names that contained numbers
 
     -   17 names that produced a middle name containing "JR" or "SR" after processing
@@ -106,6 +108,7 @@ The data set was found to contain 28228 unique observations and 8,076 duplicates
     -   45 "street names" less than 5 characters long
 
     -   387 observations with a "street name" but no "street number", "unit number" but no "street number", or "street name" ending in a number
+
     -   A total of 420 addresses did not require any correction, 63 did not require PHI to clean, and 7 required PHI to clean
 
 -   Omission of flagging variables and temporary variables utilized in data processing
@@ -313,7 +316,7 @@ uppercasing <- c("pt_name_full", "pt_address_city", "pt_address_state",
                  "detect_report_num", detect_cols)
 
 ms_epcr <- ms_epcr %>%
-  mutate(across(uppercasing, str_to_upper)
+  mutate(across(all_of(uppercasing), str_to_upper)
          )
 ```
 
@@ -1543,7 +1546,7 @@ ms_epcr$pt_address_street[ms_epcr$ms_epcr_row==1309] <-
 
 ```
 
-#### Patient Date of Birth: Splitting into Year, Month, Day `pt_dob`
+### Patient Date of Birth: Splitting into Year, Month, Day `pt_dob`
 
 There were 93 entries in the original data set with missing (`NA`) values for `pt_dob`.
 
@@ -1557,7 +1560,8 @@ We divided `pt_dob` into `pt_dob_year`, `pt_dob_month`, and `pt_dob_day` utilizi
 ms_epcr <- ms_epcr %>% 
   mutate(pt_dob_year = year(pt_dob),
          pt_dob_month = month(pt_dob),
-         pt_dob_day = day(pt_dob)
+         pt_dob_day = day(pt_dob),
+         pt_dob = as.character(pt_dob)
          )
 ```
 
@@ -1571,16 +1575,37 @@ There were no entries in the original data set with missing (`NA`) values for `r
 sum(is.na(ms_epcr$response_dt))
 ```
 
-We divided `response_dt` into `response_year`, `response_month`, `response_day`, and `response_time` utilizing the *lubridate* package.
+We divided `response_dt` into `response_year`, `response_month`, `response_day`, `response_date` and `response_time` utilizing the *lubridate* package.
 
 ```{r}
 ms_epcr <- ms_epcr %>% 
   mutate(response_year = year(response_dt),
          response_month = month(response_dt),
          response_day = day(response_dt),
+         response_date = as.character(date(response_dt)),
          response_time = format(as.POSIXct(response_dt), format = "%H:%M:%S")
          )
 ```
+
+There were several observations in which the Response Date was identical to the Patient's Date of Birth. Since this is overtly invalid for our data set (as all subject were adults), we shifted the invalid values for Patient Date of Birth to missing (`NA`) values.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(pt_dob_day = ifelse(response_date == pt_dob, NA, pt_dob_day)
+         ) %>%
+  mutate(pt_dob_month = ifelse(response_date == pt_dob, NA, pt_dob_month)
+         ) %>%
+    mutate(pt_dob_year = ifelse(response_date == pt_dob, NA, pt_dob_year)
+         ) %>%
+    mutate(pt_dob = ifelse(response_date == pt_dob, NA, pt_dob)
+         )
+```
+
+
+```{r}
+sum(is.na(ms_epcr$pt_dob))
+```
+
 
 ### Response Number `response_num`
 
@@ -2200,8 +2225,9 @@ pt_demo_cols <- c("pt_name_full","pt_name_first","pt_name_middle","pt_name_last"
 
 resp_detail_cols <- c("response_pcr","response_num","response_dt",
                       "response_year","response_month","response_day",
-                      "response_time","response_complaint","response_symptoms",
-                      "response_dispo","response_ems_epcr_sig")
+                      "response_date", "response_time","response_complaint",
+                      "response_symptoms", "response_dispo",
+                      "response_ems_epcr_sig")
 
 col_order <- c(bookkeeping_cols,pt_demo_cols,detect_cols,resp_detail_cols)
 
@@ -2266,7 +2292,8 @@ nrow(not_ident)
 As all duplicated observations (barring our single exception) were entirely identical except for the DETECT questionnaire data, we decided to select unique observations to maintain based on the completeness of the DETECT variables. The number of missing (`NA`) values in the DETECT variables were calculated in `na_count`. By selecting for each observation of `response_pcr` with the lowest value of `na_count`, we obtained our 28228 unique observations.
 
 ```{r}
-ms_epcr$na_count <- rowSums (is.na(ms_epcr[append(detect_binaries,"detect_report_num")]))
+ms_epcr$na_count <- rowSums (is.na(ms_epcr[append(detect_binaries,
+                                                  "detect_report_num")]))
 
 ms_epcr <- ms_epcr %>%
   group_by(response_pcr) %>%
@@ -2285,7 +2312,6 @@ We dropped the temporary `na_count` variable as it was no longer necessary.
 ms_epcr <- subset(ms_epcr, select= -c(na_count))
 ```
 
-
 # Saving Files
 
 The processed MedStar ePCR data file was saved and exported.
@@ -2294,6 +2320,3 @@ The processed MedStar ePCR data file was saved and exported.
 saveRDS(ms_epcr,here("data","DETECT Shared GRAs","cleaning_with_phi",
                              "medstar","medstar_epcr.rds"))
 ```
-
-
-
