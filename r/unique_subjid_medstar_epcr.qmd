@@ -1,5 +1,5 @@
 ---
-title: "Getting a Unique Subject ID for all Subjects: MedStar ePCR"
+title: "Defining fastLink Parameters: MedStar ePCR data"
 format: html
 editor: visual
 ---
@@ -37,8 +37,32 @@ Variables for matching were determined to be:
 -   A threshold of 0.903 was established for "true matches", and a threshold of 0.55 was established for "false matches"
 
     -   Matches between 0.55 and 0.903 (approximately 793 potential matching pairs) would benefit from manual verification and assignment
-    
-    -   
+
+-   Our final fastLink output was produced with a lower threshold posterior probability of 0.54 for matches.
+
+    -   There were 29,271 observations in the Originally Assigned Group ID modified data set, with 16,637 unique IDs assigned. No observations (per PCR report numbers) were lost
+
+        -   Of these, 1,662 observations were duplicated in 293 group IDs
+
+        -   A total of 2,199 observations were flagged for manual cleaning and review
+
+            -   The 1,675 observations that either had duplicated PCR report numbers or were part of a group with duplicated observations were flagged for manual review
+
+            -   All 1,675 previously flagged observations, and an additional 524 observations, were within the 0.54 - 0.903 manual verification threshold and flagged for manual review
+
+-   Data was exported and saved to achieve consistency, as fastLink output returns slight variations in results with each execution even with identical input
+
+    -   The fastLink output
+
+        -   `fl_out` --\> `ms_epcr_fastlink.rds`
+
+    -   The stacked pairs with posterior probabilities
+
+        -   `test_stack` --\> `ms_epcr_stacked_pairs.rds`
+
+    -   Originally Assigned Group ID modified data set
+
+        -   `test_id` --\> `ms_epcr_id_base.rds`
 
 # Imports
 
@@ -60,7 +84,6 @@ MedStar ePCR data set was loaded for processing.
 ```{r}
 ms_epcr <- readRDS(here("data","DETECT Shared GRAs","cleaning_with_phi",
                              "medstar","medstar_epcr.rds"))
-
 ```
 
 ## Functions
@@ -229,7 +252,7 @@ fmr_add_unique_id <- function(df, fastLink_obj) {
 
 # Determination of Variables
 
-As there were 28,228 unique PCR response numbers in our data set, we expected at least 28,228 pairs with perfect matches (as each row is compared to each row, so each row should at minimum be a perfect match with itself). 
+As there were 28,228 unique PCR response numbers in our data set, we expected at least 28,228 pairs with perfect matches (as each row is compared to each row, so each row should at minimum be a perfect match with itself).
 
 ## Initial Attempt
 
@@ -925,7 +948,6 @@ In checking these values, we saw multiple individuals with a large number of obs
 checking <- filter(test_id, flag)
 ```
 
-
 ## Partial Matching of Street Address
 
 Due to the heavy influence of the permutations of similar street addresses, we extended the inclusion of partial matches to street address values.
@@ -1371,7 +1393,7 @@ length(unique(test_id$id))
 
 #### 0.90 - 0.95
 
-The 198 observations (99 pairs) with posteriors between 0.90 - 0.95 were examined. 
+The 198 observations (99 pairs) with posteriors between 0.90 - 0.95 were examined.
 
 ```{r}
 checking <- test_stack %>%
@@ -1459,9 +1481,141 @@ No pairs within this range appeared to be true matches.
 
 #### Summary (0.54 - 0.903)
 
-There were 1586 observations (793 pairs) with reverse probabilities within the range of 0.54 - 0.903, which would require manual verification of proper pairing and ID. As such, only 0.84% of potential matches were likely to benefit from manual verification. 
+There were 1586 observations (793 pairs) with reverse probabilities within the range of 0.54 - 0.903, which would require manual verification of proper pairing and ID. As such, only 0.84% of potential matches were likely to benefit from manual verification.
 
 ```{r}
 checking <- test_stack %>%
   filter( (between(posterior_probability,0.54,0.903)))
+```
+
+# Assigning Unique ID and Cleaning
+
+## fastLink
+
+We utilized fastLink, requesting that all pairs above the 0.54 threshold be returned as paired matches
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year")
+
+## fastLink
+fl_out <- fastLink(
+  dfA = ms_epcr, 
+  dfB = rbind(ms_epcr,
+              as.data.frame(matrix(NA,nrow=1,ncol=ncol(ms_epcr), 
+                                   dimnames = list(list(),colnames(ms_epcr))))),
+  varnames = c(str_vars,num_vars,"pt_gender"),
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  partial.match = c("pt_name_first","pt_name_last", "pt_address_street"),
+  dedupe.matches = FALSE,
+  return.all = FALSE,
+  threshold.match = 0.54
+  )
+```
+
+We used the fastLink output to generate our stacked pairs for inspection, and a version of the data set with unique IDs based on these matches.
+
+```{r}
+test_stack <- fmr_fastlink_stack_matches(fl_out,ms_epcr)
+test_id <- fmr_add_unique_id(ms_epcr,fl_out)
+```
+
+### Output Summary
+
+This refined search produced 80,495 pairs (160,990 stacked rows). Posterior probabilities ranged from 0.5473047882485 to 0.9999999971540. There were no entries with a posterior probability of 1.0, indicating there were no perfect matches - this is contrary to existing knowledge of our data set, in which we identified several observations which were identical for Patient Name, Date of Birth, and all Address fields.
+
+```{r}
+sum(is.na(test_stack$posterior_probability))
+
+nrow(test_stack)
+
+nrow(test_stack)/2
+
+sum(test_stack$posterior_probability == 1)
+
+summary(test_stack$posterior_probability)
+```
+
+A total of 29,271 observations were generated in the ID-containing data set. There were 16,637 unique subject IDs created.
+
+```{r}
+nrow(test_id)
+
+length(unique(test_id$id))
+```
+
+### Duplicate Checking
+
+We found 1,662 observations with repeat PCR report numbers, with 619 unique PCR report numbers in 293 unique ID groups. This indicated that 27,609 of the 28228 PCR report numbers were *not* duplicated.
+
+```{r}
+duplicates <- test_id %>%
+  filter((duplicated(response_pcr) | duplicated(response_pcr, fromLast=TRUE)))
+
+nrow(duplicates) == length(unique(duplicates$response_pcr))
+nrow(duplicates)
+length(unique(duplicates$response_pcr))
+length(unique(duplicates$id))
+```
+
+We found no duplicates that were missing a row number from the original data set, and we did not lose any observations based on PCR report numbers.
+
+```{r}
+sum(is.na(duplicates$ms_epcr_row))
+length(unique(test_id$response_pcr))
+```
+
+We flagged all observations with a matching `ms_epcr_row` or `id` from the duplicated observations for manual review. This resulted in 1,675 flags.
+
+```{r}
+test_id$flag <- FALSE
+test_id$flag_duplicate <- FALSE
+
+test_id <- test_id %>%
+  mutate(flag_duplicate = case_when(id %in% duplicates$id ~ TRUE,
+                                     ms_epcr_row %in% duplicates$ms_epcr_row ~ 
+                                       TRUE,
+                                     TRUE ~ flag)
+         ) %>%
+  mutate(flag = ifelse(flag_duplicate, TRUE, flag))
+
+get_unique_value_summary(test_id,c("flag","flag_duplicate"))
+```
+
+We similarly identified all pairs in `test_stack` that were represented in the range of posterior values that required manual verification, and flagged observations with matching `ms_epcr_row` values in the `test_id` set. This resulted in an additional 524 flags.
+
+```{r}
+posteriors <- test_stack %>%
+  filter( (between(posterior_probability,0.54,0.903)))
+
+test_id$flag_posterior <- FALSE
+
+test_id <- test_id %>%
+  mutate(flag_posterior = case_when(ms_epcr_row %in% posteriors$ms_epcr_row ~ 
+                                      TRUE,
+                                    TRUE ~ flag)
+         ) %>%
+  mutate(flag = ifelse(flag_posterior, TRUE, flag))
+
+get_unique_value_summary(test_id,c("flag","flag_duplicate","flag_posterior"))
+```
+
+# Export of Data
+
+Data was saved and exported to ensure continuity through the manual clean operation, as fastLink produces slight variations in output with each execution of the algorithm despite consistent output.
+
+```{r}
+# fastLink Output
+saveRDS(fl_out,here("data","DETECT Shared GRAs","cleaning_with_phi",
+                             "medstar","medstar_epcr_fastlink.rds"))
+
+# Stacked Pairs with Posteriors > 0.54
+saveRDS(test_stack,here("data","DETECT Shared GRAs","cleaning_with_phi",
+                             "medstar","medstar_epcr_stacked_pairs.rds"))
+
+# Original ID assignments
+saveRDS(test_id,here("data","DETECT Shared GRAs","cleaning_with_phi",
+                             "medstar","medstar_epcr_id_base.rds"))
 ```
