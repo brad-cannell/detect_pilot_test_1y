@@ -1,0 +1,2322 @@
+---
+title: "Cleaning MedStar ePCR - PHI"
+html:
+  embed-resources: true
+editor: visual
+---
+
+# Summary
+
+The MedStar ePCR records data set contained 36304 observations of 33 variables which included patient demographic information, EMS response information, and DETECT Questionnaire data.
+
+While both Response Number and PCR Record Number were potential unique identifiers, Response Number had missing values. Thus, PCR Record Number was selected to uniquely identify each unique MedStar EMS call for service.
+
+The data set was found to contain 28228 unique observations and 8,076 duplicates that differed only in completion of DETECT Questionnaire variables. The 28228 observations were selected for completeness of DETECT Questionnaire variables, in order to have the most robust observation for each unique EMS response.
+
+## Data Wrangling
+
+-   Addition of variable to indicate row number in original data set
+
+    -   `ms_epcr_row`
+
+-   Exclusion of incomplete duplicate variable for Patient Age
+
+    -   `pt_age`
+
+-   Modification of Patient Name variable to include variables for First, Last, Middle, and Full name
+
+    -   `pt_name_first`, `pt_name_middle`, `pt_name_last`, and `pt_name_full`
+
+-   Modification of Patient Street Address variables to include variables for Street Number, Street Name, Unit, and PO BOX.
+
+    -   `pt_address_num`, `pt_address_street`, `pt_address_unit`, `pt_address_pobox`
+
+-   Modification of entries for Patient Address Street which reference homelessness to a new variable, and conversion in `pt_address_street` to missing (`NA`) values
+
+    -   `pt_homeless`
+
+-   Modification of Patient Race from list to categorical (Black or African American, White, Native Hawaiian or Other Pacific Islander, Asian, Multiracial, American Indian or Alaska Native, Other), with the Ethnic Identifier of Hispanic/Latino in a separate variable
+
+    -   `pt_race`, `pt_hispanic`
+
+-   Addition of Response Year, Month, Day, Date, and Time variables from original aggregate variable for Response Date/Time, without removal of original aggregate variable
+
+    -   `response_dt`, `response_year`, `response_month`, `response_day`, `response_date`, `response_time`
+
+-   Addition of Patient Date of Birth Year, Month, and Day variables, from original aggregate variable, without removal of original aggregate variable
+
+    -   `pt_dob`, `pt_dob_year`, `pt_dob_month`, `pt_dob_day`
+
+-   Reorganization of variables into "Patient Demographics", "DETECT Variables" and "Response Variables"
+
+-   Addition of variables to indicate potentially significant data in the the Report Number section of the DETECT Questionnaire fields
+
+    -   `detect_report_aps_unable`, `detect_report_aps_onscene`, `detect_report_aps_existing`, `detect_facility`, `detect_other_reporter`, `detect_uta`, `detect_report_comment`
+
+## Data Cleaning
+
+-   Conversion of Patient Date of Birth values to missing values (`NA`) for observations where Patient Date of Birth was identical to Response Date
+
+-   Conversion of string data into uppercase to avoid case-mismatch
+
+-   Conversion of empty strings to missing values (`NA`)
+
+-   Correction of invalid Patient Address Cities (facilities, counties, additional content such as "City of" prefixes)
+
+-   Correction of invalid Patient Address Zip codes (5+4 format entries, truncated entries likely caused by Excel trimming leading zeroes)
+
+-   Conversion of all State entries into 4-letter abbreviations for standardization
+
+-   Standardization of abbreviations for County Roads, Rural Roads, Private Roads, Farm to Market Roads, and Highways
+
+-   Conversion of Patient Address Street entries which referenced only intersections to missing (`NA`) values
+
+-   Conversion of Patient Address Street entries which referenced the address being "Unknown" to missing (`NA`) values
+
+-   Correction of Patient Address Street entries which referenced facilities rather than a street address
+
+-   Manual cleaning and verification of 69 names:
+
+    -   1 anomalous entry which appeared to have 2 separate names within the name field due to an ambiguous hyphenated last name provided without the hyphen (required PHI to clean)
+
+    -   8 names that contained numbers
+
+    -   17 names that produced a middle name containing "JR" or "SR" after processing
+
+    -   43 names that contained unusual characters (any character except for the letters A-Z or blank space)
+
+    -   A total of 41 names did not require any correction, 27 did not require PHI to clean, and 1 required PHI to clean
+
+-   Manual cleaning and verification of 490 addresses:
+
+    -   1 address which appeared to have a PO BOX and street address in the same line (required PHI to clean)
+
+    -   4 "zip codes" less than 5 digits
+
+    -   28 "cities" which mentioned the NAS JRB in Ft. Worth
+
+    -   18 "cities" which mentioned counties rather than cities
+
+    -   1 "city" which appeared to have a Unicode parsing error and invalid characters
+
+    -   2 "cities" of "MEXICO"
+
+    -   1 "city" of "UNCERTAIN"
+
+    -   3 "cities" marked "(Historical)"
+
+    -   45 "street names" less than 5 characters long
+
+    -   387 observations with a "street name" but no "street number", "unit number" but no "street number", or "street name" ending in a number
+
+    -   A total of 420 addresses did not require any correction, 63 did not require PHI to clean, and 7 required PHI to clean
+
+-   Omission of flagging variables and temporary variables utilized in data processing
+
+-   Assurance that variables were stored as the appropriate data types, such as numeric or factor vs character
+
+-   Verification of content between duplicate variables
+
+-   Selection of the most complete entry among all duplicates for deduplication
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(readxl)
+library(vctrs)
+library(here)
+library(data.table)
+library(lubridate)
+```
+
+## Data Imports
+
+MedStar ePCR data was loaded for processing from XLSX format. Data types were specified for key fields to minimize loss of data, such as in date formats
+
+```{r}
+#| warning: false
+
+ms_epcr <- read_excel(here("data/DETECT Shared GRAs/medstar_epcr.xlsx"), 
+     col_types = c("date", "numeric", "text", 
+         "text", "numeric", "text", "date", 
+         "text", "text", "text", "text", "text", 
+         "numeric", "text", "text", "text", 
+         "text", "text", "text", "text", "text", 
+         "text", "text", "text", "text", "text", 
+         "text", "text", "text", "text", "text", 
+         "text", "text"))
+```
+
+A CSV file was created, which contained information required to manually clean 7 entries which would otherwise require PHI in code to clean.
+
+```{r}
+phi_cleaning <- read_csv(here("data","DETECT Shared GRAs","cleaning_with_phi",
+                              "medstar","medstar_epcr_phi_cleaning.csv"), show_col_types = FALSE)
+```
+
+## Functions
+
+### Unique Value Summaries
+
+A function was written to display counts of each unique observations within a selection of columns.
+
+```{r}
+get_unique_value_summary <- function(df,cols){
+  val <- unique(as.factor(as.vector(as.matrix(df[cols]))))
+  unique_summary <- data.frame("value"=val)
+  
+  for (i in cols){
+    table <- as.data.frame(table(df[i]))
+  colnames(table) <- c("value","freq")
+  table<- add_row(table, value = NA, freq = sum(is.na(df[i])))
+  colnames(table) <- c("value",i)
+    unique_summary <- left_join(unique_summary,table, by="value")
+    }
+  
+  unique_summary
+  }
+```
+
+# Initial Data Structure
+
+## Dimensions
+
+The MedStar ePCR data set contained 36304 observations with 33 variables
+
+```{r}
+dim(ms_epcr)
+```
+
+We checked for any rows which contained only missing (`NA`) values, and found there are no entirely empty rows.
+
+```{r}
+nrow(filter(ms_epcr, rowSums(is.na(ms_epcr)) == ncol(ms_epcr)))
+```
+
+We checked for any rows which contained values for every variable (a complete case) and found that there were none.
+
+```{r}
+nrow(na.omit(ms_epcr))
+sum(complete.cases(ms_epcr))
+```
+
+## Variables
+
+Original variable naming was checked, and found to be a format that was cumbersome for use in code.
+
+```{r}
+colnames(ms_epcr)
+```
+
+# Data Processing
+
+## Variable Renaming
+
+Variables were renamed to follow project style conventions. These conventions aimed to increase the usability of variables in code, ensure understanding of variable meanings, and facilitate organization of variables based on source and/or topic.
+
+All DETECT Questionnaire variables were provided the prefix `detect_`. All Response detail variables were renamed with the prefix `response_`. All Patient Demographic variables were renamed with the prefix `pt_`.
+
+```{r}
+colnames(ms_epcr) <- c('response_dt', 'response_num', 'response_pcr', 
+                       'response_complaint', 'pt_age', 'pt_name_full', 
+                       'pt_dob', 'pt_address_street', 'pt_address_city', 
+                       'pt_address_state', 'pt_address_zip', 'pt_gender', 
+                       'pt_age2', 'pt_race', 'response_symptoms', 
+                       'response_ems_epcr_sig', 'response_dispo', 
+                       'detect_report_num', 'detect_report_made', 
+                       'detect_cond_anxious', 'detect_meds_hoarding', 
+                       'detect_meds_difficulty', 'detect_cond_hygiene', 
+                       'detect_cond_needs', 'detect_caregiver_frustrated', 
+                       'detect_caregiver_anxious', 'detect_caregiver_lack', 
+                       'detect_caregiver_inattentive', 'detect_env_hoarding', 
+                       'detect_cond_clothes', 'detect_env_isolated', 
+                       'detect_env_concern', 'detect_env_odor')
+
+colnames(ms_epcr)
+```
+
+## Initiating Novel Variables
+
+We initiated the novel variables of our data set.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  add_column(ms_epcr_row = NA, pt_name_first = NA, pt_name_middle = NA, 
+             pt_name_last = NA, pt_address_num = NA, pt_address_unit = NA, 
+             pt_address_pobox = NA, pt_hispanic = NA, pt_homeless = NA, 
+             detect_report_comment = NA, detect_report_aps_unable = NA, 
+             detect_report_aps_onscene = NA, detect_report_aps_existing = NA, 
+             detect_facility = NA, detect_other_reporter = NA, 
+             detect_uta = NA, num_temp = NA)
+```
+
+We initiated the temporary processing variables of our data set.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  add_column(pt_name_chunk = NA, na_count = NA, 
+             flag_address = FALSE, flag_name = FALSE)
+```
+
+## Identification of DETECT Variables
+
+There were 16 DETECT Questionnaire Variables in the original data set:
+
+-   APS report numbers were stored in `detect_report_num`
+
+-   4 questions asked Yes/No questions about the patient's general condition: `detect_cond_anxious`, `detect_cond_hygiene`, `detect_cond_needs`, `detect_cond_clothes`
+
+-   2 questions asked Yes/No questions about the patient's medication condition: `detect_meds_difficulty`, `detect_meds_hoarding`
+
+-   4 questions asked Yes/No questions about the patient's caregiver: `detect_caregiver_anxious`, `detect_caregiver_frustrated`, `detect_caregiver_lack`, `detect_caregiver_inattentive`
+
+-   4 questions asked Yes/No questions about the patient's environment: `detect_env_isolated`, `detect_env_concern`, `detect_env_hoarding`, `detect_env_odor`
+
+-   Yes/No response indicating if an APS report was made was stored in `detect_report_made`
+
+```{r}
+detect_binaries <- c("detect_cond_anxious", "detect_cond_hygiene", 
+                     "detect_cond_needs", "detect_cond_clothes", 
+                     "detect_meds_difficulty", "detect_meds_hoarding", 
+                     "detect_caregiver_anxious", "detect_caregiver_frustrated", 
+                     "detect_caregiver_lack", "detect_caregiver_inattentive", 
+                     "detect_env_isolated", "detect_env_concern", 
+                     "detect_env_hoarding", "detect_env_odor", 
+                     "detect_report_made")
+
+detect_cols <- c(detect_binaries,"detect_report_num","detect_report_comment", 
+                 "detect_report_aps_unable","detect_report_aps_onscene",
+                 "detect_report_aps_existing", "detect_facility", 
+                 "detect_other_reporter", "detect_uta")
+```
+
+## Adding Row Numbers
+
+We added a variable containing the row numbers of each observation in the source data.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(ms_epcr_row = row_number()
+         )
+```
+
+## Conversion of Target String Variables to Uppercase
+
+We converted all name and address fields to uppercase for uniformity and avoidance of case mismatch.
+
+```{r}
+uppercasing <- c("pt_name_full", "pt_address_city", "pt_address_state", 
+                 "pt_address_street", "response_ems_epcr_sig", 
+                 "detect_report_num", detect_cols)
+
+ms_epcr <- ms_epcr %>%
+  mutate(across(all_of(uppercasing), str_to_upper)
+         )
+```
+
+## Patient Demographics
+
+### Patient Age - `pt_age` vs `pt_age2`
+
+There were two variables in the original data set for Patient Age, `pt_age` and `pt_age2`. We assessed the frequency of each value with the two variables, and identified that there were consistently fewer observations in `pt_age2` compared to `pt_age`.
+
+There were no missing (`NA`) values in `pt_age`, and 23 missing (`NA`) values in `pt_age2`. All values appeared to be valid integers.
+
+```{r}
+get_unique_value_summary(ms_epcr,c("pt_age", "pt_age2"))
+```
+
+We assessed for observations which contained different data between the two variables, and discovered `pt_age2` contained only missing (`NA`) values in these observations.
+
+```{r}
+unique(ms_epcr$pt_age2[ms_epcr$pt_age != ms_epcr$pt_age2])
+```
+
+We excluded `pt_age2` from the data set as it was an incomplete duplicate, and did not otherwise add to the robustness of the data set.
+
+```{r}
+ms_epcr <- subset(ms_epcr, select= -c(pt_age2))
+
+colnames(ms_epcr)
+```
+
+### Patient Gender: `pt_gender`
+
+The data for Patient Gender within `pt_gender` appeared to be generated from radio button or drop-down list selection, in visual examination of the source data. We expected values for "Male" and "Female" in the `pt_gender` variable.
+
+```{r}
+get_unique_value_summary(ms_epcr,"pt_gender")
+```
+
+We saw most observations (35770) were our expected "Male" or "Female". There are also "Not Applicable" and "Unknown (Unable to Determine)". For our study, we shifted the 108 "Unknown (Unable to Determine)" and 1 "Not Applicable" values to missing values (`NA`), for an anticipated total of 534 missing (`NA`) values.
+
+```{r}
+ms_epcr <- ms_epcr %>% 
+  mutate(pt_gender = na_if(pt_gender, "Not Applicable")
+         ) %>% 
+  mutate(pt_gender = na_if(pt_gender, "Unknown (Unable to Determine)")
+         )
+```
+
+We verified our transformation, and found no apparent issues.
+
+```{r}
+get_unique_value_summary(ms_epcr,"pt_gender")
+```
+
+### Patient Race `pt_race` and `pt_ethnicity`
+
+We anticipated values similar to [US Census categorization of race and ethnicity](https://www.census.gov/topics/population/race/about.html).
+
+```{r}
+get_unique_value_summary(ms_epcr,"pt_race")
+```
+
+Overall, our categories appear to be "White", "Black or African American", "American Indian or Alaska Native", "Native Hawaiian or Other Pacific Islander", "Asian,"Hispanic or Latino", and "Other Race". Instead of a single value, many observations demonstrate multiple values in a list-like format. There were 906 missing (`NA`) values in the inital data.
+
+#### Adjusting for Values Equivalent to Missing (`NA`) Values
+
+We shifted 6 "Not Applicable" and 139 "Not Recorded" to missing (`NA`) values, increasing the count of missing (`NA`) values to 1051.
+
+```{r}
+ms_epcr <- ms_epcr %>% 
+  mutate(pt_race = na_if(pt_race, "Not Applicable")
+         ) %>% 
+  mutate(pt_race = na_if(pt_race, "Not Recorded")
+         )
+
+get_unique_value_summary(ms_epcr,"pt_race")
+```
+
+#### Separating Race and Ethnicity ("Hispanic or Latino")
+
+We separated "Hispanic or Latino" as an ethnic category vs racial category, similar to [US Census categorization of race](https://www.census.gov/topics/population/race/about.html).
+
+We defined this variable, `pt_hispanic`, to be a Boolean with a value of `TRUE` if "Hispanic or Latino" was indicated in the values for Patient Race, `FALSE` if there was a value for Patient Race but did not include "Hispanic or Latino", and a missing (`NA`) value if there was no value in Patient Race.
+
+As such, we expected processing to result in 1051 missing values, 3530 `TRUE` values, and 31723 `FALSE` values.
+
+```{r}
+ms_epcr <- ms_epcr %>% 
+  mutate(pt_hispanic = ifelse(str_detect(pt_race,"(Hispanic or Latin)+") , TRUE, 
+                              FALSE)
+         )
+
+get_unique_value_summary(ms_epcr,c("pt_hispanic"))
+```
+
+We removed any "Hispanic or Latino" values from `pt_race` to avoid duplication of indicators. Since "Hispanic or Latino" was observed to occur at any point in the string, it required removal of any leading/trailing comma and/or space as well.
+
+This would ensure, that the category of "Black or African American" would include all observations that originally selected "Black or African American" alone (8257), as well as observations with "Hispanic or Latino, Black or African American" (7) or "Black or African American, Hispanic or Latino" (1) in a single category, with a total count of 8265. We also converted the 3506 individuals that only answered "Hispanic or Latino" as "Other Race", for a total count of 4011 "Other Race" observations.
+
+```{r}
+ms_epcr <- ms_epcr %>% 
+  mutate(pt_race = gsub("(Hispanic or Latino, )", "", pt_race)
+         ) %>% 
+  mutate(pt_race = gsub("(, Hispanic or Latino)", "", pt_race)
+         ) %>% 
+  mutate(pt_race = gsub("(Hispanic or Latino)", "Other Race", pt_race)
+         )
+
+get_unique_value_summary(ms_epcr,c("pt_race"))
+```
+
+#### Separating Racial Categories from List to Factor in Multiracial Identification
+
+We combined observations that continued to indicate more than one race into the category of "Multiracial," similar to [US Census categorization of race](https://www.census.gov/topics/population/race/about.html). The expected number of "Multiracial" observations was 28.
+
+```{r}
+ms_epcr <- ms_epcr %>% 
+  mutate(pt_race = ifelse(str_detect(pt_race, ","), "Multiracial", pt_race)
+         )
+
+get_unique_value_summary(ms_epcr,c("pt_race"))
+```
+
+### Patient Name `pt_name_full`
+
+There were 17 entries in the original data set with missing (`NA`) values for Patient Name.
+
+```{r}
+sum(is.na(ms_epcr$pt_name_full),na.rm=TRUE)
+```
+
+#### Checking for Numbers in Names
+
+Names do not typically contain numerals, but there were anticipated common accidental substitutions such as a zero for the letter O or a 1 for the letters l or i. We flagged these 8 entries for manual verification and cleaning.
+
+```{r}
+sum(str_detect(ms_epcr$pt_name_full,"([0-9]+)"),na.rm=TRUE)
+
+ms_epcr <- ms_epcr %>%
+  mutate(flag_name = str_detect(ms_epcr$pt_name_full,"([0-9]+)")
+         ) %>%
+  mutate(flag_name = ifelse(is.na(flag_name),FALSE,flag_name)
+         )
+
+get_unique_value_summary(ms_epcr,"flag_name")
+```
+
+#### Dealing with Commas and Alternative Formats
+
+Several names in the data set were anomalous in format. While most names were "*First Middle Last*" format, where *Middle* could be an empty string resulting in "two spaces" between *First* and *Last*, some names were in "*Last, First Middle Last*" format, where the absence of an additional middle name meant there were not two spaces. *First* or *Last* names were sometimes repeated. The second instance of *Last* occasionally had an alternative spelling within the same entry.
+
+We addressed this by splitting these entries into the values before and after the comma. We took the values before the comma as *Last*. We processed the "chunk" after the comma with a regular expression for capturing names with optional middle names, and stored this value in `pt_name_chunk`.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(pt_name_last = ifelse(str_detect(pt_name_full,"(,)"), 
+                               str_match(pt_name_full,"^(.*),\\s*(.*)$")[,2],
+                               pt_name_last)
+         ) %>%
+  mutate(pt_name_chunk = ifelse(str_detect(pt_name_full,"(,)"), 
+                                str_match(pt_name_full,"^(.*),\\s*(.*)$")[,3],
+                                "")
+         ) %>%
+  mutate(pt_name_full = ifelse(str_detect(ms_epcr$pt_name_full,"(,)"),
+                               "",
+                               pt_name_full)
+         )
+```
+
+One entry was a particular anomaly, as it appeared to possibly have two individuals' names separated by a comma. This was an anticipated possibility for incidents such as MVCs which may have a large number of patients at a time. This entry was flagged for manual verification and cleaning.
+
+```{r}
+ms_epcr[ms_epcr$ms_epcr_row == 999,]$flag_name <- TRUE
+
+get_unique_value_summary(ms_epcr,"flag_name")
+```
+
+We processed this "chunk" into *First* and *Middle* names based on a regular expression.
+
+```{r}
+comma_name_regex <- "^([A-Z-]+)(?:\\s)?([A-Z-\\.]+)?\\s*([A-Z-]+$)"
+
+ms_epcr <- ms_epcr %>%
+  mutate(pt_name_full = na_if(pt_name_full,"")
+         ) %>%
+  mutate(pt_name_middle = str_match(pt_name_chunk,comma_name_regex)[,3]
+         ) %>%
+  mutate(pt_name_first = str_match(pt_name_chunk,comma_name_regex)[,2]
+         ) %>%
+  mutate(pt_name_chunk = "")
+```
+
+#### Separating *First*, *Middle*, and *Last* Names
+
+We processed the remaining names into *First* and *Last* names based on regular expressions.
+
+The remaining portion of the Patient's Name was then considered the patient's *Middle* name.
+
+```{r}
+first_name_regex <- "^([A-Z-]+)(?:\\s*)(.*)"
+last_name_regex <- "(([A-Z-'])+[\\s,]*(JR|SR)*[.,]*)$"
+
+ms_epcr <- ms_epcr %>%
+  mutate(pt_name_last = ifelse(!is.na(pt_name_full),
+                               str_match(pt_name_full,last_name_regex)[,2],
+                               pt_name_last)
+         ) %>%
+  mutate(pt_name_full= ifelse(!is.na(pt_name_full),
+                              str_replace(pt_name_full,last_name_regex,""),
+                              pt_name_full)
+         ) %>%
+  mutate(pt_name_first = ifelse(!is.na(pt_name_full),
+                                str_match(pt_name_full,first_name_regex)[,2],
+                                pt_name_first)
+         ) %>%
+  mutate(pt_name_full = ifelse(!is.na(pt_name_full),
+                               str_trim(str_match(pt_name_full,
+                                                  first_name_regex)[,3]),
+                               pt_name_full)
+         ) %>%
+  mutate(pt_name_middle = ifelse(!is.na(pt_name_full),
+                                 str_trim(str_replace_all(pt_name_full,
+                                                          "([^A-Z\\d\\s-:])","")), 
+                                 pt_name_middle)
+         ) %>%
+  mutate(pt_name_middle = ifelse(!is.na(pt_name_middle), 
+                                 str_trim(str_replace_all(pt_name_middle,
+                                                          "([^A-Z\\d\\s-:])","")),
+                                 pt_name_middle)
+         ) %>%
+  mutate(pt_name_middle = na_if(pt_name_middle,"")
+         ) 
+```
+
+We then joined all name portions to create `pt_name_full` in a standardized format.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(pt_name_full = 
+           case_when(is.na(pt_name_last) & is.na(pt_name_first) ~ pt_name_full,
+                     is.na(pt_name_middle) ~ paste(pt_name_first,pt_name_last, 
+                                                   sep = " "),
+                     !is.na(pt_name_middle) ~paste(pt_name_first, 
+                                                   pt_name_middle, pt_name_last, 
+                                                   sep = " "),
+                     TRUE ~ pt_name_full
+           )
+         ) %>%
+  mutate(pt_name_full = na_if(pt_name_full,"")
+         )
+```
+
+We ensured that there were no additional observations with a missing (`NA`) value in `pt_name_full`, which would indicate loss in processing. We continued to have 17 missing (`NA`) values, and thus did not appear to lose any values in processing.
+
+```{r}
+sum(is.na(ms_epcr$pt_name_full),na.rm=TRUE)
+```
+
+#### Flagging for Manual Review `flag_name`
+
+Middle names containing a hyphen, or the words "JR" or "SR" were flagged for manual review. This produced 17 flags.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(flag_name = ifelse(flag_name == FALSE & !is.na(pt_name_middle), 
+                            str_detect(pt_name_middle,"(JR|SR|-)+"),
+                            flag_name)
+         ) 
+
+get_unique_value_summary(ms_epcr,"flag_name")
+```
+
+Any names which contained unusual characters (any character other than a letter or space) was flagged for manual review. This produced 43 flags.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(flag_name = case_when(
+    is.na(pt_name_first) ~ flag_name,
+    (!is.na(pt_name_first) & str_detect(pt_name_first,"([^A-Z ]+)")) ~ TRUE,
+    is.na(pt_name_middle) ~ flag_name,
+    (!is.na(pt_name_middle) & str_detect(pt_name_middle,"([^A-Z ]+)")) ~ TRUE,
+    is.na(pt_name_last) ~ flag_name,
+    (!is.na(pt_name_last) & str_detect(pt_name_last,"([^A-Z ]+)")) ~ TRUE,
+    TRUE ~ flag_name
+    )
+  )
+
+get_unique_value_summary(ms_epcr,"flag_name")
+```
+
+If a patient was missing anything other than their middle name (or the entire name), the entry was flagged for manual review. This created no additional flags.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(flag_name = case_when(
+    (is.na(pt_name_first) & is.na(pt_name_middle) & is.na(pt_name_last))  ~ flag_name,
+    (is.na(pt_name_first) & !is.na(pt_name_last)) ~ TRUE,
+    (is.na(pt_name_first) & !is.na(pt_name_middle)) ~ TRUE,
+    (is.na(pt_name_last) & !is.na(pt_name_first)) ~ TRUE,
+    (is.na(pt_name_last) & !is.na(pt_name_middle)) ~ TRUE,
+    TRUE ~ flag_name
+    )
+  )
+
+get_unique_value_summary(ms_epcr,"flag_name")
+```
+
+### Patient Address
+
+#### State `pt_address_state`
+
+There were 269 entries in the original data set with missing (`NA`) values for `pt_address_state`.
+
+```{r}
+sum(is.na(ms_epcr$pt_address_state))
+```
+
+We expected states to be in a standardized format, such as their 2 letter abbreviations.
+
+```{r}
+get_unique_value_summary(ms_epcr,"pt_address_state")
+```
+
+However, we had "Texas", "QUEBEC", "MICHIGAN", "CHIGUAGUA", and "MEXICO" as anomalies.
+
+As we had multiple Non-US Answers, we converted all entries to [USDOT 4 letter codes](https://ask.fmcsa.dot.gov/euf/assets/mcmiscatalog/states.html), which had a 2 letter country code followed by a 2 letter state code. This prefix was "US" for all US States and Puerto Rico, "MX" for Mexico, and "CA" for Canada.
+
+We corrected the permutations of "TX", and the value for "MICHIGAN".
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(pt_address_state = ifelse(pt_address_state == "TX"| pt_address_state == "TEXAS", 
+                                   "US-TX", 
+                                   pt_address_state)
+         ) %>%
+  mutate (pt_address_state = ifelse(pt_address_state == "MICHIGAN", 
+                                    "US-MI", 
+                                    pt_address_state)
+          )
+
+get_unique_value_summary(ms_epcr,c("pt_address_state"))
+```
+
+Internet searches for "CHIGUAGUA", in conjunction with manual checking of other address values in the observation, revealed that "CHIGUAGUA" was most likely in reference to "CHIHUAHUA, MEXICO," which was abbreviated "CI". "Quebec", a province in Canada, received an abbreviation of "QC".
+
+We modified all Non-US entries.
+
+```{r}
+ms_epcr <- ms_epcr %>% 
+  mutate(pt_address_state = case_when(
+    pt_address_state == "Chiguagua" ~"MX-CI",
+    pt_address_state == "Quebec" ~ "CA-QC",
+    TRUE ~ pt_address_state)
+    )
+
+get_unique_value_summary(ms_epcr,"pt_address_state")
+```
+
+We added the US prefix to all US entries.
+
+```{r}
+ms_epcr <- ms_epcr %>% 
+  mutate (pt_address_state = case_when(nchar(pt_address_state) == 2 ~ paste0("US-",pt_address_state), TRUE ~ pt_address_state))
+
+get_unique_value_summary(ms_epcr,"pt_address_state")
+```
+
+The entry with a state value of "MEXICO" was flagged for manual review and correction. This resulted in 2 flags.
+
+```{r}
+get_unique_value_summary(ms_epcr, "flag_address")
+
+ms_epcr <- ms_epcr %>%
+  mutate(flag_address = case_when(is.na(pt_address_state) ~ flag_address,
+                                  pt_address_state == "MEXICO" ~ TRUE,
+                                  TRUE ~ flag_address)
+         )
+
+get_unique_value_summary(ms_epcr, "flag_address")
+```
+
+#### City `pt_address_city`
+
+There were 268 entries in the original data set with missing (`NA`) values for `pt_address_city`.
+
+```{r}
+sum(is.na(ms_epcr$pt_address_city))
+```
+
+Initial examination demonstrated that cities were not in a uniform format.
+
+```{r}
+get_unique_value_summary(ms_epcr, "pt_address_city")
+```
+
+Many cities had variations with "CITY OF", "VILLAGE OF", or "TOWN OF" prefixes. The distinction between an incorporated township and a ["CENSUS DESIGNATED PLACE"](https://www.census.gov/programs-surveys/bas/information/cdp.html) was unnecessary for our analysis. These prefixes were removed.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(pt_address_city = gsub("CITY OF ", "", pt_address_city)
+         ) %>%
+  mutate(pt_address_city = gsub("VILLAGE OF ", "", pt_address_city)
+         ) %>%
+  mutate(pt_address_city = gsub("TOWN OF ", "", pt_address_city)
+         ) %>%
+  mutate(pt_address_city = gsub(" CENSUS DESIGNATED PLACE", "", pt_address_city)
+         )
+
+get_unique_value_summary(ms_epcr, "pt_address_city")
+```
+
+The single entry with a city value of "UNCERTAIN" was flagged for manual cleaning. This resulted in one flag.
+
+```{r}
+get_unique_value_summary(ms_epcr, "flag_address")
+
+ms_epcr <- ms_epcr %>%
+  mutate(flag_address = case_when(is.na(pt_address_city) ~ flag_address,
+    pt_address_city == "UNCERTAIN" ~ TRUE,
+    TRUE ~ flag_address)
+    )
+
+get_unique_value_summary(ms_epcr, "flag_address")
+```
+
+Of concern, there were entries for city with a "(HISTORICAL)" suffix, indicating that city may be inaccurate. These entries were flagged for manual review. This resulted in 3 flags.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(flag_address = case_when(is.na(pt_address_city) ~ flag_address,
+                                  pt_address_city == "SUNSET (HISTORICAL)" ~ TRUE,
+                                  pt_address_city == "MARSHALL CREEK (HISTORICAL)" ~ TRUE,
+                                  TRUE ~ flag_address)
+         )
+get_unique_value_summary(ms_epcr, "flag_address")
+```
+
+The value of "AÒASCO" is concerning for unicode character corruption on read-in, and was flagged for manual cleaning. This resulted in 1 flag.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(flag_address = case_when(is.na(pt_address_city) ~ flag_address,
+                               pt_address_city == "AÒASCO" ~ TRUE,
+                               TRUE ~ flag_address)
+         )
+
+get_unique_value_summary(ms_epcr, "flag_address")
+```
+
+City values of "NAS JOINT RESERVE BASE FORT WO", "NAVAL AIR STATION", "TARRANT COUNTY", and "JOHNSON COUNTY" were also concerning, as these values reference military bases or counties rather than cities. These entries were flagged for manual correction, resulting in 46 flags. There were 28 flags from "NAS JOINT RESERVE BASE FORT WO" and "NAVAL AIR STATION", 11 flags from "TARRANT COUNTY", and 7 flags from "JOHNSON COUNTY".
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(flag_address = case_when(is.na(pt_address_city) ~ flag_address,
+                                  pt_address_city == "NAS JOINT RESERVE BASE FORT WO" ~ TRUE,
+                                  pt_address_city == "NAVAL AIR STATION" ~ TRUE,
+                                  pt_address_city == "TARRANT COUNTY" ~ TRUE,
+                                  pt_address_city == "JOHNSON COUNTY" ~ TRUE,
+                                  TRUE ~ flag_address)
+         )
+
+get_unique_value_summary(ms_epcr, "flag_address")
+```
+
+#### ZIP `pt_address_zip`
+
+There were 268 entries in the original data set with missing (`NA`) values for `pt_address_zip`.
+
+```{r}
+sum(is.na(ms_epcr$pt_address_zip))
+```
+
+We expected all values for zip code to only contain digits, and be exactly 5 digits in length.
+
+```{r}
+get_unique_value_summary(ms_epcr,"pt_address_zip")
+```
+
+However, we could see that there were some 5+4 format zip codes, as well as zip codes that were less than 5 digits.
+
+Entries longer than 5 digits could simply have the final 4 removed.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(pt_address_zip = ifelse(nchar(pt_address_zip)>5, 
+                                 substr(pt_address_zip,start=1,stop=5), 
+                                 pt_address_zip)
+         )
+
+get_unique_value_summary(ms_epcr,"pt_address_zip")
+```
+
+Values for zip codes less than 5 digits were flagged for manual review. This resulted in 4 flags.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(flag_address = case_when(is.na(pt_address_zip) ~ flag_address,
+                               nchar(pt_address_zip) < 5 ~ TRUE,
+                               TRUE ~ flag_address)
+         )
+
+get_unique_value_summary(ms_epcr, "flag_address")
+```
+
+#### Street Name `pt_address_street`
+
+There were 246 entries in the original data set with missing (`NA`) values for `pt_address_street`.
+
+```{r}
+sum(is.na(ms_epcr$pt_address_street))
+```
+
+##### Adjusting for Values Equivalent to Missing (`NA`) Values
+
+###### "Unknown"
+
+Since there is at least one ["Unknown Road" in the U.S.A.](https://www.google.com/maps/place/Unknown+Rd,+Machesney+Park,+IL+61115/@42.3305258,-89.0551039,17z/data=!3m1!4b1!4m6!3m5!1s0x8808bc4a99c984ff:0xcacaa8786952884!8m2!3d42.3305258!4d-89.0551039!16s%2Fg%2F1pyqpmpcs), we had to inspect the values which might contain the word "Unknown," or other common phrases to indicate either "unknown" or refused. Care was taken to ensure valid street names were not caught in the regular expressions.
+
+```{r}
+unk_regex <- c("^(UNKNOWN|UNKNOW|UNK|UNABLE TO OBTAIN|UNABLE TO ATTAIN|PUTP|
+               REFUSED|REF|PT|N/A|NONE|DECLINED|UNABLE|RESIDENCE|XXX)",
+               "^([A-Z])$","^([0-9])*$","\\s(DECL|DON['T,T]|REF[^L,UGIO]|UNK)")
+
+checking_col <- filter(ms_epcr,(str_detect(ms_epcr$pt_address_street,unk_regex[1])|
+                                  str_detect(ms_epcr$pt_address_street,unk_regex[2])|
+                                  str_detect(ms_epcr$pt_address_street,unk_regex[3])|
+                                  str_detect(ms_epcr$pt_address_street,unk_regex[4]) 
+                                )
+                       )
+
+get_unique_value_summary(checking_col,"pt_address_street")
+```
+
+Luckily, these values all appeared to be values equivalent to a missing (`NA`) value. We processed the 160 entries.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(pt_address_street = ifelse(
+    (str_detect(ms_epcr$pt_address_street,unk_regex[1])|
+       str_detect(ms_epcr$pt_address_street,unk_regex[2])|
+       str_detect(ms_epcr$pt_address_street,unk_regex[3])|
+       str_detect(ms_epcr$pt_address_street,unk_regex[4])
+     ),
+    "",pt_address_street)
+    ) %>%
+  mutate(pt_address_street = na_if(pt_address_street,"")
+         )
+```
+
+We checked for completion, and that no other entries were caught by the regular expression post-processing. We expected a new total of 406 entries with a missing (`NA`) value for street address.
+
+```{r}
+sum((str_detect(ms_epcr$pt_address_street,unk_regex[1])|str_detect(ms_epcr$pt_address_street,unk_regex[2])|str_detect(ms_epcr$pt_address_street,unk_regex[3])|str_detect(ms_epcr$pt_address_street,unk_regex[4])), na.rm=TRUE)
+
+sum(is.na(ms_epcr$pt_address_street))
+```
+
+###### Intersections
+
+Intersections were not useful for our analyses, so we identified those entries and ensured that they were, in fact, intersections.
+
+```{r}
+sum((str_detect(ms_epcr$pt_address_street,"(/)")), na.rm=TRUE)
+
+checking_col <- filter(ms_epcr,(str_detect(ms_epcr$pt_address_street,"(/)")))
+
+get_unique_value_summary(checking_col,"pt_address_street")
+```
+
+Since our regular expression did not have any errant catches, we processed the 24 entries.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(pt_address_street = ifelse((str_detect(ms_epcr$pt_address_street,"(/)")), "", pt_address_street)) %>%
+  mutate(pt_address_street = na_if(pt_address_street, ""))
+```
+
+We checked for completion. We expected a new total of 430 entries with a missing (`NA`) value for street address.
+
+```{r}
+sum((str_detect(ms_epcr$pt_address_street,"(/)")), na.rm=TRUE)
+
+sum(is.na(ms_epcr$pt_address_street))
+```
+
+##### Patient Identified as Homeless/Transient `pt_homeless`
+
+We checked for values which may indicate that a patient had endorsed being homeless or transient. While these are not valid addresses, the information may be valuable. We created a Boolean variable to hold these indicators, while cleaning address entries.
+
+```{r}
+sum((str_detect(ms_epcr$pt_address_street,"^(HO|TRANS)")), na.rm=TRUE)
+
+checking_col <- filter(ms_epcr,(str_detect(ms_epcr$pt_address_street,"^(HO|TRANS)")
+                                )
+                       )
+
+get_unique_value_summary(checking_col,"pt_address_street")
+```
+
+The regular expression appeared adequate without any incidental catches, so we used it to process the 161 entries.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(pt_homeless = ifelse((str_detect(ms_epcr$pt_address_street,"^(HO|TRANS)"))
+                              , TRUE, FALSE)
+         ) %>%
+  mutate(pt_address_street = ifelse(pt_homeless == TRUE, "",pt_address_street)
+         ) %>%
+  mutate(pt_address_street = na_if(pt_address_street, "")
+         )
+```
+
+We checked for completion, and that no other entries are caught by the regular expression post-processing. We expected a new total of 591 entries with a missing value for street address.
+
+```{r}
+sum((str_detect(ms_epcr$pt_address_street,"^(HO|TRANS)")), na.rm=TRUE)
+
+sum(is.na(ms_epcr$pt_address_street))
+```
+
+We checked that our new Boolean variable had valid entries. We expected 161 "True", 430 missing (`NA`) values, and the remaining 35713 to be "False"
+
+```{r}
+sum((str_detect(ms_epcr$pt_address_street,"^(HO|TRANS)")), na.rm=TRUE)
+
+get_unique_value_summary(ms_epcr,"pt_homeless")
+```
+
+##### Standardizing Numbered Road Conventions
+
+Highways, as well as private, county, farm, and rural roads in the U.S.A, tend to have numbers instead of letters for their names. These are valid addresses, but pose challenges for validation.
+
+###### County Roads
+
+There were a variety of ways in which county roads were named in our data set, including COUNTY ROAD, CO RD, CR, and C.R.
+
+We generated a regular expression to catch these entries and standardize how COUNTY ROAD was represented for further regular expressions.
+
+```{r}
+cr_regex <- "(?<![A-Z])(COUNTY ROAD|CO RD|COUNTY RD|C\\.R\\.)"
+
+ms_epcr <- ms_epcr %>% 
+  mutate(pt_address_street = ifelse(str_detect(pt_address_street,cr_regex),
+                                    str_replace(pt_address_street,cr_regex,"CR")
+                                    ,pt_address_street)
+         )
+```
+
+###### Farm to Market Roads
+
+Farm-to-market roads, commonly abbreviated as FM, were also represented by a variety of formats.
+
+We generated a regular expression to catch these entries and standardize how FARM-TO-MARKET was represented for further regular expressions.
+
+```{r}
+fm_regex <- "(?<![A-Z])(FARMERS MARKET|FARMER MARKET|FM|F M|F\\.M\\.)"
+
+ms_epcr <- ms_epcr %>% 
+  mutate(pt_address_street = ifelse(str_detect(pt_address_street,fm_regex),
+                                    str_replace(pt_address_street,fm_regex,"FM"),
+                                    pt_address_street)
+         )
+```
+
+###### Private Roads
+
+Private Roads, commonly abbreviated as PR, were also represented by a variety of formats.
+
+We generated a regular expression to catch these entries and standardize how PRIVATE ROAD was represented for further regular expressions.
+
+```{r}
+pr_regex <- "(?<![A-Z])(PRIVATE ROAD|P\\.R)"
+
+ms_epcr <- ms_epcr %>% 
+  mutate(pt_address_street = ifelse(str_detect(pt_address_street,pr_regex),
+                                    str_replace(pt_address_street,pr_regex,"PR"),
+                                    pt_address_street)
+         )
+```
+
+###### Highways
+
+Highways, commonly abbreviated as HWY, were also represented by a variety of formats.
+
+We generated a regular expression to catch these entries and standardize how HIGHWAY was represented for further regular expressions.
+
+```{r}
+hwy_regex <- "(?<![A-Z])(HIGHWAY|HWAY|HWY|SWY)(?!\\s*(DR|RD|LN|ST))"
+
+ms_epcr <- ms_epcr %>% 
+  mutate(pt_address_street = ifelse(str_detect(pt_address_street,hwy_regex),
+                                    str_replace(pt_address_street,hwy_regex,"HWY"),
+                                    pt_address_street))
+```
+
+##### Separating Components of Street Name `pt_address_street`
+
+After removing intersections and values equivalent to missing (`NA`) values, there were 591 entries with missing (`NA`) values for \`pt_address_street.
+
+```{r}
+sum((is.na(ms_epcr$pt_address_street)))
+```
+
+###### PO BOX Values `pt_address_pobox`
+
+We checked for a few anticipated values within `pt_address_street` which were valid mailing addresses but not otherwise street names, starting with post office box addresses, which we shifted into their own variable `pt_address_pobox`.
+
+In checking values, we found that in addition to the wide variety of ways "PO BOX" was spelled, the PO BOX addresses were entered in a variety of formats where numbers were first, last, or even in the middle of PO and BOX. This required two regular expression to identify PO BOX Entries and extract only the numbers from the PO BOX addresses.
+
+One particular entry was an anomaly, in that it appeared to have both a PO BOX and a street address in the field for Street Address. This entry was flagged for manual cleaning. The address was made blank for this demonstration of analysis to protect PHI.
+
+```{r}
+ms_epcr[ms_epcr$ms_epcr_row == 5026,]$flag_address <- TRUE
+ms_epcr[ms_epcr$ms_epcr_row== 5026,]$pt_address_street <- ""
+
+get_unique_value_summary(ms_epcr,"flag_address")
+```
+
+A total of 92 entries with PO BOXes were identified by our regular expression.
+
+```{r}
+pobox_regex<-c("^(PO BOX|PO  BOX|P\\.O\\. BOX|P\\.O BOX|POBOX|P\\. O\\. BOX|
+               P\\. O BOX|P O BOX|BOX|PO|P\\.O|P\\. O\\.|P O|P\\.O\\.)",
+               "\\s(PO BOX|PO  BOX|P\\.O\\. BOX|P\\.O BOX|POBOX|P\\. O\\. BOX|
+               P\\. O BOX|P O BOX|BOX|PO|P\\.O|P\\. O\\.|P O|P\\.O\\.)$")
+
+sum((str_detect(ms_epcr$pt_address_street,pobox_regex[1])|
+       str_detect(ms_epcr$pt_address_street,pobox_regex[2])), na.rm=TRUE)
+```
+
+We processed the 92 entries.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(pt_address_pobox = ifelse((str_detect(pt_address_street,pobox_regex[1])|
+                                      str_detect(pt_address_street,pobox_regex[2])), 
+                                   str_extract(pt_address_street,"([0-9]+)"), 
+                                   pt_address_pobox)
+         ) %>%
+  mutate(pt_address_street = ifelse((str_detect(pt_address_street,pobox_regex[1])|
+                                       str_detect(pt_address_street,pobox_regex[2])),
+                                    "", pt_address_street)
+         ) %>%
+  mutate(pt_address_pobox = na_if(pt_address_pobox,"")
+         ) %>%
+  mutate(pt_address_street = na_if(pt_address_street,"")
+         )
+```
+
+We checked to ensure no values were missed in processing. We expected a new total of 684 missing values for street address.
+
+```{r}
+sum((str_detect(ms_epcr$pt_address_street,pobox_regex[1])|
+       str_detect(ms_epcr$pt_address_street,pobox_regex[2])), na.rm=TRUE)
+
+sum(is.na(ms_epcr$pt_address_street))
+```
+
+###### Street Number `pt_address_num`
+
+Addresses in the US almost exclusively start with a street number. We flagged all entries that did not start with a number for manual review. This resulted in 23 flags.
+
+```{r}
+sum((str_detect(ms_epcr$pt_address_street,"^([^0-9])")), na.rm=TRUE)
+
+ms_epcr <- ms_epcr %>%
+  mutate(flag_address = case_when(is.na(pt_address_street) ~ flag_address,
+                                  str_detect(pt_address_street,"^([^0-9])") ~ TRUE,
+                                  TRUE ~ flag_address)
+         )
+
+get_unique_value_summary(ms_epcr, "flag_address")
+```
+
+For the other entries, we separated the street number from the street name.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(pt_address_num = str_match(pt_address_street,"^([0-9-]*)(.*)")[,2]
+         ) %>%
+  mutate(pt_address_street = str_trim(str_match(pt_address_street,"^([0-9-]*)(.*)")[,3])
+         ) %>%
+  mutate(pt_address_num = na_if(pt_address_num,"")
+         )
+```
+
+###### Unit/Suite/Apartment/Building Number `pt_address_unit`
+
+We noted that several entries (5 entries) appeared to have a Rural/County Road abbreviation (RR,CR), followed by the road number, then a BOX with a number. We developed a regular expression to catch these entries and shift the box number to the unit number field.
+
+```{r}
+cr_rr_box_regex <- "^((RR|CR)\\s+([0-9]+))\\s(?:BOX)\\s([0-9]+)$"
+
+ms_epcr <- ms_epcr %>%
+  mutate(pt_address_unit = str_match(pt_address_street,cr_rr_box_regex)[,5]
+         ) %>%
+  mutate(pt_address_street = ifelse(
+    !is.na(pt_address_unit),
+    str_trim(str_match(pt_address_street,cr_rr_box_regex)[,2])
+    ,pt_address_street
+    )
+  )
+```
+
+There were several addresses that ended with numbers, rather than characters. There were 760 entries which fit this pattern. However, this was a broad definition which could include numeric street names such as county roads or highways.
+
+```{r}
+sum((str_detect(ms_epcr$pt_address_street,"([0-9])$")), na.rm=TRUE)
+```
+
+We developed a series of regular expressions to capture suffixes which would be reasonably assumed to be unit numbers. A series was required to avoid overly broad regular expressions, and limited look-behind support.
+
+```{r}
+apt_regex <- c("(.+?)[\\s,.]+?(APT#|APT|APARTMENT|UNIT|PLOT|PLOT #|PLOT#|LOT#|LOT #|LOT|#|SUITE|BLDG|BUILDING|ROOM|RM|NUMBER|,|APT\\.|APPT|PPT|RM\\.)(\\s)*([A-Z0-9]*[\\s]*[0-9]*)[\\.,]?$",
+               "(.+?)([^A-Z]RM[# \\.,]*)+([A-Z0-9 ]*?$)",
+               "(.+?)(APT[# \\.,]*)([A-Z0-9 ]*?)[\\.]*?$",
+               "(.+?)(#)+([A-Z0-9 ]*?$)"
+               )
+```
+
+We processed the matching entries. After processing, we continued to have 427 street addresses which ended in a number, a 43.82% reduction.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(pt_address_unit = ifelse(str_detect(pt_address_street,apt_regex[1]),
+                                  str_match(pt_address_street,apt_regex[1])[,5],
+                                  pt_address_unit
+                                  )
+         ) %>%
+  mutate(pt_address_street = ifelse(str_detect(pt_address_street,apt_regex[1]),
+                                  str_trim(str_match(pt_address_street,
+                                                     apt_regex[1])[,2]),
+                                  pt_address_street
+                                  )
+         ) %>%
+  mutate(pt_address_unit = ifelse(str_detect(pt_address_street,apt_regex[2]),
+                                  str_match(pt_address_street,apt_regex[2])[,4],
+                                  pt_address_unit
+                                  )
+         ) %>%
+  mutate(pt_address_street = ifelse(str_detect(pt_address_street,apt_regex[2]),
+                                  str_trim(str_match(pt_address_street,
+                                                     apt_regex[2])[,2]),
+                                  pt_address_street
+                                  )
+         ) %>%
+  mutate(pt_address_unit = ifelse(str_detect(pt_address_street,apt_regex[3]),
+                                  str_match(pt_address_street,apt_regex[3])[,4],
+                                  pt_address_unit
+                                  )
+         ) %>%
+  mutate(pt_address_street = ifelse(str_detect(pt_address_street,apt_regex[3]),
+                                  str_trim(str_match(pt_address_street,
+                                                     apt_regex[3])[,2]),
+                                  pt_address_street
+                                  )
+         ) %>%
+  mutate(pt_address_unit = ifelse(str_detect(pt_address_street,apt_regex[4]),
+                                  str_match(pt_address_street,apt_regex[4])[,4],
+                                  pt_address_unit
+                                  )
+         ) %>%
+  mutate(pt_address_street = ifelse(str_detect(pt_address_street,apt_regex[4]),
+                                  str_trim(str_match(pt_address_street,
+                                                     apt_regex[4])[,2]),
+                                  pt_address_street
+                                  )
+         ) %>%
+  mutate(pt_address_unit = na_if(pt_address_unit,""))
+
+```
+
+```{r}
+sum((str_detect(ms_epcr$pt_address_street,"([0-9])$")), na.rm=TRUE)
+```
+
+###### Separating Non-Numbered Road Numerical Suffixes
+
+A regular expression to detect the flags for these numbered roads was developed. We saw that 379 of the 427 remaining entries fit this pattern. For the remaining 48 entries, the numbers at the end of the address were most likely a unit number.
+
+```{r}
+numbered_road_regex <- "(RR|CR|CR-|VZCR|HCR|IH|I-|HWY|BUSINESS|LOOP|PR|FM|CALLE MEXICO)[^A-Z]"
+
+checking_col <- filter(ms_epcr,(str_detect(ms_epcr$pt_address_street,"([0-9]$)")
+                                )
+                       )
+
+sum(!(is.na(checking_col$pt_address_street)))
+
+sum((str_detect(checking_col$pt_address_street,numbered_road_regex)), na.rm=TRUE)
+```
+
+We processed those 48 entries.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(pt_address_unit = case_when(
+    is.na(pt_address_street) ~ pt_address_unit,
+    (str_detect(pt_address_street,"([0-9]$)") & !str_detect(pt_address_street,numbered_road_regex)) ~ 
+      str_trim(str_match(pt_address_street,"(.*)\\s([A-Z0-9]+)$")[,3]),
+    TRUE ~ pt_address_unit
+    )
+  ) %>%
+  mutate(pt_address_street = case_when(
+    is.na(pt_address_street) ~ pt_address_street,
+    str_detect(pt_address_street,"([0-9]$)") & !str_detect(pt_address_street,numbered_road_regex) ~
+      str_trim(str_match(pt_address_street,"(.*)\\s([A-Z0-9]+)$")[,2]),
+    TRUE ~ pt_address_street
+    )
+  )
+```
+
+We found we had 48 fewer addresses which ended in a number.
+
+```{r}
+checking_col <- filter(ms_epcr,(str_detect(ms_epcr$pt_address_street,"([0-9]$)")))
+
+sum(!(is.na(checking_col$pt_address_street)))
+
+sum((str_detect(checking_col$pt_address_street,numbered_road_regex)), na.rm=TRUE)
+```
+
+#### Flagging for Manual Review `flag_address`
+
+We flagged the remaining street names that ended in a number for a quick manual review, producing 365 flags.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(flag_address = case_when(
+    is.na(pt_address_street) ~ flag_address,
+    str_detect(ms_epcr$pt_address_street,"([0-9])$") ~ TRUE,
+    TRUE ~ flag_address
+    )
+  )
+
+get_unique_value_summary(ms_epcr,"flag_address")
+```
+
+We also flagged any street name less than 5 characters long for manual review, producing 45 flags.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(flag_address = case_when(is.na(pt_address_street) ~ flag_address,
+                                  nchar(pt_address_street) < 5 ~ TRUE,
+                                  TRUE ~ flag_address)
+         )
+
+get_unique_value_summary(ms_epcr,"flag_address")
+```
+
+We flagged any entry that had a street address but no street number, which did not produce any new flags.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(flag_address = case_when(is.na(pt_address_street) ~ flag_address,
+                                  is.na(pt_address_num) ~ TRUE,
+                                  TRUE ~ flag_address)
+         )
+
+get_unique_value_summary(ms_epcr,"flag_address")
+```
+
+We flagged any entry that had a unit number but no street number, which did not produce any new flags.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(flag_address = case_when(is.na(pt_address_unit) ~ flag_address,
+                                  is.na(pt_address_num) ~ TRUE,
+                                  TRUE ~ flag_address)
+         )
+
+get_unique_value_summary(ms_epcr,"flag_address")
+```
+
+### Manual Cleaning
+
+##### Patient Name `flag_name`
+
+We had 69 Patient Names flagged for manual review.
+
+```{r}
+get_unique_value_summary(ms_epcr, "flag_name")
+```
+
+Of the 69 flagged entries, 27 could be cleaned without PHI, and 1 required PHI to clean. The remaining 41 did not appear invalid.
+
+-   4 cases had a "middle name" that was only a hyphen
+
+-   1 entry appeared to have a "middle name" that was numbers and hyphens
+
+-   6 entries had JR/SR suffixes in "middle name" instead of appended to "last name"
+
+-   7 entries had "middle names" that appeared to have a hyphenated last name that was erroneously separated due to a space
+
+-   2 entries had "last names" that appeared to have a hyphenated last name that was erroneously separated due to a space
+
+-   4 entries had a middle name of "71 YO"
+
+-   3 entries had a middle name that started with the digit 0, which appeared to be a typo for a letter O in the first name
+
+PHI was required to process a single observation with a Patient Name appeared to be two names listed in a single observation. This observation was determined to be a single individual that had a hyphenated last name, in which the first last name was a common first name, that had a hyphen omitted. This was confirmed as there were additional observations with a matching Patient DOB and mostly-matching name, as well as a matching individual (based on name, date of birth/age, and city) found in internet searches.
+
+```{r}
+# No PHI
+
+ms_epcr <- ms_epcr %>%
+  mutate(pt_name_last = case_when(
+    is.na(pt_name_middle) ~ pt_name_last,
+    str_detect(pt_name_middle,"(JR|SR)") ~ paste(pt_name_last,pt_name_middle, 
+                                                 sep = " "),
+    str_detect(pt_name_middle, "([A-Z]?\\s)?([A-Z]+\\s*\\-)$") ~ 
+      paste(str_match(pt_name_middle,"([A-Z]?\\s)?([A-Z]+\\s*\\-)$")[,3],
+            pt_name_last, sep = ""),
+    str_detect(pt_name_last,"^(\\-)\\s*([A-Z]*)") ~ paste(pt_name_middle,
+                                                          pt_name_last, sep="$"),
+    TRUE ~ pt_name_last
+    )
+  ) %>%
+  mutate(pt_name_first = case_when(
+    is.na(pt_name_middle) ~ pt_name_first,
+    str_detect(pt_name_middle,"^0([A-Z]+)") ~ 
+      paste(pt_name_first,"O",str_match(pt_name_middle,"^0([A-Z]+)")[,2], 
+            sep = ""),
+    TRUE ~ pt_name_first
+    )
+  ) %>%
+  mutate(pt_name_middle = case_when (
+    is.na(pt_name_middle) ~ pt_name_middle,
+    str_detect(pt_name_middle,"^([-0-9]+)$") ~ "",
+    str_detect(pt_name_middle,"(JR|SR)") ~ "",
+    str_detect(pt_name_middle, "(\\s*\\-)$") ~ "",
+    str_detect(pt_name_middle, "([A-Z]*)\\s*([A-Z]+\\s*\\-)$") ~ 
+      str_match(pt_name_middle,"([A-Z]*)\\s*([A-Z]+\\s*\\-)$")[,2],
+    str_detect(pt_name_last, "(\\$)") ~ "",
+    pt_name_middle == "71 YO" ~ "",
+    str_detect(pt_name_middle,"^0([A-Z]+)") ~ "",
+    TRUE ~ pt_name_middle,
+    )
+  ) %>%
+  mutate(pt_name_last = case_when (
+    is.na(pt_name_last) ~ pt_name_last,
+    str_detect(pt_name_last, "(\\$)") ~ str_replace(pt_name_last, "(\\$)", ""),
+    TRUE ~ pt_name_last
+    )
+  )
+
+# PHI
+
+ms_epcr$pt_name_first[ms_epcr$ms_epcr_row==999] <- 
+  phi_cleaning$pt_name_first[phi_cleaning$ms_epcr_row==999]
+ms_epcr$pt_name_last[ms_epcr$ms_epcr_row==999] <- 
+  phi_cleaning$pt_name_last[phi_cleaning$ms_epcr_row==999]
+ms_epcr$pt_name_full[ms_epcr$ms_epcr_row==999] <- 
+  phi_cleaning$pt_name_full[phi_cleaning$ms_epcr_row==999]
+```
+
+We reformed our full names and cleared the flag for manual review.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(pt_name_middle = na_if(pt_name_middle,"")
+         ) %>%
+  mutate(pt_name_full = 
+           case_when(is.na(pt_name_last) & is.na(pt_name_first) ~ pt_name_full,
+                     is.na(pt_name_middle) ~ paste(pt_name_first,pt_name_last, 
+                                                   sep = " "),
+                     !is.na(pt_name_middle) ~paste(pt_name_first, pt_name_middle, 
+                                                   pt_name_last, sep = " "),
+                     TRUE ~ pt_name_full
+                     )
+         ) %>%
+  mutate(pt_name_full = na_if(pt_name_full,"")
+         ) %>%
+  mutate(flag_name = FALSE)
+```
+
+##### Patient Addresses `flag_address`
+
+We had 490 Patient Addresses flagged for manual review.
+
+```{r}
+get_unique_value_summary(ms_epcr, "flag_address")
+```
+
+Of the 490 flagged entries, (63) entries could be cleaned without PHI, and 7 entries required PHI to clean. The remaining 420 did not appear invalid.
+
+-   2 entries with a city of "MEXICO" was found to be in Saltillo, Coahuila, Mexico based on the street address.
+
+-   1 entry with a city of "UNCERTAIN" was found to be Karnack, TX based on the state, street address, and zip code.
+
+-   3 entries with "(HISTORICAL)" cities were updated. "Sunset" was found to now refer to Sunset, TX while"Marshall Creek" now referred to Roanoke, TX based on the street addresses and zip codes.
+
+-   1 entry with a city of "AÒASCO" was found to have suffered corruption due to special character issues; it was determined that it referred to "AÑASCO", a city in Puerto Rico with a Zip code of 00610 based on the partial zip code, state, and street address.
+
+-   4 entries with zip codes less than 5 digits were found to be missing leading zeroes, likely due to truncation by Excel. They were otherwise verified based on street address and state.
+
+-   28 entries with a city of "NAS JOINT RESERVE BASE FORT WO" or "NAVAL AIR STATION" were found to refer to FCM Caswell, which is a medical center located at NAS JRB in Ft. Worth, Texas. This was determined based on call type and street address on calls, which either directly referred to Caswell, or gave an invalid address on Military Parkway which likely indicated the entry to the base based on street numbering. The street address for these entries were updated to reflect the FCM Caswell address, and the cities changed to Fort Worth.
+
+-   2 entries with a street address of "VILLAGE CREEK NURSING HOME" was found to refer to 3825 VILLAGE CREEK RD
+
+-   1 entry with a street address of "HERITAGE PLACE MEMORY CARE" was found to refer to 621 OLD HWY 1187
+
+-   1 entry with a street address of "TRINITY HEALTHCARE CENTER" was found to refer to 8001 WESTERN HILLS BLVD
+
+-   1 entry with a street address of "MILITARY PKWY" was found to refer to 3000 J Street
+
+-   11 entries with a city of "TARRANT COUNTY" were assessed manually through verification of street address, state, and zip code. There were 9 entries in Burleson, 1 in Ft. Worth, and 1 in Lakeside. All entries were cleaned utilizing their values in `ms_epcr_row`
+
+-   7 entries with a city of "JOHNSON COUNTY" were all found to be at the same address, which was found to be in Burleson.
+
+-   1 entry with a street name of "S" was found to have meant S 56TH, rather than 56 being a unit number
+
+PHI was required to clean 7 observations.
+
+-   1 entry where a PO BOX and street address were both listed in the same box
+
+-   1 entry that had a street address without a city, state, or zip code which was verified to be a specific location in Mexico through internet searches
+
+-   4 entries which provided street number prefixed by "LOT", or had a street number containing letters
+
+-   1 entry which was a highway which contained a suite number as a suffix
+
+```{r}
+# No PHI
+
+ms_epcr <- ms_epcr %>% 
+  mutate(pt_address_city = ifelse(pt_address_state == "MEXICO", "Saltillo", 
+                                  pt_address_city)
+         ) %>%
+  mutate(pt_address_state = ifelse(pt_address_state == "MEXICO", "MX-CH", 
+                                   pt_address_state)
+         ) %>%
+  mutate(pt_address_unit = ifelse(pt_address_street == "S", NA, pt_address_unit)
+        ) %>%
+  mutate(pt_address_street = case_when (
+    pt_address_city == "NAS JOINT RESERVE BASE FORT WO" ~ "3000 J Street",
+    pt_address_city == "NAVAL AIR STATION" ~ "3000 J Street",
+    pt_address_street == "S" ~ "S 56TH",
+    TRUE ~ pt_address_street
+    )
+        ) %>%
+  mutate(pt_address_city = case_when(
+    pt_address_city == "UNCERTAIN" ~ "KARNACK",
+    pt_address_city == "SUNSET (HISTORICAL)" ~"SUNSET",
+    pt_address_city == "MARSHALL CREEK (HISTORICAL)" ~"ROANOKE",
+    pt_address_city == "AÒASCO" ~ "AÑASCO",
+    pt_address_city == "NAS JOINT RESERVE BASE FORT WO" ~ "FORT WORTH",
+    pt_address_city == "NAVAL AIR STATION" ~ "FORT WORTH",
+    TRUE ~ pt_address_city
+    )
+        ) %>%
+  mutate(pt_address_zip = ifelse(pt_address_city == "AÑASCO", "00610", 
+                                 pt_address_zip)
+         ) %>% 
+  mutate(pt_address_zip = case_when(
+    nchar(pt_address_zip) < 5 ~ paste0("0",pt_address_zip), 
+    TRUE ~ pt_address_zip
+    )
+        ) %>%
+  mutate(pt_address_num = case_when (
+    is.na(pt_address_street) ~ pt_address_num,
+    pt_address_street == "VILLAGE CREEK NURSING HOME" ~ "3825",
+    pt_address_street == "HERITAGE PLACE MEMORY CARE" ~ "621",
+    pt_address_street == "TRINITY HEALTHCARE CENTER" ~ "8001",
+    pt_address_street == "MILITARY PKWY" ~ "3000",
+    TRUE ~ pt_address_num
+    )
+        ) %>%
+  mutate(pt_address_street = case_when(
+    is.na(pt_address_street) ~ pt_address_street,
+    pt_address_street == "VILLAGE CREEK NURSING HOME" ~ "VILLAGE CREEK RD",
+    pt_address_street == "HERITAGE PLACE MEMORY CARE" ~ "OLD HWY 1187",
+    pt_address_street == "TRINITY HEALTHCARE CENTER" ~ "WESTERN HILLS BLVD",
+    pt_address_street == "MILITARY PKWY" ~ "J Street",
+    TRUE ~ pt_address_street
+    )
+      ) %>%
+  mutate(pt_address_city = case_when(
+    ms_epcr_row %in% c(1732,6212,6213,16079,20628,20629,20630,33882,22388) ~ 
+      "BURLESON",
+    ms_epcr_row == 15463 ~ "FORT WORTH",
+    ms_epcr_row == 24157 ~ "LAKESIDE",
+    pt_address_city == "JOHNSON COUNTY" ~ "BURLESON",
+    TRUE ~ pt_address_city
+    )
+      ) %>%
+  mutate(pt_address_unit = na_if(pt_address_unit, "")
+      ) %>%
+  mutate(flag_address = FALSE)
+
+# PHI
+
+ms_epcr$pt_address_pobox[ms_epcr$ms_epcr_row==5026] <- 
+  phi_cleaning$pt_address_pobox[phi_cleaning$ms_epcr_row==5026]
+ms_epcr$pt_address_street[ms_epcr$ms_epcr_row==5026] <- 
+  phi_cleaning$pt_address_street[phi_cleaning$ms_epcr_row==5026]
+ms_epcr$pt_address_num[ms_epcr$ms_epcr_row==5026] <- 
+  phi_cleaning$pt_address_num[phi_cleaning$ms_epcr_row==5026]
+
+ms_epcr$pt_address_city[ms_epcr$ms_epcr_row==9063] <- 
+  phi_cleaning$pt_address_city[phi_cleaning$ms_epcr_row==9063]
+ms_epcr$pt_address_state[ms_epcr$ms_epcr_row==9063] <- 
+  phi_cleaning$pt_address_state[phi_cleaning$ms_epcr_row==9063]
+
+ms_epcr$pt_address_num[ms_epcr$ms_epcr_row==804] <- 
+  phi_cleaning$pt_address_num[phi_cleaning$ms_epcr_row==804]
+ms_epcr$pt_address_street[ms_epcr$ms_epcr_row==804] <- 
+  phi_cleaning$pt_address_street[phi_cleaning$ms_epcr_row==804]
+ms_epcr$pt_address_num[ms_epcr$ms_epcr_row==805] <- 
+  phi_cleaning$pt_address_num[phi_cleaning$ms_epcr_row==805]
+ms_epcr$pt_address_street[ms_epcr$ms_epcr_row==805] <- 
+  phi_cleaning$pt_address_street[phi_cleaning$ms_epcr_row==805]
+ms_epcr$pt_address_num[ms_epcr$ms_epcr_row==17142] <- 
+  phi_cleaning$pt_address_num[phi_cleaning$ms_epcr_row==17142]
+ms_epcr$pt_address_street[ms_epcr$ms_epcr_row==17142] <- 
+  phi_cleaning$pt_address_street[phi_cleaning$ms_epcr_row==17142]
+ms_epcr$pt_address_num[ms_epcr$ms_epcr_row==36169] <- 
+  phi_cleaning$pt_address_num[phi_cleaning$ms_epcr_row==36169]
+ms_epcr$pt_address_street[ms_epcr$ms_epcr_row==36169] <- 
+  phi_cleaning$pt_address_street[phi_cleaning$ms_epcr_row==36169]
+ms_epcr$pt_address_unit[ms_epcr$ms_epcr_row==36169] <- 
+  phi_cleaning$pt_address_unit[phi_cleaning$ms_epcr_row==36169]
+
+ms_epcr$pt_address_unit[ms_epcr$ms_epcr_row==1309] <- 
+  phi_cleaning$pt_address_unit[phi_cleaning$ms_epcr_row==1309]
+ms_epcr$pt_address_street[ms_epcr$ms_epcr_row==1309] <- 
+  phi_cleaning$pt_address_street[phi_cleaning$ms_epcr_row==1309]
+
+```
+
+### Patient Date of Birth: Splitting into Year, Month, Day `pt_dob`
+
+There were 93 entries in the original data set with missing (`NA`) values for `pt_dob`.
+
+```{r}
+sum(is.na(ms_epcr$pt_dob))
+```
+
+We divided `pt_dob` into `pt_dob_year`, `pt_dob_month`, and `pt_dob_day` utilizing the *lubridate* package.
+
+```{r}
+ms_epcr <- ms_epcr %>% 
+  mutate(pt_dob_year = year(pt_dob),
+         pt_dob_month = month(pt_dob),
+         pt_dob_day = day(pt_dob),
+         pt_dob = as.character(pt_dob)
+         )
+```
+
+## Response Variables
+
+### Response Date/Time: Splitting into Year, Month, Day and Time `response_dt`
+
+There were no entries in the original data set with missing (`NA`) values for `response_dt`.
+
+```{r}
+sum(is.na(ms_epcr$response_dt))
+```
+
+We divided `response_dt` into `response_year`, `response_month`, `response_day`, `response_date` and `response_time` utilizing the *lubridate* package.
+
+```{r}
+ms_epcr <- ms_epcr %>% 
+  mutate(response_year = year(response_dt),
+         response_month = month(response_dt),
+         response_day = day(response_dt),
+         response_date = as.character(date(response_dt)),
+         response_time = format(as.POSIXct(response_dt), format = "%H:%M:%S")
+         )
+```
+
+There were several observations in which the Response Date was identical to the Patient's Date of Birth. Since this is overtly invalid for our data set (as all subject were adults), we shifted the invalid values for Patient Date of Birth to missing (`NA`) values.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(pt_dob_day = ifelse(response_date == pt_dob, NA, pt_dob_day)
+         ) %>%
+  mutate(pt_dob_month = ifelse(response_date == pt_dob, NA, pt_dob_month)
+         ) %>%
+    mutate(pt_dob_year = ifelse(response_date == pt_dob, NA, pt_dob_year)
+         ) %>%
+    mutate(pt_dob = ifelse(response_date == pt_dob, NA, pt_dob)
+         )
+```
+
+
+```{r}
+sum(is.na(ms_epcr$pt_dob))
+```
+
+
+### Response Number `response_num`
+
+There were 152 entries in the original data set with missing (`NA`) values for `response_num`.
+
+```{r}
+sum(is.na(ms_epcr$response_num))
+```
+
+### ePCR Report Number `response_pcr`
+
+There were no entries in the original data set with missing (`NA`) values for `response_pcr`. As such, `response_pcr` was selected as the identifying variable for each EMS interaction in the data set.
+
+```{r}
+sum(is.na(ms_epcr$response_pcr))
+```
+
+### Incident Complaint `response_complaint`
+
+There were 135 entries in the original data set with missing (`NA`) values for `response_complaint`.
+
+```{r}
+sum(is.na(ms_epcr$response_complaint))
+```
+
+We expected values to have been chosen from a pre-defined list.
+
+```{r}
+get_unique_value_summary(ms_epcr,"response_complaint")
+```
+
+There was only one complaint chosen for each observation. This allowed for simple conversion to an unordered factor variable.
+
+```{r}
+ms_epcr$response_complaint <- as.factor(ms_epcr$response_complaint)
+```
+
+### Disposition `response_dispo`
+
+There were 1398 entries in the original data set with missing (`NA`) values for `response_dispo`.
+
+```{r}
+sum(is.na(ms_epcr$response_dispo))
+```
+
+We expected values to have been chosen from a pre-defined list.
+
+```{r}
+get_unique_value_summary(ms_epcr,"response_dispo")
+```
+
+There was only one disposition chosen for each observation. This allowed for simple conversion to an unordered factor variable.
+
+```{r}
+ms_epcr$response_dispo <- as.factor(ms_epcr$response_dispo)
+```
+
+### Symptoms `response_symptoms`
+
+There were 32,878 entries in the original data set with missing (`NA`) values for `response_symptoms`.
+
+```{r}
+sum(is.na(ms_epcr$response_symptoms))
+```
+
+We expected values to be chosen from a pre-defined list. We discovered that most entries were unique combinations of items. While we did not separate each variable into a unique Boolean category, this could be completed in future analysis.
+
+```{r}
+get_unique_value_summary(ms_epcr,"response_symptoms")
+```
+
+### EMS Crew Signature `response_ems_epcr_sig`
+
+There were 35,548 entries in the original data set with missing (`NA`) values for `response_ems_epcr_sig`.
+
+```{r}
+sum(is.na(ms_epcr$response_ems_epcr_sig))
+```
+
+On inspection, we were able to see that these values did not have a standard format. Some names were written in *Last*, *First* format, some entries indicated that the signature did not belong to a member of the EMS team (such as an entry with "(OLDEST DAUGHTER)" as a suffix), a letter, with or without title, and more.
+
+## DETECT Questionnaire Variables
+
+There were 12,166 entries in the original data set with missing (`NA`) values in all DETECT question fields.
+
+```{r}
+nrow(filter(ms_epcr[detect_cols], 
+            rowSums(is.na(ms_epcr[detect_cols])) == ncol(ms_epcr[detect_cols])))
+```
+
+There were 12167 entries in the original data set with missing (`NA`) values in the DETECT Yes/No question fields. This indicates that one variable only contained a value in `detect_report_num`, but no other DETECT Questionnaire variables.
+
+```{r}
+nrow(filter(ms_epcr[detect_binaries], 
+            rowSums(is.na(ms_epcr[detect_binaries])) == ncol(ms_epcr[detect_binaries])))
+```
+
+### APS Report Number `detect_report_num`
+
+There were 35,785 observations in the original data set with a missing (`NA`) value for `detect_report num`.
+
+```{r}
+sum(is.na(ms_epcr$detect_report_num))
+```
+
+#### APS
+
+##### Unable to Contact APS `detect_report_unable_aps`
+
+There were 4 entries which indicated APS was unable to be contacted.
+
+```{r}
+unable_aps <- "(UNABLE).+(APS)"
+
+checking_col <- filter(ms_epcr,(str_detect(ms_epcr$detect_report_num,unable_aps)
+                                )
+                       )
+
+sum(!is.na(checking_col$detect_report_num))
+```
+
+We separated these 4 observations into a new variable `detect_report_aps_unable`, and moved their values to `detect_report_comment`
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(detect_report_aps_unable = ifelse(
+    str_detect(detect_report_num, unable_aps),
+    TRUE,
+    detect_report_aps_unable
+    )
+  ) %>%
+  mutate(detect_report_comment = ifelse(
+    str_detect(detect_report_num, unable_aps),
+    detect_report_num,
+    detect_report_comment
+    )
+  ) %>%
+  mutate(detect_report_num = ifelse(
+    str_detect(detect_report_num, unable_aps),
+    NA,
+    detect_report_num
+    )
+  )
+```
+
+##### APS on Scene `detect_report_aps_onscene`
+
+There were 8 entries which indicated APS was already on scene.
+
+```{r}
+aps_on_scene <- "(APS).*(SCENE)"
+
+checking_col <- filter(ms_epcr,(str_detect(ms_epcr$detect_report_num,aps_on_scene)
+                                )
+                       )
+
+sum(!is.na(checking_col$detect_report_num))
+```
+
+We separated these 8 observations into a new variable `detect_report_aps_onscene`, and moved their values to `detect_report_comment`
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(detect_report_aps_onscene = ifelse(
+    str_detect(detect_report_num, aps_on_scene),
+    TRUE,
+    detect_report_aps_onscene
+    )
+  ) %>%
+  mutate(detect_report_comment = ifelse(
+    str_detect(detect_report_num, aps_on_scene),
+    detect_report_num,
+    detect_report_comment
+    )
+  ) %>%
+  mutate(detect_report_num = ifelse(
+    str_detect(detect_report_num, aps_on_scene),
+    NA,
+    detect_report_num
+    )
+  )
+```
+
+##### Existing Report `detect_report_aps_existing`
+
+There were 9 observations that indicated patient was already known to APS.
+
+```{r}
+existing <- "(ONGOING|ALREADY CONTACTED|ALREADY OPENED|ALREADY REPORTED|PREVIOUSLY REPORTED|ALREADY FILED|APS CASE WORKER|ON FILE|EXIST|APS CONTACTED|UNDER APS REVIEW)"
+
+checking_col <- filter(ms_epcr,(str_detect(ms_epcr$detect_report_num,existing)
+                                )
+                       )
+
+sum(!is.na(checking_col$detect_report_num))
+```
+
+We separated these 9 observations into a new variable `detect_report_aps_existing`, and moved their values to `detect_report_comment`
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(detect_report_aps_existing = ifelse(
+    str_detect(detect_report_num, existing),
+    TRUE,
+    detect_report_aps_existing
+    )
+  ) %>%
+  mutate(detect_report_comment = ifelse(
+    str_detect(detect_report_num, existing),
+    detect_report_num,
+    detect_report_comment
+    )
+  ) %>%
+  mutate(detect_report_num = ifelse(
+    str_detect(detect_report_num, existing),
+    NA,
+    detect_report_num
+    )
+  )
+```
+
+#### Homeless
+
+There were 5 entries which indicated that the patient was homeless or at a homeless shelter.
+
+```{r}
+homeless <- "(HOMELESS|SHELTER|TRANSIENT)"
+
+checking_col <- filter(ms_epcr,(str_detect(ms_epcr$detect_report_num,homeless)
+                                )
+                       )
+
+sum(!is.na(checking_col$detect_report_num))
+```
+
+We ensured that `pt_homeless` was `TRUE` for these 5 entries, and moved their values to `detect_response_comment`
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(pt_homeless = ifelse(
+    str_detect(detect_report_num, homeless),
+    TRUE,
+    pt_homeless
+    )
+  ) %>%
+  mutate(detect_report_comment = ifelse(
+    str_detect(detect_report_num, homeless),
+    detect_report_num,
+    detect_report_comment
+    )
+  ) %>%
+  mutate(detect_report_num = ifelse(
+    str_detect(detect_report_num, homeless),
+    NA,
+    detect_report_num
+    )
+  )
+```
+
+#### Unable to Assess
+
+There were 11 entries which indicated that responders were unable to assess due to the incident occurring in public or not at home.
+
+```{r}
+uta_report <- "(UTA|UNABLE TO AS|PUBLIC|DID NOT ENTER|DIDN'T ENTER|NOT HOME|MVC|DID NOT VISIT|NOT AT|CAN NOT OBTAIN|STORE)"
+
+checking_col <- filter(ms_epcr,(str_detect(ms_epcr$detect_report_num,uta_report)
+                                )
+                       )
+
+sum(!is.na(checking_col$detect_report_num))
+```
+
+We ensured that `detect_uta` was `TRUE` for these 11 observations, and moved their values into `detect_report_comment`
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(detect_uta = ifelse(
+    str_detect(detect_report_num, uta_report),
+    TRUE,
+    detect_uta
+    )
+  ) %>%
+  mutate(detect_report_comment = ifelse(
+    str_detect(detect_report_num, uta_report),
+    detect_report_num,
+    detect_report_comment
+    )
+  ) %>%
+  mutate(detect_report_num = ifelse(
+    str_detect(detect_report_num, uta_report),
+    NA,
+    detect_report_num
+    )
+  )
+```
+
+#### Patient from Facility `detect_facility`
+
+There were 6 entries which indicated that a patient was picked up from a facility such as a nursing home or group home. The regular expression was modified to exclude a specific entry which did not otherwise qualify.
+
+```{r}
+facility <- "((?<!OF NURSING )(HOME|GROUP|FACILITY|SHELTER))"
+
+checking_col <- filter(ms_epcr,(str_detect(ms_epcr$detect_report_num,facility)
+                                )
+                       )
+
+sum(!is.na(checking_col$detect_report_num))
+```
+
+We ensured that `detect_facility` was `TRUE` for these 6 observations, and moved their values into `detect_report_comment`
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(detect_facility = ifelse(
+    str_detect(detect_report_num, facility),
+    TRUE,
+    detect_facility
+    )
+  ) %>%
+  mutate(detect_report_comment = ifelse(
+    str_detect(detect_report_num, facility),
+    detect_report_num,
+    detect_report_comment
+    )
+  ) %>%
+  mutate(detect_report_num = ifelse(
+    str_detect(detect_report_num, facility),
+    NA,
+    detect_report_num
+    )
+  )
+```
+
+#### Report by Other `detect_other_reporter`
+
+There were 10 entries which indicated that a report was either made, or expected to be made, by another party.
+
+```{r}
+other_reporter <- "(POLICE|PD|HOSPITAL|IS SENDING|PROVIDED BY|SOCIAL WORK)"
+
+checking_col <- filter(ms_epcr,(str_detect(ms_epcr$detect_report_num,other_reporter)
+                                )
+                       )
+
+sum(!is.na(checking_col$detect_report_num))
+```
+
+We ensured that `detect_other_reporter` was `TRUE` for these 10 observations, and moved their values into `detect_report_comment`
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate(detect_other_reporter = ifelse(
+    str_detect(detect_report_num, other_reporter),
+    TRUE,
+    detect_other_reporter
+    )
+  ) %>%
+  mutate(detect_report_comment = ifelse(
+    str_detect(detect_report_num, other_reporter),
+    detect_report_num,
+    detect_report_comment
+    )
+  ) %>%
+  mutate(detect_report_num = ifelse(
+    str_detect(detect_report_num, other_reporter),
+    NA,
+    detect_report_num
+    )
+  )
+```
+
+### Isolating Report Numbers
+
+APS report numbers are alphanumeric strings typically 8 digits in length.
+
+There were 188 entries in `detect_report_num` that did not contain a single digit, and were not otherwise missing (`NA`) values.
+
+```{r}
+checking_col <- filter(ms_epcr,(!str_detect(ms_epcr$detect_report_num, "([0-9])")
+                                )
+                       )
+
+sum(!is.na(checking_col$detect_report_num))
+```
+
+We shifted those 188 entries into `detect_report_comment`.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+
+  mutate(detect_report_comment = ifelse(
+    !str_detect(detect_report_num, "([0-9])"),
+    detect_report_num,
+    detect_report_comment
+    )
+  ) %>%
+  mutate(detect_report_num = ifelse(
+    !str_detect(detect_report_num, "([0-9])"),
+    NA,
+    detect_report_num
+    )
+  )
+```
+
+There were a remaining 278 values in `detect_response_num`.
+
+```{r}
+sum((!is.na(ms_epcr$detect_report_num)))
+```
+
+There were 211 observations which only contained an alphanumeric string. These values were shifted to the temporary variable `num_temp`.
+
+```{r}
+checking_col <- filter(ms_epcr,
+                       (!str_detect(ms_epcr$detect_report_num, "([^0-9A-Z])"))
+                       )
+
+sum(!is.na(checking_col$detect_report_num))
+
+ms_epcr <- ms_epcr %>%
+  mutate(num_temp = ifelse((!str_detect(detect_report_num, "([^0-9A-Z])")),
+                           detect_report_num,
+                           NA
+                           )
+         ) %>%
+  mutate(detect_report_num = ifelse(!is.na(num_temp),
+                                    NA,
+                                    detect_report_num)
+  )
+
+```
+
+There were 21 observations which began with an alphanumeric string that ended in punctuation. The alphanumeric string was shifted to `num_temp` while any contents after the punctuation were shifted to `detect_report_comment`.
+
+```{r}
+checking_col <- filter(ms_epcr,(str_detect(ms_epcr$detect_report_num, 
+                                           "^([0-9A-Z]+)+[.;,](.*)")
+                                )
+                       )
+
+sum(!is.na(checking_col$detect_report_num))
+
+ms_epcr <- ms_epcr %>%
+  mutate(num_temp = ifelse(
+    (str_detect(detect_report_num, "^([0-9A-Z]+)+[.;,](.*)")),
+    str_match(detect_report_num,"^([0-9A-Z]+)+[.;,](.*)")[,2],
+    num_temp
+    )
+  ) %>%
+  mutate(detect_report_comment = ifelse(
+    (str_detect(detect_report_num, "^([0-9A-Z]+)+[.;,](.*)")),
+    str_match(detect_report_num,"^([0-9A-Z]+)+[.;,](.*)")[,3],
+    num_temp
+    )
+  ) %>%
+  mutate(detect_report_num = ifelse(!is.na(num_temp),
+                                    NA,
+                                    detect_report_num)
+  )
+```
+
+There were 25 observations which ended with the alphanumeric string, with or without a terminal period (.). These alphanumeric strings were shifted to `num_temp` while the preceding contents were shifted to `detect_report_comment`.
+
+```{r}
+checking_col <- filter(ms_epcr,
+                       (str_detect(ms_epcr$detect_report_num, 
+                                   "(.*?)[#:\\- ]*([0-9A-F]{8,})[\\.]*?$")
+                        )
+                       )
+
+sum(!is.na(checking_col$detect_report_num))
+
+ms_epcr <- ms_epcr %>%
+  mutate(num_temp = ifelse(
+    (str_detect(detect_report_num,"(.*?)[#:\\- ]*([0-9A-F]{8,})[\\.]*?$")),
+    str_match(detect_report_num,"(.*?)[#:\\- ]*([0-9A-F]{8,})[\\.]*?$")[,3],
+    num_temp
+    )
+  ) %>%
+  mutate(detect_report_comment = ifelse(
+    (str_detect(detect_report_num, "(.*?)[#:\\- ]*([0-9A-F]{8,})[\\.]*?$")),
+    str_match(detect_report_num,"(.*?)[#:\\- ]*([0-9A-F]{8,})[\\.]*?$")[,2],
+    num_temp
+    )
+  ) %>%
+  mutate(detect_report_num = ifelse(!is.na(num_temp),
+                                    NA,
+                                    detect_report_num)
+  )
+```
+
+The remaining 21 observations were much simpler. The alphanumeric string was isolated with are regular expression and shifted to `num_temp`, while any remaining content was shifted to `detect_report_comment`.
+
+```{r}
+checking_col <- filter(ms_epcr,
+                       (str_detect(ms_epcr$detect_report_num, 
+                                   "^[# ]*?([0-9A-Z]+)[ \\-/]*?(.*)$")
+                        )
+                       )
+
+sum(!is.na(checking_col$detect_report_num))
+
+ms_epcr <- ms_epcr %>%
+  mutate(num_temp = ifelse(
+    (str_detect(detect_report_num, "^[# ]*?([0-9A-Z]+)[ \\-/]*?(.*)$")),
+    str_match(detect_report_num,"^[# ]*?([0-9A-Z]+)[ \\-/]*?(.*)$")[,2],
+    num_temp
+    )
+  ) %>%
+  mutate(detect_report_comment = ifelse(
+    (str_detect(detect_report_num, "^[# ]*?([0-9A-Z]+)[ \\-/]*?(.*)$")),
+    str_match(detect_report_num,"^[# ]*?([0-9A-Z]+)[ \\-/]*?(.*)$")[,3],
+    num_temp
+    )
+  ) %>%
+  mutate(detect_report_num = ifelse(!is.na(num_temp),
+                                    NA,
+                                    detect_report_num)
+  )
+```
+
+Finally, we shifted all values from `num_temp` back to `detect_report_num`.
+
+```{r}
+ms_epcr$detect_report_num = ms_epcr$num_temp
+```
+
+### Binaries
+
+The remaining DETECT Questionnaire variables were all answerable with "YES" or "NO". In addition to the expected values and missing (`NA`) values, we found values of "UNABLE TO ASSESS", "N/A", and "DID NOT ENTER PATIENT'S HOME".
+
+```{r}
+get_unique_value_summary(ms_epcr,detect_binaries)
+```
+
+We combined "UNABLE TO ASSESS" and "DID NOT ENTER PATIENT'S HOME" as "UNABLE TO ASSESS"
+
+```{r}
+ms_epcr <- ms_epcr %>% 
+  mutate(across(all_of(detect_binaries), 
+                ~replace(.,.=="DID NOT ENTER PATIENT'S HOME", "UNABLE TO ASSESS")
+                )
+         )
+
+get_unique_value_summary(ms_epcr,detect_binaries)
+```
+
+We changed "N/A" to "NOT APPLICABLE" to avoid confusion with missing (`NA`) values.
+
+```{r}
+ms_epcr <- ms_epcr %>% 
+  mutate(across(all_of(detect_binaries), 
+                ~replace(.,.=="N/A", "Not Applicable")
+                )
+         )
+
+get_unique_value_summary(ms_epcr,detect_binaries)
+```
+
+These values were then converted into ordered factors.
+
+```{r}
+col_labels <- c("YES", "NO", "UNABLE TO ASSESS", "NOT APPLICABLE")
+
+ms_epcr <- ms_epcr %>% 
+  mutate(across(all_of(detect_binaries), 
+                ~factor(.x,ordered=TRUE, levels=col_labels)
+                )
+         )
+
+get_unique_value_summary(ms_epcr,detect_binaries)
+```
+
+## Cleaning Variable Types
+
+We ensured all values for `pt_address_zip`, `pt_dob_year`, `pt_dob_month`, `pt_dob_day`, `response_year`, `response_month`, `response_day`, and `pt_age` are numeric.
+
+```{r}
+numerics <- c("pt_address_zip", "pt_dob_year", "pt_dob_month", "pt_dob_day",
+              "response_year", "response_day", "response_month", "response_day",
+              "pt_age")
+
+ms_epcr <- ms_epcr %>%
+  mutate (across(all_of(numerics),as.numeric))
+```
+
+We converted `pt_address_city` and `pt_address_state` into factors, as they have a limited number of potential responses.
+
+```{r}
+ms_epcr <- ms_epcr %>%
+  mutate (across(all_of(c("pt_address_city","pt_address_state")),as.factor))
+```
+
+## Dropping Flag and Temporary Variables
+
+We drop our flag variables `flag_address` and `flag_name`, as well as temporary variables `pt_name_chunk` and `num_temp` as they are no longer needed.
+
+```{r}
+ms_epcr <- subset(ms_epcr, select= -c(flag_address,flag_name,pt_name_chunk))
+```
+
+## Reordering Columns
+
+We order our columns, for clarity.
+
+```{r}
+bookkeeping_cols <- c("ms_epcr_row")
+
+pt_demo_cols <- c("pt_name_full","pt_name_first","pt_name_middle","pt_name_last",
+                  "pt_age","pt_dob","pt_dob_year","pt_dob_month","pt_dob_day",
+                  "pt_race","pt_hispanic","pt_gender","pt_homeless",
+                  "pt_address_pobox","pt_address_num","pt_address_street",
+                  "pt_address_unit","pt_address_city","pt_address_state",
+                  "pt_address_zip")
+
+resp_detail_cols <- c("response_pcr","response_num","response_dt",
+                      "response_year","response_month","response_day",
+                      "response_date", "response_time","response_complaint",
+                      "response_symptoms", "response_dispo",
+                      "response_ems_epcr_sig")
+
+col_order <- c(bookkeeping_cols,pt_demo_cols,detect_cols,resp_detail_cols)
+
+```
+
+And we reorder our data set
+
+```{r}
+ms_epcr <- ms_epcr[,col_order]
+```
+
+# Deduplication
+
+While our data set had 36304 observations, there were only 28228 unique PCR Report Numbers in `response_pcr`.
+
+```{r}
+nrow(ms_epcr)
+length(unique(ms_epcr$response_pcr))
+nrow(ms_epcr) - length(unique(ms_epcr$response_pcr))
+sum(is.na(ms_epcr$response_pcr))
+```
+
+## Examining Duplicate Characteristics
+
+We created a subset which contained the observations which had duplicates, which contained 7340 unique observations and 8076 duplicates to eliminate. On visual inspection, some observations with duplicated `response_pcr` values contained data for DETECT columns while others did not. However, not all duplicated observations had a single row that had data vs others having no data. As such, we could not simply select based on the presence of DETECT questionnaire columns without unnecessarily dropping some observations entirely.
+
+```{r}
+duplicates <- ms_epcr %>%
+  filter((duplicated(response_pcr) | duplicated(response_pcr, fromLast=TRUE)))
+
+nrow(duplicates) == length(unique(duplicates$response_pcr))
+nrow(duplicates)
+length(unique(duplicates$response_pcr))
+```
+
+We checked to discover if any difference existed in our duplicated observations in regards to the Non-DETECT questionnaire data variables.
+
+Only two observations are different in these variables. On manual inspection, the "less complete" version of this call has a disposition of "Canceled False Call", which was likely created in error. This observation also differs in its DETECT data, so it would be caught in selection based on DETECT data completeness.
+
+```{r}
+non_detect_cols <- c("response_pcr","pt_name_full","pt_name_first",
+                     "pt_name_middle","pt_name_last",
+                     "pt_age","pt_dob","pt_dob_year","pt_dob_month","pt_dob_day",
+                     "pt_race","pt_hispanic","pt_gender",
+                     "pt_address_pobox","pt_address_num","pt_address_street",
+                     "pt_address_unit","pt_address_city","pt_address_state",
+                     "pt_address_zip", "response_ems_epcr_sig", "response_dispo")
+
+all_ident <- duplicates[non_detect_cols] %>%
+  filter(vec_duplicate_detect(.))
+
+nrow(all_ident)
+
+not_ident <- duplicates[non_detect_cols] %>%
+  filter(!vec_duplicate_detect(.))
+
+nrow(not_ident)
+```
+
+## Selection of Rows
+
+As all duplicated observations (barring our single exception) were entirely identical except for the DETECT questionnaire data, we decided to select unique observations to maintain based on the completeness of the DETECT variables. The number of missing (`NA`) values in the DETECT variables were calculated in `na_count`. By selecting for each observation of `response_pcr` with the lowest value of `na_count`, we obtained our 28228 unique observations.
+
+```{r}
+ms_epcr$na_count <- rowSums (is.na(ms_epcr[append(detect_binaries,
+                                                  "detect_report_num")]))
+
+ms_epcr <- ms_epcr %>%
+  group_by(response_pcr) %>%
+  slice(which.min(na_count)) %>%
+  ungroup()
+
+nrow(ms_epcr) == length(unique(ms_epcr$response_pcr))
+nrow(ms_epcr)
+```
+
+## Dropping Flags and Temporary Variables
+
+We dropped the temporary `na_count` variable as it was no longer necessary.
+
+```{r}
+ms_epcr <- subset(ms_epcr, select= -c(na_count))
+```
+
+# Saving Files
+
+The processed MedStar ePCR data file was saved and exported.
+
+```{r}
+saveRDS(ms_epcr,here("data","DETECT Shared GRAs","cleaning_with_phi",
+                             "medstar","medstar_epcr.rds"))
+```

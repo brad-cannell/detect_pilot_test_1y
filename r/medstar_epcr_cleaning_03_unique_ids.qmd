@@ -1,0 +1,1487 @@
+---
+title: "Getting a Unique Subject ID for all Subjects: MedStar ePCR"
+format: html
+editor: visual
+---
+
+# Summary
+
+-   Groups with entries in the 0.54 - 0.903 posterior probability threshold, without duplicate entries, were revised first
+    -   Resulted in 72 new Unique Subject IDs
+-   Groups with duplicate entries, which were all within the 0.54 - 0.903 posterior probability threshold, were then revised
+    -   Resulted in 132 fewer Unique Subject IDs
+
+## Assumptions and Considerations
+
+-   Typographical errors (or miss-selection errors for fields which appear to be pre-defined lists) may occur in any field, but are less likely to occur consistently
+
+-   Common First and Last Names are more likely to result in accidental mismatches
+
+    -   Hispanic naming conventions, which may include multiple family names and many relatively common names, may increase the probability these names are either mismatched or fail to match
+
+-   Names
+
+    -   First names may include nicknames or a middle name that the subject "goes by" in some observations, but their legal first name in others
+
+        -   As twins are unlikely, individuals that identical other than First Name are likely to refer to the same person
+
+    -   Individuals with hyphenated Last Names may go by either or both names
+
+        -   More likely in Female patients, due to name change conventions around marriage in the U.S.A.
+
+            -   The ability to keep a maiden name, hyphenate, or take a new last name [was not codified in the U.S.A until the 1980s](https://scholarship.law.wm.edu/wmjowl/vol17/iss1/6/), and as such is comparatively more common in younger women
+
+            -   [Informal polls have found that today, approximately 10% of women chose to hyphenate and 20% keep their maiden name in full.](https://time.com/3939688/maiden-names-married-women-report/) These rates are likely lower in older populations.
+
+        -   Men are both less likely to change their name at all based on name change conventions in the U.S.A, but also [face greater legal barriers in some states to obtaining name change on marriage](https://heinonline.org/HOL/LandingPage?handle=hein.journals/tclj24&div=10&id=&page=)
+
+    -   Two individuals with the First and Last Name at the same Address, but with birth dates greater than 12 years apart may potentially be parent and child using a Junior/Senior naming conventionpe
+
+        -   More likely in Male patients, due to naming conventions
+
+        -   Birth Date considerations apply
+
+-   Gender
+
+    -   Values for gender are subject to miss-selection error and potentially bias
+
+        -   There are few studies which quantify the rate at which those over 65 identify as a gender other than their sex assigned at birth
+
+    -   Older women are more likely to follow more extensive practices of rules of coverture, which may include using their husband's name in lieu of their own for all formal matters such as paperwork
+
+        -   This practice is still listed in [many modern etiquette guides](https://emilypost.com/advice/ms-miss-or-mrs-whats-the-difference)
+
+        -   [This practice has been noted to be common as recently as the 1980s](https://blog.statemuseum.nd.gov/blog/beyond-mrs-husbands-name-researching-womens-full-names)
+
+-   Birth Dates
+
+    -   Slight differences in any one Birth Date value is likely to be a data entry error if all other fields are either identical or significantly similar
+
+    -   Month and Date values are most likely to be transposed in data entry errors
+
+-   Address
+
+    -   Address values may have been entered as the location of the call for service, rather than the subject's residential or mailing address
+
+    -   There are multiple multi-residence facilities, such as apartment complexes and healthcare facilities represented in the data - these addresses should be weighed less heavily as identifiers for differentiation
+
+    -   Individuals may move or be at a temporary location for a call for service
+
+        -   Healthcare facilities, homeless shelters, and businesses should be considered indicators that the patient's address should be weighed less heavily as an identifier
+
+        -   Multiple observations that appear to "alternate" between addresses are less likely to refer to the same individual
+
+        -   Calls for service may have a nearby address entered in error - if addresses are within 0.5 miles of each other, or otherwise appear sufficiently close on a map that a GPS error may have occurred, consideration should be given that it was an error rather than a truly different value
+
+-   Judgement should err on the side of separating observations if doubt exists that they refer to the same person
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(here)
+library(fastLink)
+```
+
+## Data Imports
+
+MedStar ePCR data set was loaded for processing.
+
+```{r}
+# fastLink Output
+fl_out <- readRDS(here("data","DETECT Shared GRAs","cleaning_with_phi",
+                             "medstar","medstar_epcr_fastlink.rds"))
+
+# Stacked Pairs with Posteriors > 0.54
+stacked_pairs <- readRDS(here("data","DETECT Shared GRAs","cleaning_with_phi",
+                             "medstar","medstar_epcr_stacked_pairs.rds"))
+
+# Original ID assignments
+id_base <- readRDS(here("data","DETECT Shared GRAs","cleaning_with_phi",
+                             "medstar","medstar_epcr_id_base.rds"))
+```
+
+## Functions
+
+### Unique Value Summary
+
+```{r}
+get_unique_value_summary <- function(df,cols){
+  val <- unique(as.factor(as.vector(as.matrix(df[cols]))))
+  unique_summary <- data.frame("value"=val)
+  
+  for (i in cols){
+    table <- as.data.frame(table(df[i]))
+  colnames(table) <- c("value","freq")
+  table<- add_row(table, value = NA, freq = sum(is.na(df[i])))
+  colnames(table) <- c("value",i)
+    unique_summary <- left_join(unique_summary,table, by="value")
+    }
+  
+  unique_summary
+}
+```
+
+### Match Check
+
+A function was written by Dr. Cannell to permit examination of potential matches with posterior probabilities.
+
+```{r}
+fmr_fastlink_stack_matches <- function(.x, df) {
+  
+  # ===========================================================================
+  # Error checks
+  # ===========================================================================
+  if (!("fastLink" %in% class(.x))) {
+    stop('.x must be of class "fastLink"')
+  }
+  
+  
+  # ===========================================================================
+  # Create data frame of potential matches to compare
+  # ===========================================================================
+  potential_matches <- tibble::tibble(
+    row = .x$matches$inds.b,
+    matching_row = .x$matches$inds.a,
+    posterior_probability = .x$posterior
+  )
+  
+  # Keep only unique combinations of rows (e.g., not 1-3 and 3-1)
+  potential_matches <- potential_matches %>%
+    dplyr::mutate(
+      combo = purrr::map2_chr(
+        .x = row,
+        .y = matching_row,
+        .f = function(x, y) {
+          min <- min(x, y)
+          max <- max(x, y)
+          out <- paste(min, max, sep = "_")
+          out
+        }
+      ),
+      dup = duplicated(combo)
+    ) %>%
+    dplyr::filter(!dup) %>%
+    dplyr::select(-combo, -dup)
+  
+  
+  # ===========================================================================
+  # Manipulate the potential matches data frame
+  # Stack row and matching row on top of each other
+  # Add a pair number to each row and matching row
+  # ===========================================================================
+  stacked_potential_matches <- tibble::tibble(
+    row = c(rbind(potential_matches[["row"]], potential_matches[["matching_row"]])),
+    pair = rep(seq(1, length(row) / 2), each = 2),
+    posterior_probability = rep(potential_matches[["posterior_probability"]], each = 2)
+  )
+  
+  
+  # ===========================================================================
+  # Add substantive variables of interest to matched pairs for review
+  # ===========================================================================
+  out <- stacked_potential_matches %>% 
+    dplyr::left_join(
+      df %>% 
+        dplyr::mutate(row = dplyr::row_number()),
+      by = "row"
+    )
+  
+  
+  # ===========================================================================
+  # Return data frame of potential matches to compare
+  # ===========================================================================
+  out
+}
+```
+
+### Subject ID Creation
+
+A function was written by Dr. Cannell to create a unique ID based on fastLink output.
+
+```{r}
+fmr_add_unique_id <- function(df, fastLink_obj) {
+  
+  # ===========================================================================
+  # Create tibble of matching rows
+  # ===========================================================================
+  
+  # Turn fastLink results into tibble of rows and their matches
+  matches <- tibble::tibble(
+    row = fastLink_obj$matches$inds.b,
+    matching_row = fastLink_obj$matches$inds.a
+  )
+  
+  # Nest all matches for each row
+  matches <- matches %>% 
+    dplyr::group_by(row) %>% 
+    dplyr::mutate(matches = list(matching_row)) %>%
+    dplyr::ungroup()
+  
+  # Reduce to unique sets of matching rows
+  # i.e. 1,2,3 is the same as 3,2,1
+  matches <- matches %>% 
+    dplyr::mutate(matches = purrr::map_chr(
+      matches,
+      function(x) {
+        x = sort(x) # 1,2,3 is the same as 3,2,1
+        x = paste(x, collapse = ",") # Convert list to character string
+        x
+      })
+    ) %>% 
+    dplyr::select(matches) %>%
+    distinct() # Reduce to 1 row per group of matches
+  
+  # Sequentially number each group of matches
+  # This will become the unique id
+  matches <- matches %>%
+    dplyr::mutate(
+      id = row_number(),
+      row = purrr::map( # Turn back into list
+        matches,
+        ~ scan(text = ., what = 0L, sep = ",", quiet = TRUE)
+      )
+    ) 
+  
+  # Covert to data frame with the appropriate id number for each row in the 
+  # original data set
+  matches <- matches %>%
+    tidyr::unnest(cols=c(row)) %>% 
+    dplyr::select(id, row)
+  
+  # Join id number back to original data set
+  out <- matches %>% 
+    dplyr::right_join(
+      df %>% 
+        dplyr::mutate(row = dplyr::row_number()),
+      by = "row"
+    ) %>% 
+    select(-row)
+  
+  # ===========================================================================
+  # Return original data frame with unique id added
+  # ===========================================================================
+  out
+}
+```
+
+### Appending to Replacement Data Frame
+
+```{r}
+add_replacement_rows <- function(df, rows, id) {
+  # Takes list of target rows and an id value, and appends to the data frame
+  # Requires variables have specific names
+  
+  df <- rbind(df,tibble("ms_epcr_row"=rows,"id"=id))
+  
+  df
+}
+
+```
+
+# Review of Flags
+
+There were 29,271 observations in the raw MedStar ePCR Unique ID - Original data set. All 28228 unique PCR report numbers from the original MedStar ePCR data were represented in this data set, with no missing values for `ms_epcr_row` or `response_pcr` variables. There were 16,637 unique IDs (1 - 16,636) assigned.
+
+```{r}
+nrow(id_base)
+
+sum(is.na(id_base$ms_epcr_row))
+sum(is.na(id_base$response_pcr))
+
+length(unique(id_base$response_pcr))
+length(unique(id_base$id))
+```
+
+There were 1,662 duplicated observations, representing 619 PCR report numbers in 293 groups.
+
+```{r}
+duplicates <- id_base %>%
+  filter((duplicated(response_pcr) | duplicated(response_pcr, fromLast=TRUE)))
+
+nrow(duplicates) == length(unique(duplicates$response_pcr))
+nrow(duplicates)
+length(unique(duplicates$response_pcr))
+length(unique(duplicates$id))
+```
+
+There were 2,199 observations flagged for manual review. This included 1675 observations in ID groups containing at least one of the duplicated PCR report numbers, and an additional 524 observations in that did not include a duplicate PCR number but fell within the manual verification posterior range of 0.54 - 0.903.
+
+```{r}
+get_unique_value_summary(id_base,c("flag","flag_duplicate","flag_posterior"))
+```
+
+These 2,199 values were isolated to facilitate manual review.
+
+```{r}
+checking <- subset(id_base, select= c("id","ms_epcr_row","pt_name_full","pt_dob","pt_gender","pt_race","pt_hispanic","pt_address_num","pt_address_street","pt_address_unit","pt_address_city","flag","flag_duplicate","flag_posterior")) %>%
+  filter(flag)
+```
+
+## Manual Review
+
+### Posteriors without Duplicates
+
+The 524 observations with 148 unique subject ID values that were flagged for having a posterior probability between 0.54 and 0.903, without a duplicate PCR report value, were further isolated and manually reviewed.
+
+```{r}
+checking_cols <- filter(checking, !flag_duplicate)
+
+get_unique_value_summary(checking_cols,"id")
+```
+
+We found 71 mismatched observations in 61 groups (41.22% Mismatch Rate), which resulted in the generation of an additional 62 new ID numbers (values from 16,638 to 16,698). There were 53 new IDs which referenced a single observation, and 8 new IDs which referenced multiple observations.
+
+```{r}
+# Generate map of ms_epcr_row values to replacement IDs for single separations
+target_rows <- c(1448, 1481, 1602, 1802, 3362, 3657, 3768, 8300, 8414, 9136, 
+                 9308, 9560, 9569, 10020, 10103, 10467, 10684, 13306, 14101, 
+                 15941, 15949, 16353, 16813, 17800, 17880, 18298, 20100, 20281, 
+                 20819, 20950, 22220, 22234, 22369, 23474, 24098, 26144, 26743, 
+                 26878, 27374, 27863, 28053, 28281, 28365, 29990, 31087, 32177, 
+                 32573, 32721, 34290, 35677, 36024, 36048, 2988)
+
+replacement_ids <- tibble("ms_epcr_row" = target_rows, 
+                          "id" = seq(16638,length(target_rows)+16637,by=1))
+
+# Append map of ms_epcr_row values to replacement IDs for multiple observation
+# separations
+
+target_rows <- c(19737, 18169, 31650, 2112, 18746, 11770, 29324, 12194, 3980, 
+                 5282, 3454, 19384, 15921, 15276, 31750, 26033, 12044, 12874)
+
+ids <- c(rep(c(16691,16692),each=3),rep(16693:16698,each=2))
+
+replacement_ids <- rbind(replacement_ids,tibble("ms_epcr_row" = target_rows, 
+                                                "id" = ids))
+```
+
+### Duplicates
+
+The 1675 observations, with 632 unique PCR response numbers and 293 unique subject ID values, that were flagged for having duplicate observations and posteriors between 0.54 and 0.903 were further isolated for manual review.
+
+```{r}
+checking_cols <- filter(checking, flag_duplicate)
+
+length(unique(checking_cols$ms_epcr_row))
+
+get_unique_value_summary(checking_cols,"id")
+```
+
+Observations were checked by examining duplicate values in `ms_epcr_row`. All groups which contained an instance of a duplicate `ms_epcr_row` value were examined. All `ms_epcr_row` values represented in these groups were isolated and examined in aggregate. Manual cleaning was utilized to separate mismatches and consolidate groups of true matches.
+
+```{r}
+#| eval: false
+#| include: false
+
+# Checking contents of the groups
+
+group <- c() # list of group id values
+
+checking_cols[checking_cols$id %in% group,]
+
+# Obtain ms_epcr_row values from groups and check if they occur in any 
+# other groups
+
+rows <- unique(checking_cols[checking_cols$id %in% group,]$ms_epcr_row)
+
+checking_cols[checking_cols$ms_epcr_row %in% rows,]
+
+rows
+```
+
+We found 161 unique groups. Of the original 293 groups, 5 groups (1.71%) were entirely mismatched and produced 6 revised groups (3.73%), 17 groups (5.80%) consisted only of familial pairs and produced 10 revised groups (6.21%), 80 groups (27.30%) were entirely duplicated and consolidated into 41 revised groups (25.47%), 186 groups (62.46%) consisted of a mix of matches and mismatches and produced 101 revised groups (62.27%), and 5 groups (1.71%) consisted of a mix of familial pairs and mismatches and produced 3 revised groups (1.86%).
+
+-   The entries in group 1283 were repeated in groups 2618,3073,3970,7212
+
+-   The entries in group 317 were repeated in groups 2151, 3971, 9928, 12398
+
+-   The entries in group 78 were repeated in group 245. Two mismatch entries were found in this collection. These mismatch values were sorted into group 245 and 2618
+
+-   A familial pair were identified together in groups 6057, 12413, 14676; they were separated into group 6057 and 14676
+
+-   The entries in group 3619 were repeated in groups 9929 and 7209
+
+-   The entries in group 12639 were repeated in groups 14697 and 16304
+
+-   The entries in group 222 were repeated in groups 9921, 7206, and 12395. Two mismatch entries were found in this collection. These mismatch values were sorted into group 7206 and 9921
+
+-   The entries in group 4744 were repeated in groups 14683 and 7222. There was a single mismatch entry found in this collection, which was separated into group 7222
+
+-   The entries in group 6073 were repeated in groups 867, 9940, and 14670. Two mismatch entries were found in this collection. These mismatch values were sorted into group 867 and 9940
+
+-   The entries in group 9840 were repeated in groups 14556 and 14686
+
+-   The entries in group 3972 were repeated in groups 2159, 12404, and 9924. There was a mismatch entry found in this collection, which was separated into group 2159
+
+-   The entries in group 4151 were cross-matched with groups 1483, 2015, 7213, 7545, 9948, 14680, 14688, and 16030. There were seven distinct groups in this collection, separated into groups 4151, 1483, 2015, 7213, 7545, 9948, and 14680
+
+-   The entries in group 6967 were repeated in groups 9942 and 12409. There was a mismatch entry found in this collection, which was separated into group 9942
+
+-   The entries in group 481 were repeated in groups 3969 and 12388
+
+-   The entries in group 2478 were repeated in groups 14669 and 14014. There was a mismatch entry found in this collection, which was separated into group 14014
+
+-   The entries in group 3544 were repeated in groups 3824 and 3966
+
+-   The entries in group 2517 were repeated in groups 7216 and 12420
+
+-   The entries in group 8126 were repeated in groups 8784 and 12418
+
+-   The entries in group 7706 were repeated in groups 12414 and 14512. There were three distinct groups in this collection, which were separated into groups 7706, 12414, and 14512
+
+-   The entries in group 7239 were repeated in groups 12416 and 14682
+
+-   The entries in group 294 were repeated in groups 7215 and 9127
+
+-   The entries in group 1680 were repeated in groups 12400 and 14698. There were three distinct groups in this collection, which were separated into groups 1680, 12400 and 14698
+
+-   The entries in group 1348 were repeated in groups 7202 and 14692
+
+-   A familial pair were identified together in groups 5120, 7226, and 12407; they were separated into groups 5120 and 7226
+
+-   The entries in group 4923 were repeated in groups 7224 and 12411. There was a mismatch in the collection, which was separated into group 7224
+
+-   The entries in group 8181 were repeated in groups 12885 and 14690
+
+-   The entries in group 10119 were repeated in groups 11565 and 14693
+
+-   The entries in group 4924 were repeated in groups 6160 and 12403. There was a mismatch in the collection, which was separated into group 6160
+
+-   The entries in group 5382 were repeated in groups 14514 and 14677. There was a mismatch in the collection, which was separated into group 14514
+
+-   The entries in group 1214 were repeated in groups 7211, 7909, and 9926. There were three distinct groups in the collection, which were separated into groups 1214, 7211, and 7909
+
+-   The entries in group 4364 were repeated in groups 7228 and 9944
+
+-   The entries in group 2040 were repeated in groups 7198 and 9303. There was a mismatch in the collection, which was separated into group 7198
+
+-   The entries in group 3386 were repeated in groups 4088, 7197, 7220, and 9933. There was a mismatch in the collection, which was separated into group 7197
+
+-   The entries in group 4231 were repeated in groups 6816 and 14678. There was a mismatch in the collection, which was separated into group 6816
+
+-   The entries in group 1559 were repeated in groups 2178 and 7207
+
+-   The entries in group 3557 were repeated in groups 12389 and 12392
+
+-   The entries in group 9632 were repeated in groups 9946, 10172, and 14684. There was a mismatch in the collection, which was separated into group 9946
+
+-   A familial pair was identified together in groups 2169, 3961, 6078, 7210, and 12387; they were separated into groups 2169 and 3961
+
+-   The entries in group 1067 were repeated in groups 2992 and 3962. There was a mismatch in the collection, which was separated into group 2992
+
+-   The entries in group 1148 were repeated in groups 2661 and 7201
+
+-   A familial pair was identified together in groups 3726, 7208, and 14687; they were separated into groups 3726 and 7208
+
+-   The entries in group 97 were repeated in groups 1304, 12391, and 12399. There was a mismatch in the collection, which was separated into group 1304
+
+-   The entries in group 4046 were repeated in group 4640
+
+-   The entries in group 296 were repeated in groups 802, 3959, 4484, and 7225. There were three distinct groups in the collection, which were separated into groups 296, 802, and 3959
+
+-   The entries in group 840 were repeated in groups 2724, 3965, 9931, and 12421. There was a familial pair in the collection, which was separated into groups 840 and 2724. There was a mismatch in the collection, which was separated into group 3965
+
+-   The entries in group 2440 were repeated in groups 7200 and 12397
+
+-   The entries in group 5665 were repeated in groups 7218 and 14689. There was a mismatch in the collection, which was separated into group 7218
+
+-   The entries in group 83 were repeated in groups 656 and 9923. There was a mismatch in the collection, which was separated into group 656
+
+-   The entries in group 131 were repeated in groups 2328 and 7217
+
+-   The entries in group 217 were repeated in groups 7945, 9936, and 14696. There were three distinct groups in the collection, which were separated into groups 217, 7945, and 9936
+
+-   The entries in group 449 were repeated in groups 11726 and 12390
+
+-   The entries in group 670 were repeated in groups 4334 and 9922
+
+-   The entries in group 703 were repeated in groups 3113 and 9925. There was a mismatch in the collection, which was separated into group 3113
+
+-   The entries in group 931 were repeated in groups 3957 and 9937
+
+-   The entries in group 1004 were repeated in groups 3762 and 9934. There were four distinct groups in the collection (all mismatches), which were separated into groups 1004, 3762, 9934, and 9937
+
+-   The entries in group 1038 were repeated in groups 12401 and 12611
+
+-   The entries in group 1218 were repeated in groups 4639 and 9935
+
+-   The entries in group 1338 were repeated in groups 1885 and 12394
+
+-   The entries in group 1430 were repeated in groups 3963, 12396, and 13756. There were three distinct groups in the collection, which were separated into groups 1430, 3963, and 12396
+
+-   The entries in group 1586 were repeated in groups 3956 and 7199
+
+-   The entries in group 1868 were repeated in groups 3967 and 5239
+
+-   The entries in group 2119 were repeated in groups 3549, 2964, and 12406. There was a mismatch in the collection, which was separated into group 3549
+
+-   The entries in group 2143 were repeated in groups 2590 and 7203
+
+-   The entries in group 2226 were repeated in groups 9927 and 12422
+
+-   The entries in group 2253 were repeated in group 3968
+
+-   The entries in group 2714 were repeated in groups 9932 and 12393. There was a mismatch in the collection, which was separated into group 9932
+
+-   The entries in group 2877 were repeated in groups 3958 and 14672. There was a mismatch in the collection, which was separated into group 3958
+
+-   The entries in group 3462 were repeated in groups 9920 and 14671
+
+-   The entries in group 3500 were repeated in groups 7204, 7214, and 9947. There was a mismatch in the collection, which was separated into group 7204
+
+-   A familial pair was identified in groups 4028, 7227, 12415; they were separated into groups 4028 and 7227
+
+-   The entries in group 4256 were repeated in groups 8804, 12402, and 14679
+
+-   The entries in group 4461 were repeated in group 9736, all mismatches. These observations were separated into groups 4461 and 9736
+
+-   The entries in group 4819 were repeated in groups 10176 and 14674
+
+-   The entries in group 4831 were repeated in groups 7223 and 14673. There was a mismatch in the collection, which was separated into group 7223
+
+-   The entries in group 4869 were repeated in groups 6149 and 12410
+
+-   The entries in group 5304 were repeated in groups 7221 and 12405. There was a mismatch in the collection, which was separated into group 7221
+
+-   The entries in group 5988 were repeated in groups 6355 and 9943
+
+-   The entries in group 6052 were repeated in groups 9938 and 9939. There was a mismatch in the collection, which was separated into group 9938
+
+-   The entries in group 6243 were repeated in groups 12408 and 14675. There was a mismatch in the collection, which was separated into group 12408
+
+-   The entries in group 7117 were repeated in groups 11837 and 12412. There was a mismatch in the collection, which was separated into group 12412
+
+-   The entries in group 7159 were repeated in groups 7430 and 9941. There was a mismatch in the collection, which was separated into group 7430
+
+-   The entries in group 7168 were repeated in groups 7219 and 14691
+
+-   The entries in group 7643 were repeated in groups 12417 and 14685
+
+-   The entries in group 8088 were repeated in groups 10839 and 12419
+
+-   The entries in group 8244 were repeated in groups 9945 and 14695. There was a mismatch in the collection, which was separated into group 9945
+
+-   The entries in group 8633 were repeated in groups 12093 and 14681
+
+-   The entries in group 11174 were repeated in groups 13646 and 14694
+
+-   The entries in group 14313 were repeated in group 14834
+
+-   The entries in group 2995 were repeated in groups 3376, 3960, and 9930. These entries corresponded to 10 "John Doe" entries. Each of these observations was assigned to its own group, in groups
+
+#### Coding Groups in Replacement Map
+
+```{r}
+# Group 1283
+
+target_rows <- c(1, 6557, 5659, 1398, 6886, 807, 3260, 3829, 11986, 336)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows,1283)
+
+# Group 317 
+
+target_rows <- c(27360, 5748, 16466, 6763, 6751, 6949, 15985, 6121, 28607, 6856, 
+                 28610, 5977, 6223, 27280, 6295, 16066, 32, 29822, 18160, 16259, 
+                 26961, 18564, 6527, 13922, 6679, 6092, 29823, 6852, 27788, 5503, 
+                 5591, 6855, 4155, 16826, 16736, 15991, 5676, 5908, 6596, 4864, 
+                 6060)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows,317)
+
+# Group 78
+
+target_rows <- c(154, 9378, 3347, 10896, 18469, 13210, 2063, 8949, 24674, 20651, 
+           19569, 25955, 8296, 18332, 15308, 30467, 19978, 10731, 9751, 4614, 
+           8351, 24983, 19371, 5214, 13989)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows,78)
+
+# Group 245
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(8712, 6700, 4265, 16728, 12653, 8129),245)
+
+# Group 2618
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(5159),2618)
+
+# Group 6057
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(190,35161),6057)
+
+# Group 14676
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(193),14676)
+
+# Group 3619
+
+target_rows <- c(9119, 468, 36155, 265, 4622, 21321, 10286, 5602)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows,3619)
+
+# Group 12639
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(333, 14188, 25641),12639)
+
+# Group 222 
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(18415, 414),222)
+
+# Group 7206 
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(25861),7206)
+
+# Group 9921 
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(22211),9921)
+
+# Group 4744 
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(449, 450),4744)
+
+
+# Group 7222 
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(6499),7222)
+
+
+# Group 6073
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(30749),6073)
+
+# Group 867
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(13469),867)
+
+# Group 9940 
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(555,35345),9940)
+
+# Group 9840
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(12934, 775, 21057),9840)
+
+# Group 2159
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(21941, 920),2159)
+
+# Group 3972
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(29786,29815),3972)
+
+# Group 1483
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(9682, 16153, 11338), 1483)
+
+# Group 2015
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(1734), 2015)
+
+# Group 4151
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(998,27173), 4151)
+
+# Group 7213
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(24323), 7213)
+
+# Group 7549
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(15992), 7549)
+
+# Group 9948
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(31451), 9948)
+
+# Group 14680
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(22251), 14680)
+
+# Group 6967
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(1005,1007), 6967)
+
+# Group 9942
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(30814), 9942)
+
+# Group 481
+
+target_rows <- c(31482, 34532, 24693, 34395, 29948, 20465, 33848, 23323, 2338, 
+                 29657, 1178, 28550, 33748, 26021, 32163, 26507, 2203, 34947, 
+                 4233, 28181, 24921, 5843)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 481)
+
+# Group 2478
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(23726,1235,6394), 2478)
+
+# Group 14014
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(15948), 14014)
+
+# Group 3544
+
+target_rows <- c(10001, 35559, 4810, 4113, 15379, 23662, 4481, 36276, 1284, 
+                 2522, 28482)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 3544)
+
+# Group 2517
+
+target_rows <- c(1300, 8725, 28306, 11531, 5188, 33119)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 2517)
+
+# Group 8126
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(31945, 1349, 14288), 8126)
+
+# Group 7706
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(6898,10472), 7706)
+
+# Group 12414
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(1360), 12414)
+
+# Group 14512
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(2392), 14512)
+
+# Group 7239
+
+target_rows <- c(14702, 7887, 7110, 1376, 8437, 31782)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 7239)
+
+# Group 294
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(23550, 6213, 1732, 17223, 3723), 294)
+
+# Group 1680
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(20502), 1680)
+
+# Group 12400
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(1744), 12400)
+
+# Group 14698
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(17798), 14698)
+
+# Group 1348
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(2887, 6167, 9914, 2533, 10868, 15459), 1348)
+
+# Group 5120
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(2633,9727), 5120)
+
+# Group 7226
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(2632), 7226)
+
+# Group 4923
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(2830,7198), 4923)
+
+# Group 7224
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(26135), 7224)
+
+# Group 8181
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(20182,3090,25583), 8181)
+
+# Group 10119
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(23677,3133,27388), 10119)
+
+# Group 4924
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(3135,12940,21711,29163), 4924)
+
+# Group 6160
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(18769), 6160)
+
+# Group 5382
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(31358), 5382)
+
+# Group 14514
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(4717,3178,19577), 14514)
+
+# Group 1214
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(15771), 1214)
+
+# Group 7211
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(8796,11780,18881,13030,34177,3236,23632), 7211)
+
+# Group 7909
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(14838,12594), 7909)
+
+# Group 4364
+
+target_rows <- c(9353, 30095, 20966, 13881, 1859, 17484, 6610, 14624, 
+                 15213, 26550)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 4364)
+
+# Group 2040
+
+target_rows <- c(22555, 6467, 10402, 12029, 9033, 11543, 14427, 9029, 
+                 10096, 6543)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 2040)
+
+# Group 7198
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(1914), 7198)
+
+# Group 3386
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(17350, 2154, 3498), 3386)
+
+# Group 4088
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(8532, 6915), 4088)
+
+# Group 4231
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(4114, 3556, 3430, 24579), 4231)
+
+# Group 6816
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(9455), 6816)
+
+# Group 1559
+
+target_rows <- c(26269, 32389, 32511, 3486, 16201, 17114, 12622, 12525)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 1559)
+
+# Group 3557
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(30638, 25992, 20664, 3573, 10713, 31339, 10393), 3557)
+
+# Group 9632
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(34543, 3600, 34737), 9632)
+
+# Group 9946
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(22063), 9946)
+
+# Group 3961
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(14459,34172, 5166, 36158, 27471, 29182), 3961)
+
+# Group 2169
+
+target_rows <- c(16439, 27635, 11843, 35975, 34641, 19870, 24251, 3855, 23424)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 2169)
+
+# Group 1067
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(11733, 3865, 25017, 5635, 12690), 1067)
+
+# Group 2992
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(17861, 11282), 2992)
+
+# Group 1148
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(4200, 19075, 20765, 20665, 8225, 7672), 1148)
+
+# Group 3726
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(15756, 21359, 20325, 4325), 3726)
+
+# Group 7208
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(29918), 7208)
+
+# Group 97
+
+target_rows <- c(4449, 18902, 16971, 26355, 12352, 20060, 26183, 22676, 
+                 25030, 4905)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 97)
+
+# Group 1304
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(8732, 12626, 5704,10829, 18630, 16975), 1304)
+
+# Group 4046
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(16820, 8795, 16924, 28165, 21165, 6881, 4552), 4046)
+
+# Group 296
+
+target_rows <- c(31932, 34670, 33308, 10014, 32981, 34984, 30130)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 296)
+
+# Group 802
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(14000, 9521), 802)
+
+# Group 3959
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(4927, 34710, 30157, 11925), 3959)
+
+# Group 840
+
+target_rows <- c(27515, 30823, 11331, 29866, 26520, 29631, 32170, 30040, 29297, 
+                 28684, 28863, 32462, 30556, 28529, 26521, 30278)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 840)
+
+# Group 2724
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(5163), 2724)
+
+# Group 3965
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(21084), 3965)
+
+# Group 2440
+
+target_rows <- c(18521, 24436, 20062, 5450, 27616, 7428, 19511, 7568, 21030, 
+                 7206, 12022, 24681, 9904, 28327)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 2440)
+
+# Group 5665
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(10860, 19756, 8880, 5542), 5665)
+
+# Group 7218
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(31196), 7218)
+
+# Group 83
+
+target_rows <- c(20974, 22327, 19484, 21375, 19996, 22245, 22265, 22059, 21661, 
+                 22383, 20337, 34137, 20247, 11398, 19594)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 83)
+
+# Group 656
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(17277), 656)
+
+# Group 131
+
+target_rows <- c(20181, 30063, 21753, 22981, 22566, 29317, 17769, 28161, 
+                 28887, 22173, 28677)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 131)
+
+# Group 217
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(20937, 19462, 10909, 19888), 217)
+
+# Group 7945
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(35928), 7945)
+
+# Group 9936
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(6489), 9936)
+
+# Group 449
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(8149, 16231, 6245, 15035, 22675), 449)
+
+# Group 670
+
+target_rows <- c(35303, 19781, 19707, 16558, 23238, 17710, 19022, 16154)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 670)
+
+# Group 703
+
+target_rows <- c(23360, 25688, 27013, 27050, 33212, 33213, 20386, 25689, 16878, 
+                 24725, 13086, 24726, 27053)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 703)
+
+# Group 3113
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(9482), 3113)
+
+# Group 931
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(9777, 27059, 26940), 931)
+
+# Group 1004
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(17616), 1004)
+
+# Group 3762
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(31810), 3762)
+
+# Group 9934
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(19787), 9934)
+
+# Group 9937
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(32543), 9937)
+
+# Group 1038
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(24236, 32340, 25045), 1038)
+
+# Group 1218
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(24613, 29899, 32574, 21822, 28516, 31681, 35794), 1218)
+
+# Group 1338
+
+target_rows <- c(14055, 27662, 5646, 14688, 12408, 11261, 15918, 17819)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 1338)
+
+# Group 1430
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(29755, 25951, 30847, 23339, 22651, 30247), 1430)
+
+# Group 3963
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(7958), 3963)
+
+# Group 12396
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(35078), 12396)
+
+# Group 1589
+
+target_rows <- c(24981, 20734, 25798, 36220, 25679, 27263, 7249, 25849, 23889)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 1589)
+
+# Group 1868
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(11299, 28269, 11300, 15384), 1868)
+
+# Group 2119
+
+target_rows <- c(17954, 27114, 27483, 30124, 29730, 9282, 34566, 28771, 18826)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 2119)
+
+# Group 3549
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(24457, 25340, 19039, 21114), 3549)
+
+# Group 2143
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(30600, 14027, 34919), 2143)
+
+# Group 2226
+
+target_rows <- c(31746, 26171, 31399, 28620, 29726, 31596, 28823, 26167)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 2226)
+
+# Group 2253
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(22784, 33375, 11853, 25073, 30975, 8454, 13034), 2253)
+
+# Group 2714
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(14811, 14517, 30103), 2714)
+
+# Group 9932
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(35835, 36235), 9932)
+
+# Group 2877
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(30545, 35030), 2877)
+
+# Group 3958
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(30337), 3958)
+
+# Group 3462
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(36091, 24396, 21699, 34668), 3462)
+
+# Group 3500
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(20449, 13472, 25313), 3500)
+
+# Group 7204
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(24122, 17855, 11767, 24007), 7204)
+
+# Group 4028
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(28733), 4028)
+
+# Group 7227
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(31307, 20915), 7227)
+
+# Group 4256
+
+target_rows <- c(13698, 15552, 13008, 13126, 13525, 13570)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 4256)
+
+# Group 4461
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(33880), 4461)
+
+# Group 9736
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(32833), 9736)
+
+# Group 4819
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(29277, 29279, 6970), 4819)
+
+# Group 4831
+
+target_rows <- c(21764, 20278, 16787, 17617, 20707, 26247, 20911, 11874)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 4831)
+
+# Group 7223
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(31978), 7223)
+
+# Group 4869
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(29532, 17085, 20421), 4869)
+
+# Group 5304
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(34158, 22637, 9825, 34410), 5304)
+
+# Group 7221
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(5629, 25839), 7221)
+
+# Group 5988
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(10072, 12709, 33815, 18926, 9653, 33814, 31530), 5988)
+
+# Group 6052
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(9600, 9474), 6052)
+
+# Group 9938
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(30097), 9938)
+
+# Group 6243
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(17222, 17577), 6243)
+
+# Group 12408
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(7376), 12408)
+
+# Group 7117
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(33110, 20189), 7117)
+
+# Group 11837
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(7431), 11837)
+
+# Group 7159
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(29004, 11441), 7159)
+
+# Group 7430
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(23246), 7430)
+
+# Group 7168
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(35910, 34814, 13132), 7168)
+
+# Group 7643
+
+target_rows <- c(18638, 23636, 11937, 11305, 10434, 18911, 11940, 24689, 9843)
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(target_rows, 7643)
+
+# Group 8088
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(31106, 17690, 23427, 32134, 8309), 8088)
+
+# Group 8244
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(24716, 32496), 8244)
+
+# Group 9455
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(14660), 9455)
+
+# Group 8633
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(9352, 25974, 9354, 29005, 24130), 8633)
+
+# Group 11174
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(31728, 14152, 21487), 11174)
+
+# Group 14834
+
+replacement_ids <- replacement_ids %>%
+  add_replacement_rows(c(28583, 9826), 14834)
+
+# John Doe Groups
+
+target_rows <- c(33751, 18284, 164, 9942, 14195, 14171, 22453, 32623, 32684, 31432)
+
+ids <- seq(16700,length(target_rows)+16699,by=1)
+
+replacement_ids <- rbind(replacement_ids,tibble("ms_epcr_row" = target_rows, 
+                                                "id" = ids))
+
+```
+
+#### Validating Replacement Map
+
+We verified that our map for replacing ID values had the expected 703 observations, with no duplicates or missing (`NA`) values for `ms_epcr_row`.
+
+```{r}
+nrow(replacement_ids)
+sum(is.na(replacement_ids$ms_epcr_row))
+sum(duplicated(replacement_ids$ms_epcr_row))
+```
+
+We further checked that only our set, valid IDs were present in our replacement map.
+
+```{r}
+valid_ids <- c(78, 83, 97, 131, 217, 222, 245, 294, 296, 317, 449, 481, 656, 
+               670, 703, 802, 840, 867, 931, 1004, 1038, 1067, 1148, 1214, 1218, 
+               1283, 1304, 1338, 1348, 1348, 1430, 1483, 1559, 1589, 1680, 1868, 
+               2015, 2040, 2119, 2143, 2159, 2169, 2226, 2253, 2440, 2478, 2517, 
+               2618, 2714, 2724, 2877, 2992, 3113, 3386, 3462, 3500, 3544, 3549, 
+               3557, 3619, 3726, 3762, 3958, 3959, 3961, 3963, 3965, 3972, 4028, 
+               4046, 4088, 4151, 4231, 4256, 4364, 4461, 4744, 4819, 4831, 4869, 
+               4923, 4924, 5120, 5304, 5382, 5665, 5988, 6052, 6057, 6073, 6160, 
+               6243, 6816, 6967, 7117, 7159, 7168, 7198, 7204, 7206, 7208, 7211, 
+               7213, 7218, 7221, 7222, 7223, 7224, 7226, 7227, 7239, 7430, 7549, 
+               7643, 7706, 7909, 7945, 8088, 8126, 8181, 8244, 8633, 9455, 9632, 
+               9736, 9840, 9921, 9932, 9934, 9936, 9937, 9938, 9940, 9942, 9946, 
+               9948, 10119, 11174, 11837, 12396, 12400, 12408, 12414, 12639, 
+               14014, 14512, 14514, 14676, 14680, 14698, 14834, 16638, 16639, 
+               16640, 16641, 16642, 16643, 16644, 16645, 16646, 16647, 16648, 
+               16649, 16650, 16651, 16652, 16653, 16654, 16655, 16656, 16657, 
+               16658, 16659, 16660, 16661, 16662, 16663, 16664, 16665, 16666, 
+               16667, 16668, 16669, 16670, 16671, 16672, 16673, 16674, 16675, 
+               16676, 16677, 16678, 16679, 16680, 16681, 16682, 16683, 16684, 
+               16685, 16686, 16687, 16688, 16689, 16690, 16691, 16692, 16693, 
+               16694, 16695, 16696, 16697, 16698, 16700, 16701, 16702, 16703, 
+               16704, 16705, 16706, 16707, 16708, 16709)
+
+nrow(replacement_ids[!(replacement_ids$ms_epcr_row %in% checking$ms_epcr_row),])
+
+nrow(replacement_ids[!(replacement_ids$id %in% valid_ids),])
+
+valid_ids[!(valid_ids %in% replacement_ids$id)]
+```
+
+We checked to ensure only the expected 453 observations from our manual cleaning range that were not modified were missing from our replacement map
+
+```{r}
+nrow(checking[!(checking$ms_epcr_row %in% replacement_ids$ms_epcr_row),])
+```
+
+### Replacing IDs and Removing Duplicates
+
+We applied our map to correct IDs, ensuring that all occurrences of the same value of `ms_epcr_row` have the same Group ID.
+
+```{r}
+id_base <- rows_update(id_base, replacement_ids, by="ms_epcr_row")
+```
+
+We then removed all 1043 duplicated observations from our data set. This returned our data set to our 28228 unique observations.
+
+```{r}
+id_base <- distinct(id_base,ms_epcr_row, .keep_all=TRUE)
+sum(duplicated(id_base$ms_epcr_row))
+```
+
+# Saving Files
+
+The processed MedStar ePCR data was saved and exported.
+
+```{r}
+saveRDS(id_base,here("data","DETECT Shared GRAs","cleaning_with_phi",
+                             "medstar","medstar_epcr_id_02.rds"))
+```
+
