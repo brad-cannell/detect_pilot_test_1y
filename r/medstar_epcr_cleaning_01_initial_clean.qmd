@@ -157,7 +157,7 @@ A CSV file was created, which contained information required to manually clean 7
 
 ```{r}
 phi_cleaning <- read_csv(here("data","DETECT Shared GRAs","cleaning_with_phi",
-                              "medstar","medstar_epcr_phi_cleaning.csv"), show_col_types = FALSE)
+                              "medstar","medstar_epcr_01_phi_cleaning.csv"), show_col_types = FALSE)
 ```
 
 ## Functions
@@ -1601,11 +1601,9 @@ ms_epcr <- ms_epcr %>%
          )
 ```
 
-
 ```{r}
 sum(is.na(ms_epcr$pt_dob))
 ```
-
 
 ### Response Number `response_num`
 
@@ -2318,5 +2316,5 @@ The processed MedStar ePCR data file was saved and exported.
 
 ```{r}
 saveRDS(ms_epcr,here("data","DETECT Shared GRAs","cleaning_with_phi",
-                             "medstar","medstar_epcr.rds"))
+                             "medstar","medstar_epcr_01.rds"))
 ```

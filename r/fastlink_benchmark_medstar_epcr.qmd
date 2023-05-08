@@ -30,7 +30,7 @@ library(here)
 
 ```{r}
 ms_epcr <- readRDS(file=here("data","DETECT Shared GRAs","cleaning_with_phi",
-                             "medstar","medstar_epcr.rds"))
+                             "medstar","medstar_epcr_01.rds"))
 ```
 
 # Testing fastLink

@@ -95,15 +95,15 @@ MedStar ePCR data set was loaded for processing.
 ```{r}
 # fastLink Output
 fl_out <- readRDS(here("data","DETECT Shared GRAs","cleaning_with_phi",
-                             "medstar","medstar_epcr_fastlink.rds"))
+                             "medstar","medstar_epcr_02_fastlinkobj.rds"))
 
 # Stacked Pairs with Posteriors > 0.54
 stacked_pairs <- readRDS(here("data","DETECT Shared GRAs","cleaning_with_phi",
-                             "medstar","medstar_epcr_stacked_pairs.rds"))
+                             "medstar","medstar_epcr_02_stacked_pairs.rds"))
 
 # Original ID assignments
 id_base <- readRDS(here("data","DETECT Shared GRAs","cleaning_with_phi",
-                             "medstar","medstar_epcr_id_base.rds"))
+                             "medstar","medstar_epcr_02_id_initial.rds"))
 ```
 
 ## Functions
@@ -1482,6 +1482,5 @@ The processed MedStar ePCR data was saved and exported.
 
 ```{r}
 saveRDS(id_base,here("data","DETECT Shared GRAs","cleaning_with_phi",
-                             "medstar","medstar_epcr_id_02.rds"))
+                             "medstar","medstar_epcr_03_cleaned_ids.rds"))
 ```
-
