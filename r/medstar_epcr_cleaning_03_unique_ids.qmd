@@ -1510,10 +1510,19 @@ id_base <- distinct(id_base,ms_epcr_row, .keep_all=TRUE)
 sum(duplicated(id_base$ms_epcr_row))
 ```
 
-### AAA
+### Reordering Variables
+
+We renamed our id variable to indicate the source data set, for future clarity
 
 ```{r}
-bookkeeping_cols <- c("ms_epcr_row")
+colnames(id_base)[colnames(id_base) == "id"] <- "ms_id"
+```
+
+
+We recreated a similar column order to the originally cleaned and reordered data.
+
+```{r}
+bookkeeping_cols <- c("ms_id","ms_epcr_row")
 
 pt_demo_cols <- c("pt_name_full","pt_name_first","pt_name_middle","pt_name_last",
                   "pt_age","pt_dob","pt_dob_year","pt_dob_month","pt_dob_day",
@@ -1528,10 +1537,28 @@ resp_detail_cols <- c("response_pcr","response_num","response_dt",
                       "response_symptoms", "response_dispo",
                       "response_ems_epcr_sig")
 
+detect_binaries <- c("detect_cond_anxious", "detect_cond_hygiene", 
+                     "detect_cond_needs", "detect_cond_clothes", 
+                     "detect_meds_difficulty", "detect_meds_hoarding", 
+                     "detect_caregiver_anxious", "detect_caregiver_frustrated", 
+                     "detect_caregiver_lack", "detect_caregiver_inattentive", 
+                     "detect_env_isolated", "detect_env_concern", 
+                     "detect_env_hoarding", "detect_env_odor", 
+                     "detect_report_made")
+
+detect_cols <- c(detect_binaries,"detect_report_num","detect_report_comment", 
+                 "detect_report_aps_unable","detect_report_aps_onscene",
+                 "detect_report_aps_existing", "detect_facility", 
+                 "detect_other_reporter", "detect_uta")
+
 col_order <- c(bookkeeping_cols,pt_demo_cols,detect_cols,resp_detail_cols)
 ```
 
+And we reordered our data set for ease of manual inspection
 
+```{r}
+id_base <- id_base[,col_order]
+```
 
 # Saving Files
 
