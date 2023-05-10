@@ -7,9 +7,14 @@ editor: visual
 # Summary
 
 -   Groups with entries in the 0.54 - 0.903 posterior probability threshold, without duplicate entries, were revised first
+
     -   Resulted in 72 new Unique Subject IDs
+    
 -   Groups with duplicate entries, which were all within the 0.54 - 0.903 posterior probability threshold, were then revised
+
     -   Resulted in 132 fewer Unique Subject IDs
+    
+-   All 1156 observations within the manual review posterior probability range of 0.54 - 0.903 were manually reviewed when clustered by first name, last name, and street address. No pairs were found to fail to match.
 
 ## Assumptions and Considerations
 
@@ -369,7 +374,7 @@ checking_cols <- filter(checking, !flag_duplicate)
 get_unique_value_summary(checking_cols,"id")
 ```
 
-We found 71 mismatched observations in 61 groups (41.22% Mismatch Rate), which resulted in the generation of an additional 62 new ID numbers (values from 16,638 to 16,698). There were 53 new IDs which referenced a single observation, and 8 new IDs which referenced multiple observations.
+We found 72 mismatched observations in 62 groups (41.19% Mismatch Rate), which resulted in the generation of an additional 62 new ID numbers (values from 16,638 to 16,699). There were 54 new IDs which referenced a single observation, and 8 new IDs which referenced multiple observations.
 
 ```{r}
 # Generate map of ms_epcr_row values to replacement IDs for single separations
@@ -378,7 +383,7 @@ target_rows <- c(1448, 1481, 1602, 1802, 3362, 3657, 3768, 8300, 8414, 9136,
                  15941, 15949, 16353, 16813, 17800, 17880, 18298, 20100, 20281, 
                  20819, 20950, 22220, 22234, 22369, 23474, 24098, 26144, 26743, 
                  26878, 27374, 27863, 28053, 28281, 28365, 29990, 31087, 32177, 
-                 32573, 32721, 34290, 35677, 36024, 36048, 2988)
+                 32573, 32721, 34290, 35677, 36024, 36048, 2988, 28346)
 
 replacement_ids <- tibble("ms_epcr_row" = target_rows, 
                           "id" = seq(16638,length(target_rows)+16637,by=1))
@@ -389,7 +394,7 @@ replacement_ids <- tibble("ms_epcr_row" = target_rows,
 target_rows <- c(19737, 18169, 31650, 2112, 18746, 11770, 29324, 12194, 3980, 
                  5282, 3454, 19384, 15921, 15276, 31750, 26033, 12044, 12874)
 
-ids <- c(rep(c(16691,16692),each=3),rep(16693:16698,each=2))
+ids <- c(rep(c(16692,16693),each=3),rep(16694:16699,each=2))
 
 replacement_ids <- rbind(replacement_ids,tibble("ms_epcr_row" = target_rows, 
                                                 "id" = ids))
@@ -497,7 +502,7 @@ We found 161 unique groups. Of the original 293 groups, 5 groups (1.71%) were en
 
 -   The entries in group 3386 were repeated in groups 4088, 7197, 7220, and 9933. There was a mismatch in the collection, which was separated into group 7197
 
--   The entries in group 4231 were repeated in groups 6816 and 14678. There was a mismatch in the collection, which was separated into group 6816
+-   The entries in group 4231 were repeated in groups 6816 and 14678.
 
 -   The entries in group 1559 were repeated in groups 2178 and 7207
 
@@ -958,12 +963,7 @@ replacement_ids <- replacement_ids %>%
 # Group 4231
 
 replacement_ids <- replacement_ids %>%
-  add_replacement_rows(c(4114, 3556, 3430, 24579), 4231)
-
-# Group 6816
-
-replacement_ids <- replacement_ids %>%
-  add_replacement_rows(c(9455), 6816)
+  add_replacement_rows(c(4114, 3556, 3430, 24579,9455), 4231)
 
 # Group 1559
 
@@ -1448,7 +1448,7 @@ replacement_ids <- rbind(replacement_ids,tibble("ms_epcr_row" = target_rows,
 
 #### Validating Replacement Map
 
-We verified that our map for replacing ID values had the expected 703 observations, with no duplicates or missing (`NA`) values for `ms_epcr_row`.
+We verified that our map for replacing ID values had the expected 704 observations, with no duplicates or missing (`NA`) values for `ms_epcr_row`.
 
 ```{r}
 nrow(replacement_ids)
@@ -1467,10 +1467,10 @@ valid_ids <- c(78, 83, 97, 131, 217, 222, 245, 294, 296, 317, 449, 481, 656,
                3557, 3619, 3726, 3762, 3958, 3959, 3961, 3963, 3965, 3972, 4028, 
                4046, 4088, 4151, 4231, 4256, 4364, 4461, 4744, 4819, 4831, 4869, 
                4923, 4924, 5120, 5304, 5382, 5665, 5988, 6052, 6057, 6073, 6160, 
-               6243, 6816, 6967, 7117, 7159, 7168, 7198, 7204, 7206, 7208, 7211, 
-               7213, 7218, 7221, 7222, 7223, 7224, 7226, 7227, 7239, 7430, 7549, 
-               7643, 7706, 7909, 7945, 8088, 8126, 8181, 8244, 8633, 9455, 9632, 
-               9736, 9840, 9921, 9932, 9934, 9936, 9937, 9938, 9940, 9942, 9946, 
+               6243, 6967, 7117, 7159, 7168, 7198, 7204, 7206, 7208, 7211, 7213, 
+               7218, 7221, 7222, 7223, 7224, 7226, 7227, 7239, 7430, 7549, 7643, 
+               7706, 7909, 7945, 8088, 8126, 8181, 8244, 8633, 9455, 9632, 9736, 
+               9840, 9921, 9932, 9934, 9936, 9937, 9938, 9940, 9942, 9946, 
                9948, 10119, 11174, 11837, 12396, 12400, 12408, 12414, 12639, 
                14014, 14512, 14514, 14676, 14680, 14698, 14834, 16638, 16639, 
                16640, 16641, 16642, 16643, 16644, 16645, 16646, 16647, 16648, 
@@ -1478,9 +1478,9 @@ valid_ids <- c(78, 83, 97, 131, 217, 222, 245, 294, 296, 317, 449, 481, 656,
                16658, 16659, 16660, 16661, 16662, 16663, 16664, 16665, 16666, 
                16667, 16668, 16669, 16670, 16671, 16672, 16673, 16674, 16675, 
                16676, 16677, 16678, 16679, 16680, 16681, 16682, 16683, 16684, 
-               16685, 16686, 16687, 16688, 16689, 16690, 16691, 16692, 16693, 
-               16694, 16695, 16696, 16697, 16698, 16700, 16701, 16702, 16703, 
-               16704, 16705, 16706, 16707, 16708, 16709)
+               16685, 16686, 16687, 16688, 16689, 16699, 16690, 16691, 16692, 
+               16693, 16694, 16695, 16696, 16697, 16698, 16700, 16701, 16702, 
+               16703, 16704, 16705, 16706, 16707, 16708, 16709)
 
 nrow(replacement_ids[!(replacement_ids$ms_epcr_row %in% checking$ms_epcr_row),])
 
@@ -1489,7 +1489,7 @@ nrow(replacement_ids[!(replacement_ids$id %in% valid_ids),])
 valid_ids[!(valid_ids %in% replacement_ids$id)]
 ```
 
-We checked to ensure only the expected 453 observations from our manual cleaning range that were not modified were missing from our replacement map
+We checked to ensure only the expected 452 observations from our manual cleaning range that were not modified were missing from our replacement map
 
 ```{r}
 nrow(checking[!(checking$ms_epcr_row %in% replacement_ids$ms_epcr_row),])
@@ -1510,7 +1510,43 @@ id_base <- distinct(id_base,ms_epcr_row, .keep_all=TRUE)
 sum(duplicated(id_base$ms_epcr_row))
 ```
 
-### Reordering Variables
+## Checking for Failed Matches in Posterior Range
+
+After manually checking non-duplicated and duplicated observations within the verification posterior probability range of 0.54 - 0.903, there were 1156 observations flagged for review. 
+
+```{r}
+get_unique_value_summary(id_base,c("flag","flag_duplicate","flag_posterior"))
+```
+
+There were 348 unique IDs present in the data set at this time. As previous cleaning had focused on ensuring that each unique subject ID in range did not refer to two separate individuals (separating false matches) and deduplication, focus was shifted to assessing for failure to match. 
+
+```{r}
+nrow(id_base[!duplicated(id_base$id) & id_base$flag,])
+```
+
+The 1156 rows containing observations within the manual verification posterior range of 0.54 - 0.903 were isolated. There were 369 unique subject IDs included in this isolated subset.
+
+```{r}
+checking <- id_base %>%
+  filter(flag) %>%
+  subset(select = c("flag_posterior", "flag_duplicate", "id", "ms_epcr_row",
+                    "pt_name_first", "pt_name_middle", "pt_name_last", 
+                    "pt_gender","pt_dob_year","pt_dob_month", "pt_dob_day",
+                    "pt_address_num", "pt_address_street", "pt_address_unit", 
+                    "pt_race","pt_hispanic")
+         )
+
+length(unique(checking$id))
+```
+
+Observations were manually reviewed when clustered by first name. No observations were found to have failed to match. The two potential failed matches (groups 16639 and 4899, and groups 16650 and 2907) were separated in prior cleaning and on review continued to merit separation.
+
+Observations were manually reviewed when clustered by last name. No observations were found to have failed to match.
+
+Observations were manually reviewed when clustered by street address. No observations were found to have failed to match.
+
+
+# Reordering Variables
 
 We renamed our id variable to indicate the source data set, for future clarity
 
