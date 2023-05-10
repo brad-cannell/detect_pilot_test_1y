@@ -110,21 +110,55 @@ id_base <- readRDS(here("data","DETECT Shared GRAs","cleaning_with_phi",
 
 ### Unique Value Summary
 
+A function written in a previous cleaning document was imported. It was written to display counts of each unique observations within a selection of columns.
+
 ```{r}
 get_unique_value_summary <- function(df,cols){
+  
+  # Input: 
+  #     df (data frame) - original source data frame
+  #     cols (list) - list of target column names as strings
+  # Output:
+  #     unique_summary (data frame) - summary counts of each unique value in
+  #           each of the target columns
+  
+  # Get list of unique values in all target columns
+  
   val <- unique(as.factor(as.vector(as.matrix(df[cols]))))
+  
+  # Initialize output data frame with unique value row
+  
   unique_summary <- data.frame("value"=val)
   
+  # Get counts of unique values in original data frame
+  
   for (i in cols){
+    
+    # utilizes table to get summary count of each column
+    
     table <- as.data.frame(table(df[i]))
+    
+    # sets column names to "value" and "freq"
+    
   colnames(table) <- c("value","freq")
+  
+    # adds count of missing values in each column
+  
   table<- add_row(table, value = NA, freq = sum(is.na(df[i])))
+  
+    # readjusts names of columns to "value" and the name of the target column
+  
   colnames(table) <- c("value",i)
+  
+    # joins table's summary counts to complete the count values
+  
     unique_summary <- left_join(unique_summary,table, by="value")
-    }
+  }
+  
+  # returns completed, but unordered, data frame
   
   unique_summary
-}
+  }
 ```
 
 ### Match Check
@@ -1475,6 +1509,29 @@ We then removed all 1043 duplicated observations from our data set. This returne
 id_base <- distinct(id_base,ms_epcr_row, .keep_all=TRUE)
 sum(duplicated(id_base$ms_epcr_row))
 ```
+
+### AAA
+
+```{r}
+bookkeeping_cols <- c("ms_epcr_row")
+
+pt_demo_cols <- c("pt_name_full","pt_name_first","pt_name_middle","pt_name_last",
+                  "pt_age","pt_dob","pt_dob_year","pt_dob_month","pt_dob_day",
+                  "pt_race","pt_hispanic","pt_gender","pt_homeless",
+                  "pt_address_pobox","pt_address_num","pt_address_street",
+                  "pt_address_unit","pt_address_city","pt_address_state",
+                  "pt_address_zip")
+
+resp_detail_cols <- c("response_pcr","response_num","response_dt",
+                      "response_year","response_month","response_day",
+                      "response_date", "response_time","response_complaint",
+                      "response_symptoms", "response_dispo",
+                      "response_ems_epcr_sig")
+
+col_order <- c(bookkeeping_cols,pt_demo_cols,detect_cols,resp_detail_cols)
+```
+
+
 
 # Saving Files
 
