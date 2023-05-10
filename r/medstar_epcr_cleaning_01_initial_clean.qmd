@@ -2233,7 +2233,7 @@ ms_epcr <- ms_epcr %>%
 
 ## Dropping Flag and Temporary Variables
 
-We drop our flag variables `flag_address` and `flag_name`, as well as temporary variables `pt_name_chunk` and `num_temp` as they are no longer needed.
+We dropped our flag variables `flag_address` and `flag_name`, as well as temporary variables `pt_name_chunk` and `num_temp` as they are no longer needed.
 
 ```{r}
 ms_epcr <- subset(ms_epcr, select= -c(flag_address,flag_name,pt_name_chunk))
@@ -2241,7 +2241,7 @@ ms_epcr <- subset(ms_epcr, select= -c(flag_address,flag_name,pt_name_chunk))
 
 ## Reordering Columns
 
-We order our columns, for clarity.
+We ordered our columns, for clarity.
 
 ```{r}
 bookkeeping_cols <- c("ms_epcr_row")
@@ -2263,7 +2263,7 @@ col_order <- c(bookkeeping_cols,pt_demo_cols,detect_cols,resp_detail_cols)
 
 ```
 
-And we reorder our data set
+And we reordered our data set
 
 ```{r}
 ms_epcr <- ms_epcr[,col_order]
@@ -2295,7 +2295,7 @@ length(unique(duplicates$response_pcr))
 
 We checked to discover if any difference existed in our duplicated observations in regards to the Non-DETECT questionnaire data variables.
 
-Only two observations are different in these variables. On manual inspection, the "less complete" version of this call has a disposition of "Canceled False Call", which was likely created in error. This observation also differs in its DETECT data, so it would be caught in selection based on DETECT data completeness.
+Only two observations were different in these variables. On manual inspection, the "less complete" version of this call had a disposition of "Canceled False Call", which was likely created in error. This observation also differed in its DETECT data, so it would be caught in selection based on DETECT data completeness.
 
 ```{r}
 non_detect_cols <- c("response_pcr","pt_name_full","pt_name_first",
