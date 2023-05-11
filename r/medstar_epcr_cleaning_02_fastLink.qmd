@@ -82,7 +82,7 @@ library(fastLink)
 MedStar ePCR data set was loaded for processing.
 
 ```{r}
-ms_epcr <- readRDS(here("data","DETECT Shared GRAs","cleaning_with_phi",
+ms_epcr <- readRDS(here("data","DETECT Shared GRAs","medstar_cleaning",
                              "medstar","medstar_epcr_01.rds"))
 ```
 
@@ -1642,14 +1642,14 @@ Data was saved and exported to ensure continuity through the manual clean operat
 
 ```{r}
 # fastLink Output
-saveRDS(fl_out,here("data","DETECT Shared GRAs","cleaning_with_phi",
+saveRDS(fl_out,here("data","DETECT Shared GRAs","medstar_cleaning",
                              "medstar","medstar_epcr_02_fastlinkobj.rds"))
 
 # Stacked Pairs with Posteriors > 0.54
-saveRDS(test_stack,here("data","DETECT Shared GRAs","cleaning_with_phi",
+saveRDS(test_stack,here("data","DETECT Shared GRAs","medstar_cleaning",
                              "medstar","medstar_epcr_02_stacked_pairs.rds"))
 
 # Original ID assignments
-saveRDS(test_id,here("data","DETECT Shared GRAs","cleaning_with_phi",
+saveRDS(test_id,here("data","DETECT Shared GRAs","medstar_cleaning",
                              "medstar","medstar_epcr_02_id_initial.rds"))
 ```

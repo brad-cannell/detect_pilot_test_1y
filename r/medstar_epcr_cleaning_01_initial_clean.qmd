@@ -1,5 +1,5 @@
 ---
-title: "Cleaning MedStar ePCR - PHI"
+title: "Cleaning MedStar ePCR"
 html:
   embed-resources: true
 editor: visual
@@ -2347,6 +2347,6 @@ ms_epcr <- subset(ms_epcr, select= -c(na_count))
 The processed MedStar ePCR data file was saved and exported.
 
 ```{r}
-saveRDS(ms_epcr,here("data","DETECT Shared GRAs","cleaning_with_phi",
+saveRDS(ms_epcr,here("data","DETECT Shared GRAs","medstar_cleaning",
                              "medstar","medstar_epcr_01.rds"))
 ```
