@@ -1,0 +1,141 @@
+---
+title: "MedStar Data: Merging ePCR and Compliance Data"
+format: html
+editor: visual
+---
+
+# Summary
+
+-   There were 246 observations in the Compliance data set with a Response Number that indicated a report made to APS
+
+-   There were 28228 observations within the ePCR data set
+
+-   The only variables available for matching were Response Number and Report Number
+
+    -   Report Number was only sporadically provided in the ePCR data set
+    
+    -   Response Number was not always present in the ePCR data set
+    
+    -   Matching based off of date was not feasible, as the Report Date in the Compliance Data set was found to be inconsistent among duplicate recordings of the same Response Number and the presence of multiple calls for service on each date in the ePCR data set; there were no further identifiers in the Compliance Data that would permit potential matches.
+
+-   Only 110 matches were successfully made
+
+    -   All matches were based on Response Number - there were no matches found for Report Number
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(readxl)
+library(here)
+library(data.table)
+```
+
+## Data Imports
+
+The previously cleaned MedStar ePCR and Compliance data was imported.
+
+```{r}
+epcr <- readRDS(here("data","DETECT Shared GRAs","medstar_cleaning",
+                            "medstar_epcr_03_cleaned_ids.rds"))
+
+compl <- readRDS(here("data","DETECT Shared GRAs", "medstar_cleaning",
+                             "medstar_compliance_01_cleaned.rds"))
+```
+
+# Renaming Variables
+
+Variables from the compliance data were renamed with a `comp_` prefix in anticipation of creating a merged data set. The variable for "row" in the compliance data was given an additional `ms_` prefix
+
+```{r}
+original_cols <- colnames(compl)
+
+colnames(compl) <- paste("comp_", original_cols, sep = "")
+
+colnames(compl)[colnames(compl)=="comp_row"] <- "ms_comp_row"
+
+colnames(compl)[colnames(compl)=="comp_response_num"] <- "response_num"
+```
+
+# Initializing New Data Frame
+
+We initialized a new data frame containing all variables of both data sets.
+
+```{r}
+cols <- c(colnames(epcr),colnames(compl))
+```
+
+# Linking Records
+
+## Link by Response Number
+
+We reduced our search space to only the 246 compliance records which indicated a report made to APS, where the Response Number was not missing.
+
+```{r}
+compl <- compl %>% 
+  filter(comp_report_agency == "APS" & !is.na(response_num))
+
+nrow(compl)
+```
+
+Of these records, we found a matching Response Number in 110 PCR rows.
+
+```{r}
+sum(epcr$response_num %in% compl$response_num, na.rm = TRUE)
+```
+
+We transferred the matching 110 ePCR records to a new data frame
+
+```{r}
+df <- epcr %>%
+  filter(epcr$response_num %in% compl$response_num)
+```
+
+And performed a left-join to match the 110 observations by response number 
+
+```{r}
+df <- left_join(df,compl,by="response_num")
+```
+
+We reduced our search space by removing these 110 observations from both the Compliance and ePCR data sets
+
+```{r}
+compl <- compl %>%
+  filter(!(compl$response_num %in% df$response_num))
+
+epcr <- epcr %>%
+  filter(!(epcr$response_num %in% df$response_num))
+```
+
+## Link by Report Number
+
+None of the remaining report numbers listed in the ePCR data set were found in the Compliance data set.
+
+```{r}
+sum(epcr$detect_report_num %in% flatten(compl$comp_report_num_list), na.rm = TRUE)
+```
+
+## Finalizing Data Frame
+
+Unfortunately, there were no more variables considered to be reliable indicators of linkage between the two data sets. As there were multiple calls for service each day, and the call date for each report in the Compliance Data set was not consistent between all instances, matching based off date was likely to be inaccurate and speculative at best. 
+
+As such, we added the remaining 28118 ePCR observations into the joined data frame without further modification.
+
+```{r}
+df <- bind_rows(df,epcr)
+```
+
+
+# Saving Files
+
+The processed, joined MedStar data was saved and exported.
+
+```{r}
+saveRDS(df,here("data","DETECT Shared GRAs", "medstar_cleaning",
+                             "medstar_01.rds"))
+```
