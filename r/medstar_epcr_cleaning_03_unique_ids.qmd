@@ -9,11 +9,11 @@ editor: visual
 -   Groups with entries in the 0.54 - 0.903 posterior probability threshold, without duplicate entries, were revised first
 
     -   Resulted in 72 new Unique Subject IDs
-    
+
 -   Groups with duplicate entries, which were all within the 0.54 - 0.903 posterior probability threshold, were then revised
 
     -   Resulted in 132 fewer Unique Subject IDs
-    
+
 -   All 1156 observations within the manual review posterior probability range of 0.54 - 0.903 were manually reviewed when clustered by first name, last name, and street address. No pairs were found to fail to match.
 
 ## Assumptions and Considerations
@@ -100,15 +100,15 @@ MedStar ePCR data set was loaded for processing.
 ```{r}
 # fastLink Output
 fl_out <- readRDS(here("data","DETECT Shared GRAs","medstar_cleaning",
-                             "medstar","medstar_epcr_02_fastlinkobj.rds"))
+                             "medstar_epcr_02_fastlinkobj.rds"))
 
 # Stacked Pairs with Posteriors > 0.54
 stacked_pairs <- readRDS(here("data","DETECT Shared GRAs","medstar_cleaning",
-                             "medstar","medstar_epcr_02_stacked_pairs.rds"))
+                             "medstar_epcr_02_stacked_pairs.rds"))
 
 # Original ID assignments
 id_base <- readRDS(here("data","DETECT Shared GRAs","medstar_cleaning",
-                             "medstar","medstar_epcr_02_id_initial.rds"))
+                             "medstar_epcr_02_id_initial.rds"))
 ```
 
 ## Functions
@@ -1512,13 +1512,13 @@ sum(duplicated(id_base$ms_epcr_row))
 
 ## Checking for Failed Matches in Posterior Range
 
-After manually checking non-duplicated and duplicated observations within the verification posterior probability range of 0.54 - 0.903, there were 1156 observations flagged for review. 
+After manually checking non-duplicated and duplicated observations within the verification posterior probability range of 0.54 - 0.903, there were 1156 observations flagged for review.
 
 ```{r}
 get_unique_value_summary(id_base,c("flag","flag_duplicate","flag_posterior"))
 ```
 
-There were 348 unique IDs present in the data set at this time. As previous cleaning had focused on ensuring that each unique subject ID in range did not refer to two separate individuals (separating false matches) and deduplication, focus was shifted to assessing for failure to match. 
+There were 348 unique IDs present in the data set at this time. As previous cleaning had focused on ensuring that each unique subject ID in range did not refer to two separate individuals (separating false matches) and deduplication, focus was shifted to assessing for failure to match.
 
 ```{r}
 nrow(id_base[!duplicated(id_base$id) & id_base$flag,])
@@ -1545,7 +1545,6 @@ Observations were manually reviewed when clustered by last name. No observations
 
 Observations were manually reviewed when clustered by street address. No observations were found to have failed to match.
 
-
 # Reordering Variables
 
 We renamed our id variable to indicate the source data set, for future clarity
@@ -1553,7 +1552,6 @@ We renamed our id variable to indicate the source data set, for future clarity
 ```{r}
 colnames(id_base)[colnames(id_base) == "id"] <- "ms_id"
 ```
-
 
 We recreated a similar column order to the originally cleaned and reordered data.
 
@@ -1602,5 +1600,5 @@ The processed MedStar ePCR data was saved and exported.
 
 ```{r}
 saveRDS(id_base,here("data","DETECT Shared GRAs","medstar_cleaning",
-                             "medstar","medstar_epcr_03_cleaned_ids.rds"))
+                             "medstar_epcr_03_cleaned_ids.rds"))
 ```
