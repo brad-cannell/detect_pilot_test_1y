@@ -1,0 +1,611 @@
+---
+title: "Cleaning MedStar Compliance Data"
+format: html
+editor: visual
+---
+
+# Summary
+
+-   MedStar Compliance data contained 310 observations of 7 variables, which contained 291 unique Response Numbers
+
+    -   Variables were renamed for use in code, and conformity to the style guide
+    
+    -   A variable indicating the row number in the original data set was added
+
+-   Data on the Agency the report was made to (`report_agency`) contained no missing (`NA`) values, and was converted into a factor variable
+
+-   Data on Report Method (`report_method`) contained no missing (`NA`) values, and was composed into an unordered factor variable based on data indicating an Electronic or Telephone report was made (`report_elec` and `report_phone`, respectively)
+
+-   There was one observation which indicated both methods, and 2 observations that indicated neither method yet had a report number
+
+-   Report Date did not have any missing (`NA`) values
+
+-   Data for Report Creation (`report_created_dt`) had no missing (`NA`) values, and was separated into Date and Time variables (`report_created_date` and `report_created_time`, respectively)
+
+-   Data for Response Number did not originally have any missing (`NA`) values, but 2 observations with values of 0 were converted into missing (`NA`) values as the rest of the data indicated these were likely not matched observations.
+
+-   Two observations had missing (`NA`) values for Report Confirmation Number, two observations had multiple Report Confirmation Numbers listed, while others had comments after the number.
+
+    -   The observations with two numbers had the numbers split into `report_num` and `report_num2`
+    
+    -   The observations with comments had these comments separated into `report_comment`
+    
+    -   All observations had their report numbers aggregated into a list, stored in `report_num_list`
+
+-   There were 32 duplicate observations, representing 15 unique Response Numbers
+
+    -   1 duplicate pair had identical Report Numbers and Report Method, and so the first Report Creation Date/Time was kept
+    
+    -   No other duplicate pair had identical Report Numbers, and not all had identical Methods
+    
+    -   All Report Numbers relating to a single Response Number were grouped into `report_num_list`
+    
+    -   All Report Creation Date/Times relating to a single Response Number were grouped into `report_created_list`
+    
+    -   If both methods were indicated in Report Method within the instances of a Response Number, the Report Method was changed to "BOTH TELEPHONE AND ELECTRONIC"; otherwise the original method was kept
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(readxl)
+library(vctrs)
+library(here)
+library(data.table)
+library(lubridate)
+```
+
+## Data Imports
+
+MedStar Compliance data was loaded for processing from XLSX format. Data types were specified for key fields to minimize loss of data, such as in date formats
+
+```{r}
+#| warning: false
+
+ms_comp <- read_excel(here("data/DETECT Shared Meadows/medstar_compliance.xlsx"), 
+     col_types = c("text", "text", "date", 
+        "date", "text", "text", "numeric"))
+```
+
+
+## Functions
+
+### Unique Value Summary
+
+A function written in a previous cleaning document was imported. It was written to display counts of each unique observations within a selection of columns.
+
+```{r}
+get_unique_value_summary <- function(df,cols){
+  
+  # Input: 
+  #     df (data frame) - original source data frame
+  #     cols (list) - list of target column names as strings
+  # Output:
+  #     unique_summary (data frame) - summary counts of each unique value in
+  #           each of the target columns
+  
+  # Get list of unique values in all target columns
+  
+  val <- unique(as.factor(as.vector(as.matrix(df[cols]))))
+  
+  # Initialize output data frame with unique value row
+  
+  unique_summary <- data.frame("value"=val)
+  
+  # Get counts of unique values in original data frame
+  
+  for (i in cols){
+    
+    # utilizes table to get summary count of each column
+    
+    table <- as.data.frame(table(df[i]))
+    
+    # sets column names to "value" and "freq"
+    
+  colnames(table) <- c("value","freq")
+  
+    # adds count of missing values in each column
+  
+  table<- add_row(table, value = NA, freq = sum(is.na(df[i])))
+  
+    # readjusts names of columns to "value" and the name of the target column
+  
+  colnames(table) <- c("value",i)
+  
+    # joins table's summary counts to complete the count values
+  
+    unique_summary <- left_join(unique_summary,table, by="value")
+  }
+  
+  # returns completed, but unordered, data frame
+  
+  unique_summary
+  }
+```
+
+# Initial Data Structure
+
+## Dimensions
+
+The MedStar Compliance data set contained 310 observations with 7 variables
+
+```{r}
+dim(ms_comp)
+```
+
+We checked for any rows which contained only missing (`NA`) values, and found there are no entirely empty rows.
+
+```{r}
+nrow(filter(ms_comp, rowSums(is.na(ms_comp)) == ncol(ms_comp)))
+```
+
+We checked for any rows which contained values for every variable (a complete case) and found that there were 308, indicating only 2 rows had incomplete data.
+
+```{r}
+nrow(na.omit(ms_comp))
+sum(complete.cases(ms_comp))
+```
+
+## Variables
+
+Original variable naming was checked, and found to be a format that was cumbersome for use in code.
+
+```{r}
+colnames(ms_comp)
+```
+
+# Data Processing
+
+## Variable Renaming
+
+Variables were renamed to follow project style conventions. These conventions aimed to increase the usability of variables in code, ensure understanding of variable meanings, and facilitate organization of variables based on source and/or topic.
+
+```{r}
+colnames(ms_comp) <- c('report_agency', 'report_num', 
+                       'report_created_dt', 'report_date', 
+                       'report_elec', 'report_phone', 
+                       'response_num')
+
+colnames(ms_comp)
+```
+
+## Initiating Novel Variables
+
+We initiated the novel variables of our data set.
+
+```{r}
+ms_comp <- ms_comp %>%
+  add_column(row = NA, report_method = NA, report_created_date = NA, 
+             report_created_time = NA, report_num2 = NA, report_num_list = NA, 
+             report_comment = NA, report_created_list = NA)
+```
+
+## Adding Row Numbers
+
+We added a variable containing the row numbers of each observation in the source data.
+
+```{r}
+ms_comp <- ms_comp %>%
+  mutate(row = row_number()
+         )
+```
+
+## Converting to Uppercase
+
+We converted all fields containing strings to uppercase for uniformity and avoidance of case mismatch.
+
+```{r}
+ms_comp <- ms_comp %>%
+  mutate(across(where(is.character), str_to_upper)
+         )
+```
+
+## Factor Variables
+
+### Agenct Contacted `report_agency`
+
+We expected only a limited number of agencies in our data set. As we were interested in APS reports, we primarily expected reports to list "APS". We found 262 reports for "APS" and 48 for "CPS". We additionally had no observations with missing (`NA`) values, or an equivalent string.
+
+```{r}
+get_unique_value_summary(ms_comp,'report_agency')
+```
+
+We converted the variable into a factor, as there were only two responses which were clearly defined.
+
+```{r}
+ms_comp$report_agency <- as.factor(ms_comp$report_agency)
+```
+
+### Report Method `report_elec`, `report_phone`
+
+We expected the variables which would indicate if a report was filed either electronically or by phone to be answerable with "YES" and "NO", or similar binary analogues. In checking the data, we saw that assumption holds. We additionally had no observations with missing (`NA`) values, or an equivalent string.
+
+```{r}
+get_unique_value_summary(ms_comp,c('report_elec','report_phone'))
+```
+
+First, we converted these values into "TRUE" and "FALSE" boolean variables
+
+```{r}
+ms_comp$report_elec <- ms_comp$report_elec == "YES"
+ms_comp$report_phone <- ms_comp$report_phone == "YES"
+```
+
+We checked the results and found no observations were lost, and no observations appeared to have changed.
+
+```{r}
+get_unique_value_summary(ms_comp,c('report_elec','report_phone'))
+```
+
+As we had 149 electronic reports and 160 telephone reports (total of 309), one report did not appear to have a method attached. We checked for observations which had the same result for both `report_elec` and `report_phone`. We had one observation in which both Electronic and Phone reports were indicated, and two observations in which neither were indicated.
+
+```{r}
+checking <- ms_comp %>%
+  filter(report_elec == report_phone)
+
+print(subset(checking,select = c('row','report_elec','report_phone')))
+```
+
+We checked if those rows had report numbers and agencies indicated - neither had missing values. In manual inspection of the source data, we saw that the data appears to be valid in all fields.
+
+```{r}
+is.na(checking$report_num)
+is.na(checking$report_agency)
+```
+
+We consolidated our two report type variables `report_elec` and `report_phone` into a single factor variable of "Report Method" (`report_method`).
+
+-   Observations which were `TRUE` only for `report_elec` were labeled "ELECTRONIC"
+-   Observations which were `TRUE` only for `report_phone` were labeled "TELEPHONE"
+-   Observations which were `TRUE` for both `report_elec` and `report_phone` were labeled "BOTH ELECTRONIC AND TELEPHONE"
+-   Observations which were `FALSE` for both `report_elec` and `report_phone` were labeled "OTHER - NOT SPECIFIED"
+
+
+```{r}
+ms_comp <- ms_comp %>%
+  mutate(report_method = case_when(is.na(report_elec) | is.na(report_phone) ~ 
+                                     report_method,
+                                   report_elec & !report_phone ~ "ELECTRONIC",
+                                   !report_elec & report_phone ~ "TELEPHONE",
+                                   report_elec & report_phone ~ 
+                                     "BOTH ELECTRONIC AND TELEPHONE",
+                                   !report_elec & !report_phone ~ 
+                                     "OTHER - NOT SPECIFIED",
+                                   TRUE ~ report_method
+                                   )
+  )
+
+ms_comp$report_method <- as.factor(ms_comp$report_method)
+```
+
+We expected 2 observations with values of "OTHER - NOT SPECIFIED", 1 observation with a value of "BOTH ELECTRONIC AND TELEPHONE", 159 observations with values of "TELEPHONE", and 148 observations with values of "ELECTRONIC". We found no issues after transformation.
+
+```{r}
+get_unique_value_summary(ms_comp,"report_method")
+```
+
+## Date and Date-Time Variables
+
+### Report Date `report_date`
+
+All values within `notified_date` appeared to be date objects, without times. We checked and found no missing values.
+
+```{r}
+sum(is.na(ms_comp$report_date))
+```
+
+### Report Created Date/Time `report_created_dt`, `report_created_date`, `report_created_time`
+
+All values within `report_created_dt` appeared to be date-time objects. We checked and found no missing values.
+
+```{r}
+sum(is.na(ms_comp$report_created_dt))
+```
+
+We copied values for the date into `report_created_date`, and values for time into `report_created_time` utilizing the *lubridate* package's date-time parsing.
+
+```{r}
+ms_comp <- ms_comp %>% 
+  mutate(report_created_date = date(report_created_dt),
+         report_created_time = format(as.POSIXct(report_created_dt), format = "%H:%M:%S")
+         )
+```
+
+## Response and Report Confirmation Numbers
+
+### Response Numbers `response_num`
+
+We checked for missing (`NA`) values and non-numeral entries in the values for Response Number. We found no missing (`NA`) values, and no entries that were non-numeric.
+
+```{r}
+sum(is.na(ms_comp$response_num))
+sum(str_detect(ms_comp$response_num,"[^0-9]"))
+```
+
+There were two entries, with mismatched Response Dates, which had a Response Number of 0. This was converted into a missing (`NA`) value.
+
+```{r}
+ms_comp <- ms_comp %>%
+  mutate(response_num = na_if(response_num,0))
+```
+
+
+
+### Report Confirmation Numbers `report_num`
+
+We checked for missing (`NA`) values and non-numeral entries in the values for Report Confirmation Number. We found 2 missing (`NA`) values, and 115 entries that contained non-numeric characters.
+
+```{r}
+sum(is.na(ms_comp$report_num))
+sum(str_detect(ms_comp$report_num,"[^0-9]"), na.rm = TRUE)
+```
+
+Values for the variable were manually inspected. The majority appeared to be alphanumeric strings, though 2 observations appeared to have two numbers (separated by " / " or " and "), and several appeared to have comments such as the name of the individual they spoke with separated by a blank space, comma, or other punctuation.
+
+We first separated the report numbers in observations which had two report numbers, with the second report number shifted into the new variable `report_num2`, using a regular expression.
+
+```{r}
+ms_comp <- ms_comp %>%
+  mutate(report_num2 = ifelse(
+    str_detect(report_num,
+               "^([A-Z0-9]+)( \\/ | AND )([A-Z0-9]+)$"),
+    str_match(report_num,"^([A-Z0-9]+)( \\/ | AND )([A-Z0-9]+)$")[,4],
+    report_num2
+    )
+  ) %>%  
+  mutate(report_num = ifelse(
+    str_detect(report_num,
+               "^([A-Z0-9]+)( \\/ | AND )([A-Z0-9]+)$"),
+    str_match(report_num,"^([A-Z0-9]+)( \\/ | AND )([A-Z0-9]+)$")[,2],
+    report_num
+    )
+  )
+```
+
+We checked our processing to ensure we captured the 2 observations with two report numbers, and did not lose any values for `report_num` in processing. We found no new missing (`NA`) values in `report_num`, and exactly two new entries in `response_num2` which correspond to the entries which had multiple Report Confirmation Numbers.
+
+```{r}
+sum(is.na(ms_comp$report_num))
+sum(!is.na(ms_comp$report_num2))
+sum(is.na(ms_comp$report_num2))
+```
+
+We then separated any additional text into the new variable `report_comment` using a regular expression.
+
+```{r}
+ms_comp <- ms_comp %>%
+  mutate(report_comment = ifelse(
+    str_detect(report_num,
+               "^([A-Z0-9]+)(, |,| )?(.*?)$"),
+    str_match(report_num,"^([A-Z0-9]+)(, |,| )?(.*?)$")[,4],
+    report_comment
+    )
+  ) %>%  
+  mutate(report_num = ifelse(
+    str_detect(report_num,
+               "^([A-Z0-9]+)(, |,| )?(.*?)$"),
+    str_match(report_num,"^([A-Z0-9]+)(, |,| )?(.*?)$")[,2],
+    report_num
+    )
+  ) %>%
+  mutate (report_comment = na_if(report_comment, ""))
+```
+
+We checked our new values, and did not find any new missing (`NA`) values. Manual checking of the 310 observations indicated that cleaning was successful with no loss of data.
+
+```{r}
+sum(is.na(ms_comp$report_num))
+sum(str_detect(ms_comp$report_num,"[^A-Z0-9]"), na.rm = TRUE)
+```
+We joined the values of `report_num` and `report_num2` into `report_num_list`
+
+```{r}
+ms_comp <- ms_comp %>%
+  rowwise() %>%
+  mutate(report_num_list = ifelse(!is.na(report_num2),
+                                  list(c(report_num, report_num2)),
+                                  list(report_num))) %>%
+  ungroup()
+```
+
+We checked that no values were lost from `report_num` or `report_num2`, and found none were lost. We checked that there were an equal number of values in `report_num` and `report_num_list`, and found no values were lost.
+
+```{r}
+sum(is.na(ms_comp$report_num))
+sum(is.na(ms_comp$report_num2))
+
+sum(is.na(ms_comp$report_num)) == sum(is.na(ms_comp$report_num_list))
+```
+
+# Deduplication
+
+While our data set contained 310 observations, of which there were 291 unique Response Numbers and 2 observations with missing (`NA`) values for Response Number (`response_num`).
+
+```{r}
+nrow(ms_comp)
+length(unique(ms_comp$response_num))
+nrow(ms_comp) - length(unique(ms_comp$response_num))
+sum(is.na(ms_comp$response_num))
+```
+
+## Examining Duplicate Characteristics
+
+We created a subset which contained the observations which had duplicates, which contained 16 unique observations and 18 duplicates to potentially eliminate. All groups of duplicates indicated the same agency. Any difference in Report Date was a single calendar day within a group. Some observations were identical in relation to both report confirmation number and method of report. Others indicated different report numbers, either by the same or different methods.
+
+```{r}
+duplicates <- ms_comp %>%
+  filter((duplicated(response_num) | duplicated(response_num, fromLast=TRUE & !is.na(response_num))))
+
+nrow(duplicates) == length(unique(duplicates$response_num))
+nrow(duplicates)
+length(unique(duplicates$response_num))
+```
+No duplicated observations contained exact duplicate information for Report Agency, Report Number, and Report Method.
+
+```{r}
+nrow(duplicates[c("report_agency","report_num", "report_method")] %>%
+  filter(vec_duplicate_detect(.)))
+```
+
+Only two duplicated observations contained exact duplicate information for Report Agency and Report Number
+
+```{r}
+nrow(duplicates[c("report_agency","report_num")] %>%
+  filter(vec_duplicate_detect(.)))
+```
+
+Only two duplicated observations contained exact duplicate information for Report Number
+
+```{r}
+nrow(duplicates[c("report_num")] %>%
+  filter(vec_duplicate_detect(.)))
+```
+
+All duplicated groups were identical for Report Agency
+
+```{r}
+nrow(duplicates %>% group_by(response_num) %>%
+  subset(select = c("report_agency")) %>%
+       filter(vec_duplicate_detect(.))%>%
+    ungroup())
+```
+
+## Resolving Duplicates
+
+### Identical Response Numbers, Missing (`NA`) Response Numbers
+
+We resolved the duplicate observations in rows 216 and 218 that were identical for Report Number and Report Agency (but not Report Method) was resolved to include the most accurate method in the pair. This resulted in the removal of row 218 (which indicated a telephone report), as row 216 indicated that both a telephone report and electronic report were made. This row was removed both from the duplicates subset, and the overall Compliance data set.
+
+```{r}
+duplicates <- subset(duplicates, row != 218)
+duplicates <- subset(duplicates, row != 216)
+ms_comp <- subset(ms_comp, row != 218)
+```
+
+We manually reviewed the rows with missing (`NA`) values for Response Number. These appeared to indicate entirely separate responses. As such, they were removed from the duplicate subset.
+
+```{r}
+duplicates <- subset(duplicates, row != 281)
+duplicates <- subset(duplicates, row != 307)
+```
+
+### Flagging Duplicates
+
+We then flagged the observations in the overall Compliance Data set to indicate if they were part of our duplicate set or not.
+
+```{r}
+ms_comp <- ms_comp %>%
+  mutate(dup = ifelse(row %in% duplicates$row, TRUE, FALSE))
+```
+
+We checked to ensure we had our expected 30 flags, and found no apparent issue in our flagging.
+
+```{r}
+get_unique_value_summary(ms_comp,"dup")
+```
+
+### Consolidating Report Numbers and Report Creation Dates
+
+We aimed to ensure that all Report Created D/T values were kept in a new `report_created_list` variable. We initialized the list contents of the variable for compatibility.
+
+```{r}
+ms_comp <- ms_comp %>%
+  rowwise() %>%
+  mutate(report_created_list = list(report_created_dt)
+         ) %>%
+  ungroup()
+```
+
+We ensured all duplicate values carry all report numbers in the `report_num_list` variable, and all report created D/T variables in the `report_created_dt` variable. 
+
+```{r}
+ms_comp <- ms_comp %>%
+  group_by(response_num) %>%
+  arrange(report_created_dt, by_group=TRUE) %>%
+  mutate(report_num_list = case_when(!dup ~ report_num_list,
+                                     dup ~ list(report_num_list)
+                                      )
+  ) %>%
+  mutate(report_created_list = case_when(!dup ~ report_created_list,
+                                         dup ~ list(report_created_dt)
+                                         )
+  ) %>%
+  ungroup()
+```
+
+### Selecting the First Report Creation Date/Time Observation
+
+We kept only the earliest observation of all duplicates, if Report Method was the same. To do this, we generated a count of the number of methods within each group in a temporary variable `method_count`. This was possible as the two observations which failed to indicate a method, and thus were labeled "OTHER - NOT SPECIFIED" were not included in our duplicate data. Any observation tied to a group with a `method_count` greater than 1 was shifted to "BOTH TELEPHONE AND ELECTRONIC"
+
+```{r}
+ms_comp <- ms_comp %>%
+  group_by(response_num) %>%
+  arrange(report_created_dt, by_group=TRUE) %>%
+  mutate(method_count = length(unique(report_method))
+        ) %>%
+  mutate(method_count = ifelse(is.na(response_num), 1, method_count)
+         ) %>%
+  ungroup() %>%
+  mutate(report_method = case_when(is.na(report_num) ~ report_method,
+                                   method_count > 1 ~ "BOTH ELECTRONIC AND TELEPHONE",
+                                   TRUE ~ report_method
+                                  )
+        )
+```
+
+As all observations within a group now held the same data, we selected only the first observation of each Response Number. This would unfortunately cut one of the observations with a missing (`NA`) value Response Number. To avoid the loss of data, we first separated those observations, then reappended them to the data set after deduplication.
+
+```{r}
+na_rows <- subset(ms_comp, is.na(response_num))
+
+ms_comp <- ms_comp %>%
+  filter(!is.na(response_num)) %>%
+  group_by(response_num) %>%
+  arrange(report_created_dt, by_group=TRUE) %>%
+  slice(1) %>%
+  ungroup() %>%
+  rbind(na_rows)
+```
+
+We checked our data post-transformation. We expected 291 unique Response Number values (with an additional "unique" value for the missing (`NA`) values), and 2 observations with a missing (`NA`) value for Response Number. This structure should have a total of 293 observations.
+
+```{r}
+nrow(ms_comp)
+length(unique(ms_comp$response_num))
+sum(is.na(ms_comp$response_num))
+```
+## Dropping Temporary Variables
+
+We no longer needed our temporary variables (`report_elec`, `report_phone`, `report_num2`, `dup`) and thus removed them from our data set.
+
+```{r}
+ms_comp <- subset(ms_comp, select= -c(report_elec, report_phone, report_num2, method_count, dup))
+```
+
+## Reordering Columns
+
+We reordered our columns for greater clarity on manually viewing aggregate data.
+
+```{r}
+col_order <- c("row", "report_agency", "response_num", "report_date",
+               "report_method", "report_num", "report_num_list",
+               "report_created_dt", "report_created_date", "report_created_time",
+               "report_created_list", "report_comment")
+
+ms_comp <- ms_comp[,col_order]
+```
+
+
+# Saving Files
+
+The processed MedStar Compliance data file was saved and exported.
+
+```{r}
+saveRDS(ms_comp,here("data","DETECT Shared GRAs", "medstar_cleaning",
+                             "medstar_compliance_01_cleaned.rds"))
+```
