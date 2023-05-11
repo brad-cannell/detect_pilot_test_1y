@@ -1,5 +1,5 @@
 ---
-title: "Cleaning MedStar ePCR - PHI"
+title: "Cleaning MedStar ePCR"
 html:
   embed-resources: true
 editor: visual
@@ -157,7 +157,7 @@ A CSV file was created, which contained information required to manually clean 7
 
 ```{r}
 phi_cleaning <- read_csv(here("data","DETECT Shared GRAs","cleaning_with_phi",
-                              "medstar","medstar_epcr_phi_cleaning.csv"), show_col_types = FALSE)
+                              "medstar","medstar_epcr_01_phi_cleaning.csv"), show_col_types = FALSE)
 ```
 
 ## Functions
@@ -168,16 +168,48 @@ A function was written to display counts of each unique observations within a se
 
 ```{r}
 get_unique_value_summary <- function(df,cols){
+  
+  # Input: 
+  #     df (data frame) - original source data frame
+  #     cols (list) - list of target column names as strings
+  # Output:
+  #     unique_summary (data frame) - summary counts of each unique value in
+  #           each of the target columns
+  
+  # Get list of unique values in all target columns
+  
   val <- unique(as.factor(as.vector(as.matrix(df[cols]))))
+  
+  # Initialize output data frame with unique value row
+  
   unique_summary <- data.frame("value"=val)
   
+  # Get counts of unique values in original data frame
+  
   for (i in cols){
+    
+    # utilizes table to get summary count of each column
+    
     table <- as.data.frame(table(df[i]))
+    
+    # sets column names to "value" and "freq"
+    
   colnames(table) <- c("value","freq")
+  
+    # adds count of missing values in each column
+  
   table<- add_row(table, value = NA, freq = sum(is.na(df[i])))
+  
+    # readjusts names of columns to "value" and the name of the target column
+  
   colnames(table) <- c("value",i)
+  
+    # joins table's summary counts to complete the count values
+  
     unique_summary <- left_join(unique_summary,table, by="value")
-    }
+  }
+  
+  # returns completed, but unordered, data frame
   
   unique_summary
   }
@@ -370,7 +402,7 @@ We verified our transformation, and found no apparent issues.
 get_unique_value_summary(ms_epcr,"pt_gender")
 ```
 
-### Patient Race `pt_race` and `pt_ethnicity`
+### Patient Race `pt_race` and `pt_hispanic`
 
 We anticipated values similar to [US Census categorization of race and ethnicity](https://www.census.gov/topics/population/race/about.html).
 
@@ -1601,11 +1633,9 @@ ms_epcr <- ms_epcr %>%
          )
 ```
 
-
 ```{r}
 sum(is.na(ms_epcr$pt_dob))
 ```
-
 
 ### Response Number `response_num`
 
@@ -2203,7 +2233,7 @@ ms_epcr <- ms_epcr %>%
 
 ## Dropping Flag and Temporary Variables
 
-We drop our flag variables `flag_address` and `flag_name`, as well as temporary variables `pt_name_chunk` and `num_temp` as they are no longer needed.
+We dropped our flag variables `flag_address` and `flag_name`, as well as temporary variables `pt_name_chunk` and `num_temp` as they are no longer needed.
 
 ```{r}
 ms_epcr <- subset(ms_epcr, select= -c(flag_address,flag_name,pt_name_chunk))
@@ -2211,7 +2241,7 @@ ms_epcr <- subset(ms_epcr, select= -c(flag_address,flag_name,pt_name_chunk))
 
 ## Reordering Columns
 
-We order our columns, for clarity.
+We ordered our columns, for clarity.
 
 ```{r}
 bookkeeping_cols <- c("ms_epcr_row")
@@ -2233,7 +2263,7 @@ col_order <- c(bookkeeping_cols,pt_demo_cols,detect_cols,resp_detail_cols)
 
 ```
 
-And we reorder our data set
+And we reordered our data set
 
 ```{r}
 ms_epcr <- ms_epcr[,col_order]
@@ -2265,7 +2295,7 @@ length(unique(duplicates$response_pcr))
 
 We checked to discover if any difference existed in our duplicated observations in regards to the Non-DETECT questionnaire data variables.
 
-Only two observations are different in these variables. On manual inspection, the "less complete" version of this call has a disposition of "Canceled False Call", which was likely created in error. This observation also differs in its DETECT data, so it would be caught in selection based on DETECT data completeness.
+Only two observations were different in these variables. On manual inspection, the "less complete" version of this call had a disposition of "Canceled False Call", which was likely created in error. This observation also differed in its DETECT data, so it would be caught in selection based on DETECT data completeness.
 
 ```{r}
 non_detect_cols <- c("response_pcr","pt_name_full","pt_name_first",
@@ -2317,6 +2347,6 @@ ms_epcr <- subset(ms_epcr, select= -c(na_count))
 The processed MedStar ePCR data file was saved and exported.
 
 ```{r}
-saveRDS(ms_epcr,here("data","DETECT Shared GRAs","cleaning_with_phi",
-                             "medstar","medstar_epcr.rds"))
+saveRDS(ms_epcr,here("data","DETECT Shared GRAs","medstar_cleaning",
+                             "medstar","medstar_epcr_01.rds"))
 ```
