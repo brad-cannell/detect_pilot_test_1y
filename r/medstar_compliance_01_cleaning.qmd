@@ -9,7 +9,7 @@ editor: visual
 -   MedStar Compliance data contained 310 observations of 7 variables, which contained 291 unique Response Numbers
 
     -   Variables were renamed for use in code, and conformity to the style guide
-    
+
     -   A variable indicating the row number in the original data set was added
 
 -   Data on the Agency the report was made to (`report_agency`) contained no missing (`NA`) values, and was converted into a factor variable
@@ -27,21 +27,21 @@ editor: visual
 -   Two observations had missing (`NA`) values for Report Confirmation Number, two observations had multiple Report Confirmation Numbers listed, while others had comments after the number.
 
     -   The observations with two numbers had the numbers split into `report_num` and `report_num2`
-    
+
     -   The observations with comments had these comments separated into `report_comment`
-    
+
     -   All observations had their report numbers aggregated into a list, stored in `report_num_list`
 
 -   There were 32 duplicate observations, representing 15 unique Response Numbers
 
     -   1 duplicate pair had identical Report Numbers and Report Method, and so the first Report Creation Date/Time was kept
-    
+
     -   No other duplicate pair had identical Report Numbers, and not all had identical Methods
-    
+
     -   All Report Numbers relating to a single Response Number were grouped into `report_num_list`
-    
+
     -   All Report Creation Date/Times relating to a single Response Number were grouped into `report_created_list`
-    
+
     -   If both methods were indicated in Report Method within the instances of a Response Number, the Report Method was changed to "BOTH TELEPHONE AND ELECTRONIC"; otherwise the original method was kept
 
 # Imports
@@ -71,7 +71,6 @@ ms_comp <- read_excel(here("data/DETECT Shared Meadows/medstar_compliance.xlsx")
      col_types = c("text", "text", "date", 
         "date", "text", "text", "numeric"))
 ```
-
 
 ## Functions
 
@@ -265,7 +264,6 @@ We consolidated our two report type variables `report_elec` and `report_phone` i
 -   Observations which were `TRUE` for both `report_elec` and `report_phone` were labeled "BOTH ELECTRONIC AND TELEPHONE"
 -   Observations which were `FALSE` for both `report_elec` and `report_phone` were labeled "OTHER - NOT SPECIFIED"
 
-
 ```{r}
 ms_comp <- ms_comp %>%
   mutate(report_method = case_when(is.na(report_elec) | is.na(report_phone) ~ 
@@ -334,8 +332,6 @@ ms_comp <- ms_comp %>%
   mutate(response_num = na_if(response_num,0))
 ```
 
-
-
 ### Report Confirmation Numbers `report_num`
 
 We checked for missing (`NA`) values and non-numeral entries in the values for Report Confirmation Number. We found 2 missing (`NA`) values, and 115 entries that contained non-numeric characters.
@@ -402,6 +398,7 @@ We checked our new values, and did not find any new missing (`NA`) values. Manua
 sum(is.na(ms_comp$report_num))
 sum(str_detect(ms_comp$report_num,"[^A-Z0-9]"), na.rm = TRUE)
 ```
+
 We joined the values of `report_num` and `report_num2` into `report_num_list`
 
 ```{r}
@@ -445,6 +442,7 @@ nrow(duplicates) == length(unique(duplicates$response_num))
 nrow(duplicates)
 length(unique(duplicates$response_num))
 ```
+
 No duplicated observations contained exact duplicate information for Report Agency, Report Number, and Report Method.
 
 ```{r}
@@ -521,7 +519,7 @@ ms_comp <- ms_comp %>%
   ungroup()
 ```
 
-We ensured all duplicate values carry all report numbers in the `report_num_list` variable, and all report created D/T variables in the `report_created_dt` variable. 
+We ensured all duplicate values carry all report numbers in the `report_num_list` variable, and all report created D/T variables in the `report_created_dt` variable.
 
 ```{r}
 ms_comp <- ms_comp %>%
@@ -579,6 +577,7 @@ nrow(ms_comp)
 length(unique(ms_comp$response_num))
 sum(is.na(ms_comp$response_num))
 ```
+
 ## Dropping Temporary Variables
 
 We no longer needed our temporary variables (`report_elec`, `report_phone`, `report_num2`, `dup`) and thus removed them from our data set.
@@ -599,7 +598,6 @@ col_order <- c("row", "report_agency", "response_num", "report_date",
 
 ms_comp <- ms_comp[,col_order]
 ```
-
 
 # Saving Files
 
