@@ -156,8 +156,9 @@ ms_epcr <- read_excel(here("data/DETECT Shared GRAs/medstar_epcr.xlsx"),
 A CSV file was created, which contained information required to manually clean 7 entries which would otherwise require PHI in code to clean.
 
 ```{r}
-phi_cleaning <- read_csv(here("data","DETECT Shared GRAs","cleaning_with_phi",
-                              "medstar","medstar_epcr_01_phi_cleaning.csv"), show_col_types = FALSE)
+phi_cleaning <- read_csv(here("data","DETECT Shared GRAs","medstar_cleaning",
+                              "medstar_epcr_01_phi_cleaning.csv"), 
+                         show_col_types = FALSE)
 ```
 
 ## Functions
@@ -698,8 +699,8 @@ We modified all Non-US entries.
 ```{r}
 ms_epcr <- ms_epcr %>% 
   mutate(pt_address_state = case_when(
-    pt_address_state == "Chiguagua" ~"MX-CI",
-    pt_address_state == "Quebec" ~ "CA-QC",
+    pt_address_state == "CHIGUAGUA" ~"MX-CI",
+    pt_address_state == "QUEBEC" ~ "CA-QC",
     TRUE ~ pt_address_state)
     )
 
