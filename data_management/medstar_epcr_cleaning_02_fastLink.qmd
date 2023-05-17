@@ -288,6 +288,15 @@ fmr_add_unique_id <- function(df, fastLink_obj) {
 
 As there were 28,228 unique PCR response numbers in our data set, we expected at least 28,228 pairs with perfect matches (as each row is compared to each row, so each row should at minimum be a perfect match with itself).
 
+## Conversion of Patient ZIP Code to Numeric
+
+Patient Zip code data, in `pt_address_zip`, was coded as character to preserve leading zeros and formatting. For the purposes of numeric matching with fastLink, it was converted to a numeric.
+
+```{r}
+ms_epcr$pt_address_zip <- as.numeric(ms_epcr$pt_address_zip)
+```
+
+
 ## Initial Attempt
 
 Initial attempts to link records matched based on 10 identifying variables: Patient Name (First and Last), Patient DOB (Year, Month, and Day), and Patient Address (Street Number, Street Name, City, State, and Zip).

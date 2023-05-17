@@ -1655,6 +1655,31 @@ And we reordered our data set for ease of manual inspection
 id_base <- id_base[,col_order]
 ```
 
+# Conversion of ZIP Code to Factor
+
+Values for Patient ZIP Code, `pt_address_zip`, had previously been converted to numeric for fastLink numeric matching. In order to reverse the loss of data and format (due to truncation of leading zeroes), we reconverted the variable to character, reappended leading zeroes (twice, to ensure even the "shortest" zip codes in the US would be caught), then converted to an unordered factor.
+
+```{r}
+id_base$pt_address_zip <- as.character(id_base$pt_address_zip)
+
+id_base <- id_base %>%
+  mutate(pt_address_zip = case_when(
+    is.na(pt_address_zip) ~ pt_address_zip,
+    nchar(pt_address_zip) < 5 ~ paste0("0",pt_address_zip), 
+    TRUE ~ pt_address_zip
+    )
+  ) %>%
+    mutate(pt_address_zip = case_when(
+    is.na(pt_address_zip) ~ pt_address_zip,
+    nchar(pt_address_zip) < 5 ~ paste0("0",pt_address_zip), 
+    TRUE ~ pt_address_zip
+    )
+  )
+
+id_base$pt_address_zip <- factor(id_base$pt_address_zip, ordered = FALSE)
+```
+
+
 # Saving Files
 
 The processed MedStar ePCR data was saved and exported.

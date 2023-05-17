@@ -2214,12 +2214,11 @@ get_unique_value_summary(ms_epcr,detect_binaries)
 
 ## Cleaning Variable Types
 
-We ensured all values for `pt_address_zip`, `pt_dob_year`, `pt_dob_month`, `pt_dob_day`, `response_year`, `response_month`, `response_day`, and `pt_age` are numeric.
+We ensured all values for `pt_dob_year`, `pt_dob_month`, `pt_dob_day`, `response_year`, `response_month`, `response_day`, and `pt_age` are numeric.
 
 ```{r}
-numerics <- c("pt_address_zip", "pt_dob_year", "pt_dob_month", "pt_dob_day",
-              "response_year", "response_day", "response_month", "response_day",
-              "pt_age")
+numerics <- c("pt_dob_year", "pt_dob_month", "pt_dob_day", "response_year", 
+              "response_day", "response_month", "response_day", "pt_age")
 
 ms_epcr <- ms_epcr %>%
   mutate (across(all_of(numerics),as.numeric))
