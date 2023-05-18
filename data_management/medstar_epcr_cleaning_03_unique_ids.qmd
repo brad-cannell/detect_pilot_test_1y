@@ -9,12 +9,16 @@ editor: visual
 -   Groups with entries in the 0.54 - 0.903 posterior probability threshold, without duplicate entries, were revised first
 
     -   Resulted in 72 new Unique Subject IDs
-    
+
 -   Groups with duplicate entries, which were all within the 0.54 - 0.903 posterior probability threshold, were then revised
 
     -   Resulted in 132 fewer Unique Subject IDs
-    
+
 -   All 1156 observations within the manual review posterior probability range of 0.54 - 0.903 were manually reviewed when clustered by first name, last name, and street address. No pairs were found to fail to match.
+
+-   All 15 entries which failed to receive an automatic group ID were manually reviewed and assigned group IDs
+
+    -   Resulted in 15 new Unique Subject IDs
 
 ## Assumptions and Considerations
 
@@ -44,7 +48,7 @@ editor: visual
 
         -   More likely in Male patients, due to naming conventions
 
-        -   Birth Date considerations apply
+        -   Birth Date considerations relating to the possibility of JR/SR relationships or other familial pairing apply
 
 -   Gender
 
@@ -100,15 +104,15 @@ MedStar ePCR data set was loaded for processing.
 ```{r}
 # fastLink Output
 fl_out <- readRDS(here("data","DETECT Shared GRAs","medstar_cleaning",
-                             "medstar","medstar_epcr_02_fastlinkobj.rds"))
+                             "medstar_epcr_02_fastlinkobj.rds"))
 
 # Stacked Pairs with Posteriors > 0.54
 stacked_pairs <- readRDS(here("data","DETECT Shared GRAs","medstar_cleaning",
-                             "medstar","medstar_epcr_02_stacked_pairs.rds"))
+                             "medstar_epcr_02_stacked_pairs.rds"))
 
 # Original ID assignments
 id_base <- readRDS(here("data","DETECT Shared GRAs","medstar_cleaning",
-                             "medstar","medstar_epcr_02_id_initial.rds"))
+                             "medstar_epcr_02_id_initial.rds"))
 ```
 
 ## Functions
@@ -323,7 +327,7 @@ add_replacement_rows <- function(df, rows, id) {
 
 ```
 
-# Review of Flags
+# Review of Initial ID Assignments
 
 There were 29,271 observations in the raw MedStar ePCR Unique ID - Original data set. All 28228 unique PCR report numbers from the original MedStar ePCR data were represented in this data set, with no missing values for `ms_epcr_row` or `response_pcr` variables. There were 16,637 unique IDs (1 - 16,636) assigned.
 
@@ -337,7 +341,27 @@ length(unique(id_base$response_pcr))
 length(unique(id_base$id))
 ```
 
-There were 1,662 duplicated observations, representing 619 PCR report numbers in 293 groups.
+## Subjects without ID Assignment
+
+There were 15 subjects that somehow evaded the automated group ID assignment.
+
+```{r}
+sum(is.na(id_base$id))
+```
+
+These 15 observations were flagged for manual review.
+
+```{r}
+id_base <- id_base %>%
+  mutate(flag_missing = ifelse(is.na(id), TRUE, FALSE)) %>%
+  mutate(flag = ifelse(flag_missing, TRUE, flag))
+
+get_unique_value_summary(id_base, "flag_missing")
+```
+
+## Duplicated Observations by PCR Report Number `response_pcr`
+
+There were 1,662 duplicated observations, representing 619 PCR report numbers in 293 groups. The 1,675 observations that contained `ms_epcr_row` values or `id` values associated with these duplicates were previously flagged for review.
 
 ```{r}
 duplicates <- id_base %>%
@@ -349,27 +373,47 @@ length(unique(duplicates$response_pcr))
 length(unique(duplicates$id))
 ```
 
-There were 2,199 observations flagged for manual review. This included 1675 observations in ID groups containing at least one of the duplicated PCR report numbers, and an additional 524 observations in that did not include a duplicate PCR number but fell within the manual verification posterior range of 0.54 - 0.903.
+## Posterior Probability in Manual Verification Range of 0.54 - 0.903
+
+The 1586 observations (793 pairs) represented in potential pairs with posterior probabilities in the manual verification range of 0.54 - 0.903 were previously flagged for manual review. This produced an additional 524 observations in this range that were not already flagged for association with a duplicated PCR number.
 
 ```{r}
 get_unique_value_summary(id_base,c("flag","flag_duplicate","flag_posterior"))
 ```
 
-These 2,199 values were isolated to facilitate manual review.
+## Summary of Flags, Subsetting Flagged Data
+
+These 2,214 values were isolated to facilitate manual review.
 
 ```{r}
-checking <- subset(id_base, select= c("id","ms_epcr_row","pt_name_full","pt_dob","pt_gender","pt_race","pt_hispanic","pt_address_num","pt_address_street","pt_address_unit","pt_address_city","flag","flag_duplicate","flag_posterior")) %>%
+checking <- subset(id_base, select= c("id","ms_epcr_row","pt_name_full","pt_dob","pt_gender","pt_race","pt_hispanic","pt_address_num","pt_address_street","pt_address_unit","pt_address_city","flag","flag_duplicate","flag_posterior","flag_missing")) %>%
   filter(flag)
 ```
 
-## Manual Review
+# Manual Review of Flags
 
-### Posteriors without Duplicates
+## Missing Subject ID
+
+The 15 observations that failed to receive an automatic subject ID were further isolated and manually reviewed.
+
+```{r}
+checking_cols <- filter(checking, flag_missing)
+```
+
+These observations were found to be missing nearly all identifying information. This was further confirmed in checking the full data for these observations.
+
+```{r}
+checking_cols <- filter(id_base, flag_missing)
+```
+
+These observations were set aside to permit checking for potential matches to the limited data during the remainder of the cleaning process.
+
+## Posteriors without Duplicates
 
 The 524 observations with 148 unique subject ID values that were flagged for having a posterior probability between 0.54 and 0.903, without a duplicate PCR report value, were further isolated and manually reviewed.
 
 ```{r}
-checking_cols <- filter(checking, !flag_duplicate)
+checking_cols <- filter(checking, !flag_duplicate & !flag_missing)
 
 get_unique_value_summary(checking_cols,"id")
 ```
@@ -400,7 +444,7 @@ replacement_ids <- rbind(replacement_ids,tibble("ms_epcr_row" = target_rows,
                                                 "id" = ids))
 ```
 
-### Duplicates
+## Duplicates
 
 The 1675 observations, with 632 unique PCR response numbers and 293 unique subject ID values, that were flagged for having duplicate observations and posteriors between 0.54 and 0.903 were further isolated for manual review.
 
@@ -614,7 +658,7 @@ We found 161 unique groups. Of the original 293 groups, 5 groups (1.71%) were en
 
 -   The entries in group 2995 were repeated in groups 3376, 3960, and 9930. These entries corresponded to 10 "John Doe" entries. Each of these observations was assigned to its own group, in groups
 
-#### Coding Groups in Replacement Map
+### Coding Groups in Replacement Map
 
 ```{r}
 # Group 1283
@@ -1446,9 +1490,24 @@ replacement_ids <- rbind(replacement_ids,tibble("ms_epcr_row" = target_rows,
 
 ```
 
-#### Validating Replacement Map
+## Adding Subject IDs for Observations without Subject ID
 
-We verified that our map for replacing ID values had the expected 704 observations, with no duplicates or missing (`NA`) values for `ms_epcr_row`.
+No feasible matches were identified for the 15 observations that did not receive an automatic ID assignment. These observations were provided individual, separate group IDs.
+
+```{r}
+
+target_rows <- c(18877, 15585, 4907, 33040, 30842, 22809, 16169, 28825, 29083, 
+                 29284, 32437, 16660, 24407, 2859, 26399)
+
+ids <- seq(16710,length(target_rows)+16709,by=1)
+
+replacement_ids <- rbind(replacement_ids,tibble("ms_epcr_row" = target_rows, 
+                                                "id" = ids))
+```
+
+## Validating Replacement Map
+
+We verified that our map for replacing ID values had the expected 719 observations, with no duplicates or missing (`NA`) values for `ms_epcr_row`.
 
 ```{r}
 nrow(replacement_ids)
@@ -1480,7 +1539,9 @@ valid_ids <- c(78, 83, 97, 131, 217, 222, 245, 294, 296, 317, 449, 481, 656,
                16676, 16677, 16678, 16679, 16680, 16681, 16682, 16683, 16684, 
                16685, 16686, 16687, 16688, 16689, 16699, 16690, 16691, 16692, 
                16693, 16694, 16695, 16696, 16697, 16698, 16700, 16701, 16702, 
-               16703, 16704, 16705, 16706, 16707, 16708, 16709)
+               16703, 16704, 16705, 16706, 16707, 16708, 16709, 16710, 16711,
+               16712, 16713, 16714, 16715, 16716, 16717, 16718, 16719, 16720,
+               16721, 16722, 16723, 16724)
 
 nrow(replacement_ids[!(replacement_ids$ms_epcr_row %in% checking$ms_epcr_row),])
 
@@ -1495,7 +1556,7 @@ We checked to ensure only the expected 452 observations from our manual cleaning
 nrow(checking[!(checking$ms_epcr_row %in% replacement_ids$ms_epcr_row),])
 ```
 
-### Replacing IDs and Removing Duplicates
+## Replacing IDs and Removing Duplicates
 
 We applied our map to correct IDs, ensuring that all occurrences of the same value of `ms_epcr_row` have the same Group ID.
 
@@ -1512,13 +1573,13 @@ sum(duplicated(id_base$ms_epcr_row))
 
 ## Checking for Failed Matches in Posterior Range
 
-After manually checking non-duplicated and duplicated observations within the verification posterior probability range of 0.54 - 0.903, there were 1156 observations flagged for review. 
+After manually checking non-duplicated and duplicated observations within the verification posterior probability range of 0.54 - 0.903, there were 1156 observations in the posterior probability range flagged for review.
 
 ```{r}
 get_unique_value_summary(id_base,c("flag","flag_duplicate","flag_posterior"))
 ```
 
-There were 348 unique IDs present in the data set at this time. As previous cleaning had focused on ensuring that each unique subject ID in range did not refer to two separate individuals (separating false matches) and deduplication, focus was shifted to assessing for failure to match. 
+There were 363 unique IDs present in the data subset at this time. As previous cleaning had focused on ensuring that each unique subject ID in range did not refer to two separate individuals (separating false matches) and deduplication, focus was shifted to assessing for failure to match.
 
 ```{r}
 nrow(id_base[!duplicated(id_base$id) & id_base$flag,])
@@ -1528,7 +1589,7 @@ The 1156 rows containing observations within the manual verification posterior r
 
 ```{r}
 checking <- id_base %>%
-  filter(flag) %>%
+  filter(flag_posterior) %>%
   subset(select = c("flag_posterior", "flag_duplicate", "id", "ms_epcr_row",
                     "pt_name_first", "pt_name_middle", "pt_name_last", 
                     "pt_gender","pt_dob_year","pt_dob_month", "pt_dob_day",
@@ -1545,7 +1606,6 @@ Observations were manually reviewed when clustered by last name. No observations
 
 Observations were manually reviewed when clustered by street address. No observations were found to have failed to match.
 
-
 # Reordering Variables
 
 We renamed our id variable to indicate the source data set, for future clarity
@@ -1553,7 +1613,6 @@ We renamed our id variable to indicate the source data set, for future clarity
 ```{r}
 colnames(id_base)[colnames(id_base) == "id"] <- "ms_id"
 ```
-
 
 We recreated a similar column order to the originally cleaned and reordered data.
 
@@ -1596,11 +1655,36 @@ And we reordered our data set for ease of manual inspection
 id_base <- id_base[,col_order]
 ```
 
+# Conversion of ZIP Code to Factor
+
+Values for Patient ZIP Code, `pt_address_zip`, had previously been converted to numeric for fastLink numeric matching. In order to reverse the loss of data and format (due to truncation of leading zeroes), we reconverted the variable to character, reappended leading zeroes (twice, to ensure even the "shortest" zip codes in the US would be caught), then converted to an unordered factor.
+
+```{r}
+id_base$pt_address_zip <- as.character(id_base$pt_address_zip)
+
+id_base <- id_base %>%
+  mutate(pt_address_zip = case_when(
+    is.na(pt_address_zip) ~ pt_address_zip,
+    nchar(pt_address_zip) < 5 ~ paste0("0",pt_address_zip), 
+    TRUE ~ pt_address_zip
+    )
+  ) %>%
+    mutate(pt_address_zip = case_when(
+    is.na(pt_address_zip) ~ pt_address_zip,
+    nchar(pt_address_zip) < 5 ~ paste0("0",pt_address_zip), 
+    TRUE ~ pt_address_zip
+    )
+  )
+
+id_base$pt_address_zip <- factor(id_base$pt_address_zip, ordered = FALSE)
+```
+
+
 # Saving Files
 
 The processed MedStar ePCR data was saved and exported.
 
 ```{r}
 saveRDS(id_base,here("data","DETECT Shared GRAs","medstar_cleaning",
-                             "medstar","medstar_epcr_03_cleaned_ids.rds"))
+                             "medstar_epcr_03_cleaned_ids.rds"))
 ```

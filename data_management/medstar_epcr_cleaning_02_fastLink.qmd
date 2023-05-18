@@ -83,7 +83,7 @@ MedStar ePCR data set was loaded for processing.
 
 ```{r}
 ms_epcr <- readRDS(here("data","DETECT Shared GRAs","medstar_cleaning",
-                             "medstar","medstar_epcr_01.rds"))
+                             "medstar_epcr_01.rds"))
 ```
 
 ## Functions
@@ -287,6 +287,15 @@ fmr_add_unique_id <- function(df, fastLink_obj) {
 # Determination of Variables
 
 As there were 28,228 unique PCR response numbers in our data set, we expected at least 28,228 pairs with perfect matches (as each row is compared to each row, so each row should at minimum be a perfect match with itself).
+
+## Conversion of Patient ZIP Code to Numeric
+
+Patient Zip code data, in `pt_address_zip`, was coded as character to preserve leading zeros and formatting. For the purposes of numeric matching with fastLink, it was converted to a numeric.
+
+```{r}
+ms_epcr$pt_address_zip <- as.numeric(ms_epcr$pt_address_zip)
+```
+
 
 ## Initial Attempt
 
@@ -1643,13 +1652,13 @@ Data was saved and exported to ensure continuity through the manual clean operat
 ```{r}
 # fastLink Output
 saveRDS(fl_out,here("data","DETECT Shared GRAs","medstar_cleaning",
-                             "medstar","medstar_epcr_02_fastlinkobj.rds"))
+                             "medstar_epcr_02_fastlinkobj.rds"))
 
 # Stacked Pairs with Posteriors > 0.54
 saveRDS(test_stack,here("data","DETECT Shared GRAs","medstar_cleaning",
-                             "medstar","medstar_epcr_02_stacked_pairs.rds"))
+                             "medstar_epcr_02_stacked_pairs.rds"))
 
 # Original ID assignments
 saveRDS(test_id,here("data","DETECT Shared GRAs","medstar_cleaning",
-                             "medstar","medstar_epcr_02_id_initial.rds"))
+                             "medstar_epcr_02_id_initial.rds"))
 ```

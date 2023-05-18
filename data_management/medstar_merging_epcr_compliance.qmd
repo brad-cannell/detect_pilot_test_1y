@@ -1,0 +1,192 @@
+---
+title: "MedStar Data: Merging ePCR and Compliance Data"
+format: html
+editor: visual
+---
+
+# Summary
+
+-   There were 246 observations in the Compliance data set with a Response Number that indicated a report made to APS
+
+-   There were 28228 observations within the ePCR data set
+
+-   The only variables available for matching were Response Number and Report Number
+
+    -   Report Number was only sporadically provided in the ePCR data set
+
+    -   Response Number was not always present in the ePCR data set
+
+    -   Matching based off of date was not feasible, as the Report Date in the Compliance Data set was found to be inconsistent among duplicate recordings of the same Response Number and the presence of multiple calls for service on each date in the ePCR data set; there were no further identifiers in the Compliance Data that would permit potential matches.
+
+-   Only 110 matches were successfully made
+
+    -   All matches were based on Response Number - there were no matches found for Report Number
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(readxl)
+library(here)
+library(data.table)
+```
+
+## Data Imports
+
+The previously cleaned MedStar ePCR and Compliance data was imported.
+
+```{r}
+epcr <- readRDS(here("data","DETECT Shared GRAs","medstar_cleaning",
+                            "medstar_epcr_03_cleaned_ids.rds"))
+
+compl <- readRDS(here("data","DETECT Shared GRAs", "medstar_cleaning",
+                             "medstar_compliance_01_cleaned.rds"))
+```
+
+# Renaming Variables
+
+Variables from the compliance data were renamed with a `comp_` prefix in anticipation of creating a merged data set. The variable for "row" in the compliance data was given an additional `ms_` prefix
+
+```{r}
+original_cols <- colnames(compl)
+
+colnames(compl) <- paste("comp_", original_cols, sep = "")
+
+colnames(compl)[colnames(compl)=="comp_row"] <- "ms_comp_row"
+
+colnames(compl)[colnames(compl)=="comp_response_num"] <- "response_num"
+```
+
+# Initializing New Data Frame
+
+We initialized a new data frame containing all variables of both data sets.
+
+```{r}
+cols <- c(colnames(epcr),colnames(compl))
+```
+
+# Linking Records
+
+## Link by Response Number
+
+We reduced our search space to only the 246 compliance records which indicated a report made to APS, where the Response Number was not missing.
+
+```{r}
+compl <- compl %>% 
+  filter(comp_report_agency == "APS" & !is.na(response_num))
+
+nrow(compl)
+```
+
+Of these records, we found a matching Response Number in 110 PCR rows.
+
+```{r}
+sum(epcr$response_num %in% compl$response_num, na.rm = TRUE)
+```
+
+We transferred the matching 110 ePCR records to a new data frame
+
+```{r}
+ms_merged <- epcr %>%
+  filter(epcr$response_num %in% compl$response_num)
+```
+
+And performed a left-join to match the 110 observations by response number
+
+```{r}
+ms_merged <- left_join(ms_merged,compl,by="response_num")
+```
+
+We reduced our search space by removing these 110 observations from both the Compliance and ePCR data sets
+
+```{r}
+compl <- compl %>%
+  filter(!(compl$response_num %in% ms_merged$response_num))
+
+epcr <- epcr %>%
+  filter(!(epcr$response_num %in% ms_merged$response_num))
+```
+
+## Link by Report Number
+
+None of the remaining report numbers listed in the ePCR data set were found in the Compliance data set.
+
+```{r}
+sum(epcr$detect_report_num %in% flatten(compl$comp_report_num_list), na.rm = TRUE)
+```
+
+# Finalizing Data Frame
+
+Unfortunately, there were no more variables considered to be reliable indicators of linkage between the two data sets. As there were multiple calls for service each day, and the call date for each report in the Compliance Data set was not consistent between all instances, matching based off date was likely to be inaccurate and speculative at best.
+
+## Returning Remaining Unmatched ePCR Records to Data Frame
+
+As such, we added the remaining 28118 ePCR observations into the joined data frame without further modification. Compliance variables which contained lists would have a value of "NULL" in these unmatched observations, and all others would contain missing (`NA`) values.
+
+```{r}
+ms_merged <- bind_rows(ms_merged,epcr)
+```
+
+## Reordering Columns
+
+We developed our desired order for our variables, for clarity.
+
+```{r}
+bookkeeping_cols <- c("ms_id", "ms_epcr_row", "ms_comp_row")
+
+pt_demo_cols <- c("pt_name_full","pt_name_first","pt_name_middle","pt_name_last",
+                  "pt_age","pt_dob","pt_dob_year","pt_dob_month","pt_dob_day",
+                  "pt_race","pt_hispanic","pt_gender","pt_homeless",
+                  "pt_address_pobox","pt_address_num","pt_address_street",
+                  "pt_address_unit","pt_address_city","pt_address_state",
+                  "pt_address_zip")
+
+resp_detail_cols <- c("response_pcr","response_num","response_dt",
+                      "response_year","response_month","response_day",
+                      "response_date", "response_time","response_complaint",
+                      "response_symptoms", "response_dispo",
+                      "response_ems_epcr_sig")
+
+detect_binaries <- c("detect_cond_anxious", "detect_cond_hygiene", 
+                     "detect_cond_needs", "detect_cond_clothes", 
+                     "detect_meds_difficulty", "detect_meds_hoarding", 
+                     "detect_caregiver_anxious", "detect_caregiver_frustrated", 
+                     "detect_caregiver_lack", "detect_caregiver_inattentive", 
+                     "detect_env_isolated", "detect_env_concern", 
+                     "detect_env_hoarding", "detect_env_odor", 
+                     "detect_report_made")
+
+detect_cols <- c(detect_binaries,"detect_report_num","detect_report_comment", 
+                 "detect_report_aps_unable","detect_report_aps_onscene",
+                 "detect_report_aps_existing", "detect_facility", 
+                 "detect_other_reporter", "detect_uta")
+
+compl_cols <- c("comp_report_agency", "comp_report_date", "comp_report_method", 
+                "comp_report_num", "comp_report_num_list", 
+                "comp_report_created_dt", "comp_report_created_date", 
+                "comp_report_created_time", "comp_report_created_list", 
+                "comp_report_comment")
+
+col_order <- c(bookkeeping_cols,pt_demo_cols,detect_cols,resp_detail_cols,
+               compl_cols)
+```
+
+We reordered the variables of our data set.
+
+```{r}
+ms_merged <- ms_merged[,col_order]
+```
+
+# Saving Files
+
+The processed, joined MedStar data was saved and exported.
+
+```{r}
+saveRDS(ms_merged,here("data","DETECT Shared GRAs", "medstar_cleaning",
+                             "medstar_01.rds"))
+```
