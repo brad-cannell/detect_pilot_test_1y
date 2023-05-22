@@ -1,0 +1,258 @@
+---
+title: "Cleaning APS"
+html:
+  embed-resources: true
+editor: visual
+---
+
+# Summary
+
+Summary will go here
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(readxl)
+library(vctrs)
+library(here)
+library(data.table)
+library(lubridate)
+```
+
+## Data Imports
+
+APS data was loaded for processing from XLSX format. Data types were specified for key fields to minimize loss of data, such as in date formats.
+
+```{r}
+aps <- read_excel(here("data","DETECT Shared GRAs","aps_data.xlsx"), 
+     col_types = c("text", "text", "text", 
+         "date", "numeric", "text", "text", 
+         "text", "text", "numeric", "numeric", 
+         "numeric", "numeric", "date", "text", 
+         "date", "text", "numeric", "numeric", 
+         "numeric", "numeric", "numeric", 
+         "numeric", "numeric", "numeric", 
+         "numeric", "numeric", "numeric", 
+         "numeric", "numeric", "numeric", 
+         "numeric", "numeric", "numeric", 
+         "numeric", "numeric", "numeric", 
+         "numeric", "numeric", "numeric", 
+         "numeric", "numeric", "numeric", 
+         "numeric", "numeric", "numeric", 
+         "numeric"))
+```
+
+## Functions
+
+### Unique Value Summaries
+
+A previously written function, written to display counts of each unique observations within a selection of columns, was added for our processing.
+
+```{r}
+get_unique_value_summary <- function(df,cols){
+  
+  # Input: 
+  #     df (data frame) - original source data frame
+  #     cols (list) - list of target column names as strings
+  # Output:
+  #     unique_summary (data frame) - summary counts of each unique value in
+  #           each of the target columns
+  
+  # Get list of unique values in all target columns
+  
+  val <- unique(as.factor(as.vector(as.matrix(df[cols]))))
+  
+  # Initialize output data frame with unique value row
+  
+  unique_summary <- data.frame("value"=val)
+  
+  # Get counts of unique values in original data frame
+  
+  for (i in cols){
+    
+    # utilizes table to get summary count of each column
+    
+    table <- as.data.frame(table(df[i]))
+    
+    # sets column names to "value" and "freq"
+    
+  colnames(table) <- c("value","freq")
+  
+    # adds count of missing values in each column
+  
+  table<- add_row(table, value = NA, freq = sum(is.na(df[i])))
+  
+    # readjusts names of columns to "value" and the name of the target column
+  
+  colnames(table) <- c("value",i)
+  
+    # joins table's summary counts to complete the count values
+  
+    unique_summary <- left_join(unique_summary,table, by="value")
+  }
+  
+  # returns completed, but unordered, data frame
+  
+  unique_summary
+  }
+```
+
+# Initial Data Structure
+
+## Dimensions
+
+The APS data set contained 18152 observations with 47 variables
+
+```{r}
+dim(aps)
+```
+
+We checked for any rows which contained only missing (`NA`) values, and found there are no entirely empty rows.
+
+```{r}
+nrow(filter(aps, rowSums(is.na(aps)) == ncol(aps)))
+```
+
+We checked for any rows which contained values for every variable (a complete case) and found that there were 17,683 (97.42% of rows).
+
+```{r}
+nrow(na.omit(aps))
+sum(complete.cases(aps))
+```
+
+## Variables
+
+Original variable naming was checked, and found to be a format that was cumbersome for use in code.
+
+```{r}
+colnames(aps)
+```
+
+# Data Processing
+
+## Variable Renaming
+
+Variables were renamed to follow project style conventions. These conventions aimed to increase the usability of variables in code, ensure understanding of variable meanings, and facilitate organization of variables based on source and/or topic.
+
+```{r}
+colnames(aps) <- c('pt_name_last', 'pt_name_first', 'pt_name_full', 
+                   'pt_dob', 'aps_person_id', 'pt_address_street', 
+                   'pt_address_city', 'pt_address_zip', 'pt_address_county',
+                   'pt_age', 'aps_case_num', 'aps_stage_inv', 
+                   'aps_stage_intake', 'aps_intake_date', 'aps_reporter',
+                   'aps_inv_close_date', 'aps_inv_close_reason', 
+                   'aps_abuse_emotional_valid', 'aps_exploitation_valid', 
+                   'aps_neglect_medical_valid', 'aps_neglect_mental_valid',
+                   'aps_abuse_physical_valid', 'aps_neglect_physical_valid',
+                   'aps_abuse_sexual_valid', 'aps_abuse_emotional_invalid',
+                   'aps_exploitation_invalid', 'aps_neglect_medical_invalid',
+                   'aps_neglect_mental_invalid', 'aps_abuse_physical_invalid',
+                   'aps_neglect_physical_invalid', 'aps_abuse_sexual_invalid',
+                   'aps_abuse_emotional_utd', 'aps_exploitation_utd', 
+                   'aps_neglect_medical_utd', 'aps_neglect_mental_utd', 
+                   'aps_abuse_physical_utd', 'aps_neglect_physical_utd',
+                   'aps_abuse_sexual_utd', 'aps_investigated_total',
+                   'aps_abuse_emotional_other', 'aps_exploitation_other', 
+                   'aps_neglect_medical_other', 'aps_neglect_mental_other',
+                   'aps_abuse_physical_other', 'aps_neglect_physical_other',
+                   'aps_abuse_sexual_other', 'aps_other_total')
+
+colnames(aps)
+```
+
+## Initiating Novel Variables
+
+We initiated the novel variables of our data set.
+
+```{r}
+aps <- aps %>%
+  add_column(aps_row = NA)
+```
+
+## Adding Row Numbers
+
+We added a variable containing the row numbers of each observation in the source data.
+
+```{r}
+aps <- aps %>%
+  mutate(aps_row = row_number()
+         )
+```
+
+## Conversion of Target String Variables to Uppercase
+
+We converted all name and address fields to uppercase for uniformity and avoidance of case mismatch.
+
+```{r}
+uppercasing <- c("pt_name_last", "pt_name_first","pt_name_full", 
+                 "pt_address_city", "pt_address_street", "pt_address_county",
+                 "pt_address_street")
+
+aps <- aps %>%
+  mutate(across(all_of(uppercasing), str_to_upper)
+         )
+```
+
+# Data Processing
+
+## Patient Name `pt_name_first`, `pt_name_last`, `pt_name_full`
+
+We found that there were missing (`NA`) values in 72 rows for Last Name, 64 rows for First Name, and 57 rows for Full Name.
+
+```{r}
+sum(is.na(aps$pt_name_first))
+sum(is.na(aps$pt_name_last))
+sum(is.na(aps$pt_name_full))
+```
+
+We find that all 57 rows with missing (`NA`) values for Full Name are also missing both First and Last Name. This indicated that if the patient had any value for name, it was present in both the Full Name field and the appropriate Name Component field. 
+
+```{r}
+checking <- aps %>%
+  select(c('pt_name_first', 'pt_name_last', 'pt_name_full'))
+
+nrow(filter(checking, rowSums(is.na(checking)) == ncol(checking)))
+sum(complete.cases(checking))
+```
+
+### Assessing for Unexpected Characters
+
+There was a single observation which contained any unexpected characters (anything other than the letters A-Z of the Standard English Alphabet, an apostrophe, a space, a period, or a hyphen). There was a single entry identified, of which both First and Full name fields were impacted.
+
+```{r}
+sum(str_detect(aps$pt_name_first, "[^A-Z'-. ]+"), na.rm=TRUE)
+sum(str_detect(aps$pt_name_last, "[^A-Z'-. ]+"), na.rm=TRUE)
+sum(str_detect(aps$pt_name_full, "[^A-Z'-. ]+"), na.rm=TRUE)
+```
+
+In checking this value, we found that the name in this observation was "UNKNOWN 1"
+
+```{r}
+checking <- aps %>%
+  filter( str_detect(pt_name_full, "[^A-Z'-. ]") | str_detect(pt_name_first, "[^A-Z'-. ]") | str_detect(pt_name_last, "[^A-Z'-. ]"))
+
+subset(checking,select = c("pt_name_full", "pt_name_first", "pt_name_last"))
+```
+
+### Assessing for "Unknown" or Equivalent Values
+
+The values for Full, First, and Last Name were examined for values equivalent to "UNKNOWN".
+
+There were no values which matched "NOT ", "N A", or "N.A" ("NOT APPLICABLE" equivalents)
+
+```{r}
+test_regex <- "^(NOT |N\\.A|N A)"
+
+checking <- aps %>%
+  filter( str_detect(pt_name_full, test_regex) | str_detect(pt_name_first, test_regex) | str_detect(pt_name_last, test_regex))
+
+subset(checking,select = c("pt_name_full", "pt_name_first", "pt_name_last"))
+```
+
+

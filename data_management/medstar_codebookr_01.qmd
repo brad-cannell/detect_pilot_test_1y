@@ -14,7 +14,6 @@ editor: visual
 -   Variables that would cause PHI to be revealed, even when presented in aggregate, were identified and blocked from revealing values in summary statistics
 -   Sources were attached to variables in aggregate
 
-
 # Imports
 
 ## Library Imports
