@@ -1,0 +1,705 @@
+---
+title: "APS Codebook Creation"
+format: html
+editor: visual
+---
+
+# Summary
+
+-   Boolean/Logical variables were converted into factors and ordered
+
+    -   `pt_homeless`,`aps_abuse_emotional_valid`, `aps_exploitation_valid`, `aps_neglect_medical_valid`, `aps_neglect_mental_valid`, `aps_abuse_physical_valid`, `aps_neglect_physical_valid`, `aps_abuse_sexual_valid`, `aps_abuse_emotional_invalid`, `aps_exploitation_invalid`, `aps_neglect_medical_invalid`, `aps_neglect_mental_invalid`, `aps_abuse_physical_invalid`, `aps_neglect_physical_invalid`, `aps_abuse_sexual_invalid`, `aps_abuse_emotional_utd`, `aps_exploitation_utd`, `aps_neglect_medical_utd`, `aps_neglect_mental_utd`, `aps_abuse_physical_utd`, `aps_neglect_physical_utd`, `aps_abuse_sexual_utd`, `aps_investigated_total`, `aps_abuse_emotional_other`, `aps_exploitation_other`, `aps_neglect_medical_other`, `aps_neglect_mental_other`, `aps_abuse_physical_other`, `aps_neglect_physical_other`, `aps_abuse_sexual_other`, `flag_determinations`
+    
+-   Un-ordered factor variables were ordered for presentation
+    -   `aps_reporter`, `aps_inv_close_reason` ,`aps_abuse_emotional`, `aps_exploitation`, `aps_neglect_medical`, `aps_neglect_mental`, `aps_abuse_physical`, `aps_neglect_physical`, `aps_abuse_sexual`
+    
+-   Variables that would cause PHI to be revealed, even when presented in aggregate, were identified and blocked from revealing values in summary statistics
+
+-   Sources were attached to variables in aggregate
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(codebookr)
+library(here)
+library(stringr)
+```
+
+## Data Imports
+
+The APS data set was imported.
+
+```{r}
+aps <- readRDS(here("data","DETECT Shared GRAs", "aps_cleaning",
+                             "aps_01.rds"))
+```
+
+# Initial Data Structure
+
+Our APS data contained 18,152 observations of 80 variables. There were 11,178 unique subject IDs.
+
+```{r}
+dim(aps)
+
+length(unique(aps$aps_person_id))
+```
+
+There was a unique value for `aps_row` (row number in original APS source data) for each observation, and no observations lacking a value for this variable.
+
+```{r}
+length(unique(aps$aps_row))
+sum(is.na(aps$aps_row))
+```
+
+# Data Modification for Codebook
+
+We refined our data for codebook purposes.
+
+## Aggregate Modifications 
+
+### Adding Source
+
+All variables came from the same source, so source was added in aggregate.
+
+```{r}
+for (i in colnames(aps)) {
+  attr(aps[[i]], "source") <- "Texas Adult Protective Services Data"
+}
+```
+
+### PHI Identification
+
+All patient identifiers were isolated, so that we could block summary statistics from potentially revealing PHI.
+
+```{r}
+phi_vars <- aps %>%
+  select (pt_name_full, pt_name_last, pt_name_first, pt_dob, aps_person_id, 
+          pt_address_pobox, pt_address_street, pt_address_num, pt_address_unit,
+          pt_address_zip, pt_address_city, aps_case_num,
+          aps_intake_num, aps_inv_num, aps_intake_dt, aps_intake_date,
+          aps_inv_close_dt, aps_inv_close_date
+          ) %>%
+  names()
+```
+
+### Group Labeling of Record Number Variables
+
+All Record Number Variables received a Column Type label in aggregate
+
+```{r}
+record_vars <- aps %>%
+  select(aps_row, aps_case_num, aps_intake_num, aps_inv_num
+         ) %>%
+  names()
+
+for (i in record_vars) {
+  attr(aps[[i]], "col_type") <- "Record Number"
+}
+```
+
+### Group Labelling of Address Variables
+
+Variables which contained Address values were modified in aggregate.
+
+```{r}
+pt_addr_vars <- aps %>%
+  select(pt_address_pobox, pt_address_street, pt_address_num, pt_address_unit,
+         pt_address_city, pt_address_county, pt_address_zip
+         ) %>%
+  names()
+
+for (i in pt_addr_vars) {
+  attr(aps[[i]], "col_type") <- "Address"
+}
+```
+
+### Group Labelling of Name Variables
+
+Variables which contained Name values were modified in aggregate.
+
+```{r}
+pt_name_vars <- aps %>%
+  select(pt_name_full, pt_name_first, pt_name_last
+         ) %>%
+  names()
+
+for (i in pt_name_vars) {
+  attr(aps[[i]], "col_type") <- "Name"
+}
+```
+
+## Ordering Factors
+
+### Binary Variables
+
+#### Boolean 0/1 Variables
+
+All APS Determination variables were numeric 0 and 1 values which corresponded to Boolean Logical FALSE and TRUE, respectively. 
+
+```{r}
+binary_vars <- aps %>%
+  select(aps_abuse_emotional_valid, aps_exploitation_valid,
+         aps_neglect_medical_valid, aps_neglect_mental_valid,
+         aps_abuse_physical_valid, aps_neglect_physical_valid,
+         aps_abuse_sexual_valid, aps_abuse_emotional_invalid,
+         aps_exploitation_invalid, aps_neglect_medical_invalid,
+         aps_neglect_mental_invalid, aps_abuse_physical_invalid,
+         aps_neglect_physical_invalid, aps_abuse_sexual_invalid,
+         aps_abuse_emotional_utd, aps_exploitation_utd,
+         aps_neglect_medical_utd, aps_neglect_mental_utd,
+         aps_abuse_physical_utd, aps_neglect_physical_utd,
+         aps_abuse_sexual_utd, aps_investigated_total,
+         aps_abuse_emotional_other, aps_exploitation_other,
+         aps_neglect_medical_other, aps_neglect_mental_other,
+         aps_abuse_physical_other, aps_neglect_physical_other,
+         aps_abuse_sexual_other) %>%
+  names()
+
+bool_levels <- c("True", "False")
+
+aps <- aps %>%
+  mutate(across(all_of(binary_vars),
+                ~ case_when(is.na(.) ~ NA_character_,
+                           . == 1 ~ "True",
+                           . == 0 ~ "False"))
+         ) %>%
+  mutate(across(all_of(binary_vars),
+                ~factor(.x, ordered = TRUE, levels = bool_levels)
+                )
+         )
+```
+
+We added the "Binary Category" Column Type attribute to these variables.
+
+```{r}
+for (i in binary_vars) {
+  attr(aps[[i]], "col_type") <- "Binary Category"
+}
+```
+
+#### Logical Variables
+
+All logical variables had values stored as logical TRUE and FALSE, which we converted to strings and ordered as factors for presentation.
+
+```{r}
+bool_vars <- aps %>%
+  select(pt_homeless, flag_determinations) %>%
+  names()
+
+bool_levels <- c("True", "False")
+
+aps <- aps %>%
+  mutate(across(all_of(bool_vars),
+                ~ case_when(is.na(.) ~ NA_character_,
+                           . == TRUE ~ "True",
+                           . == FALSE ~ "False"))
+         ) %>%
+  mutate(across(all_of(bool_vars),
+                ~factor(.x, ordered = TRUE, levels = bool_levels)
+                )
+         )
+```
+
+We added the "Binary Category" Column Type attribute to these variables.
+
+```{r}
+for (i in bool_vars) {
+  attr(aps[[i]], "col_type") <- "Binary Category"
+}
+```
+
+### Multiple Category Factors
+
+#### Reporter Category `aps_reporter`
+
+There were 13 categories of Reporter in the `aps_reporter` Variable
+
+```{r}
+levels(aps$aps_reporter)
+```
+
+These levels were ordered for presentation.
+
+```{r}
+reporter_levels <- c("Health Care Providers/Staff -- EMS/EMT", 
+                     "Health Care Providers/Staff", "Law Enforcement", 
+                     "State Agencies", "Legal and Court-Related Services/Staff",
+                     "Community Agencies/Organizations", "Financial Institution",
+                     "Other Providers", "Family Members and Relatives", 
+                     "Friends and Neighbors", "Victim", "Other", "Anonymous")
+
+aps$aps_reporter <- factor(aps$aps_reporter, 
+                           ordered = TRUE, 
+                           levels = reporter_levels)
+```
+
+The variable's column type and description were added.
+
+```{r}
+cb_add_col_attributes(
+  aps,
+  aps_reporter,
+  col_type = "Single Choice, Multiple Options",
+  description = "Reporter Type"
+)
+```
+
+
+#### Investigation Close Reason `aps_inv_close_reason`
+
+There were 17 categories of Close Reason in the `aps_inv_close_reason` Variable
+
+```{r}
+levels(aps$aps_inv_close_reason)
+```
+
+These levels were ordered for presentation.
+
+```{r}
+close_levels <- c("Progress to Maintenance", "Progress to ICS", 
+                  "Services Needed, But Not Available", 
+                  "Resolved During Investigation with Services", 
+                  "Self-Neglect Resolved Before Face-to-Face",  "Client died", 
+                  "Client Refused Services", "No Services Required", 
+                  "Does not meet definition of APS", "Invalid", 
+                  "Reclassification", "Closed to Merge", 
+                  "Administrative closure", 
+                  "Dupl. Referral/Already Investigated", 
+                  "Moved/Unable to locate", "Other Agency/Out of State", 
+                  "Unable to determine")
+
+aps$aps_inv_close_reason <- factor(aps$aps_inv_close_reason,
+                                   ordered = TRUE,
+                                   levels = close_levels)
+```
+
+The variable's column type and description were added.
+
+```{r}
+cb_add_col_attributes(
+  aps,
+  aps_inv_close_reason,
+  col_type = "Single Choice, Multiple Options",
+  description = "Reason Provided for Closing Report"
+)
+```
+
+#### Mistreatment Category Determination Variables
+
+There were 7 categories of mistreatment and abuse in the data set:
+
+Physical Neglect and Abuse, Emotional Abuse, Sexual Abuse, Medical Neglect, Mental Health Neglect, and Exploitation. Each of these had 5 possible outcomes: "Valid", "Invalid", "Unable to Determine", "Other - Not Investigated", or "No Determination"
+
+```{r}
+levels(aps$aps_abuse_emotional)
+```
+
+These levels were ordered for presentation.
+
+```{r}
+determination_vars <- aps %>%
+  select(aps_abuse_emotional, aps_exploitation, aps_neglect_medical, 
+         aps_neglect_mental, aps_abuse_physical, aps_neglect_physical, 
+         aps_abuse_sexual) %>%
+  names()
+
+determination_levels <- c("Valid", "Invalid", "Unable to Determine", 
+                          "Other - Not Investigated", "No Determination")
+
+aps <- aps %>%
+  mutate(across(all_of(determination_vars),
+                ~factor(.x, ordered=TRUE, levels = determination_levels)
+                )
+  )
+```
+
+The variables' column types and skip patterns were added.
+
+```{r}
+for (i in determination_vars) {
+  attr(aps[[i]], "col_type") <- "Single Choice, Multiple Options"
+  attr(aps[[i]], "skip_pattern") <- "Missing values indicate that more than one determination for the category was present in the observation, so final determination could not be ascertained."
+}
+```
+
+## Individual Modifications
+
+```{r}
+# | message: false
+aps <- aps %>%
+  cb_add_col_attributes(
+    aps_row,
+    description = "Identifies row number of the observation in original APS data set"
+  ) %>%
+  cb_add_col_attributes(
+    aps_person_id,
+    description = "Unique Subject ID originally created by APS and verified in cleaning"
+  ) %>%
+  cb_add_col_attributes(
+    pt_name_full,
+    description = "Patient's full name (First Last)"
+  ) %>%
+  cb_add_col_attributes(
+    pt_name_first,
+    description = "Patient's first name"
+  ) %>%
+  cb_add_col_attributes(
+    pt_name_last,
+    description = "Patient's last name"
+  ) %>%
+  cb_add_col_attributes(
+    pt_age,
+    col_type = "Age",
+    description = "Patient's Age as entered by APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_dob,
+    col_type = "Date of Birth",
+    description = "Patient's date of birth as entered by APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_dob_year,
+    col_type = "Year",
+    description = "Patient's year of birth as entered by APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_dob_month,
+    col_type = "Month",
+    description = "Patient's month of birth as entered by APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_dob_day,
+    col_type = "Day",
+    description = "Patient's day of birth as entered by APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_homeless,
+    description = "Indicates if the data in original values for Patient's Address indicated that patient was 'Homeless' or 'Transient'",
+    skip_pattern = "No value entered if there was not information for patient street address"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_pobox,
+    description = "PO BOX information that was provided as the patient's address in the street address field"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_num,
+    description = "Street number of Patient Address, contains letters and numbers
+    For an address of 123 Example St #45, City, TX, 77054 the Address Number would be '123'"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_street,
+    description = "Street Name of Patient Address
+    For an address of 123 Example St #45, City, TX, 77054 the Street Name would be 'Example St'",
+    skip_pattern = "Values relating to either an 'Unknown' address or that the patient was Homeless/Transient were converted to missing values"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_unit,
+    description = "Unit Number of Patient Address
+    For an address of 123 Example St #45, City, TX, 77054 the Unit Number would be '45'"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_city,
+    description = "City of Patient Address
+    For an address of 123 Example St #45, City, TX, 77054 the City would be 'City'"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_county,
+    description = "County listed for Patient Address"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_zip,
+    description = "Zip Code of Patient Address
+    For an address of 123 Example St #45, City, TX, 77054 the City would be '77054'"
+  ) %>%
+  cb_add_col_attributes(
+    aps_case_num,
+    description = "APS Case Number"
+  ) %>%
+  cb_add_col_attributes(
+    aps_intake_num,
+    description = "APS Intake Number - indicates a single reporting event, but may include multiple reporters"
+  ) %>%
+  cb_add_col_attributes(
+    aps_inv_num,
+    description = "APS Investigation Number - automatically generated from Intake Number"
+  ) %>%
+  cb_add_col_attributes(
+    aps_reporter,
+    description = "Relationship of reporter to patient"
+  ) %>%
+  cb_add_col_attributes(
+    aps_intake_dt,
+    col_type = "Date and Time",
+    description = "Date and Time of the Intake Report"
+  ) %>%
+    cb_add_col_attributes(
+    aps_intake_date,
+    col_type = "Date",
+    description = "Date of the Intake Report"
+  ) %>%
+    cb_add_col_attributes(
+    aps_intake_time,
+    col_type = "Time",
+    description = "Time of the Intake Report"
+  ) %>%
+    cb_add_col_attributes(
+    aps_intake_year,
+    col_type = "Year",
+    description = "Year of the Intake Report"
+  ) %>%
+    cb_add_col_attributes(
+    aps_intake_month,
+    col_type = "Month",
+    description = "Month of the Intake Report"
+  ) %>%
+    cb_add_col_attributes(
+    aps_intake_day,
+    col_type = "Day",
+    description = "Day of the Intake Report"
+  ) %>%
+  cb_add_col_attributes(
+    aps_inv_close_dt,
+    col_type = "Date and Time",
+    description = "Date and Time of the Investigation Close"
+  ) %>%
+    cb_add_col_attributes(
+    aps_inv_close_date,
+    col_type = "Date",
+    description = "Date of the Investigation Close"
+  ) %>%
+    cb_add_col_attributes(
+    aps_inv_close_time,
+    col_type = "Time",
+    description = "Time of the Investigation Close"
+  ) %>%
+    cb_add_col_attributes(
+    aps_inv_close_year,
+    col_type = "Year",
+    description = "Year of the Investigation Close"
+  ) %>%
+    cb_add_col_attributes(
+    aps_inv_close_month,
+    col_type = "Month",
+    description = "Month of the Investigation Close"
+  ) %>%
+    cb_add_col_attributes(
+    aps_inv_close_day,
+    col_type = "Day",
+    description = "Day of the Investigation Close"
+  ) %>%
+  cb_add_col_attributes(
+    aps_inv_close_reason,
+    description = "Reason for Investigation Closure"
+  ) %>%
+  cb_add_col_attributes(
+    aps_abuse_emotional,
+    description = "Determination of Emotional Abuse investigation"
+  ) %>%
+  cb_add_col_attributes(
+    aps_exploitation,
+    description = "Determination of Exploitation investigation"
+  ) %>%
+  cb_add_col_attributes(
+    aps_neglect_medical,
+    description = "Determination of Medical Neglect investigation"
+  ) %>%
+  cb_add_col_attributes(
+    aps_neglect_mental,
+    description = "Determination of Mental Health Neglect investigation"
+  ) %>%
+  cb_add_col_attributes(
+    aps_abuse_physical,
+    description = "Determination of Physical Abuse investigation"
+  ) %>%
+  cb_add_col_attributes(
+    aps_neglect_physical,
+    description = "Determination of Physical Neglect investigation"
+  ) %>%
+  cb_add_col_attributes(
+    aps_abuse_sexual,
+    description = "Determination of Sexual Abuse investigation"
+  ) %>%
+  cb_add_col_attributes(
+    flag_determinations,
+    description = "Flag identifying observations with multiple determinations associated with at least one category of mistreatment/abuse"
+  ) %>%
+  cb_add_col_attributes(
+    total_abuse_emotional,
+    description = "Total number of determinations for Emotional Abuse associated with the observation"
+  ) %>%
+  cb_add_col_attributes(
+    aps_abuse_emotional_valid,
+    description = "Determination that allegation of Emotional Abuse was valid"
+  ) %>%
+  cb_add_col_attributes(
+    aps_abuse_emotional_invalid,
+    description = "Determination that allegation of Emotional Abuse was invalid"
+  ) %>%
+  cb_add_col_attributes(
+    aps_abuse_emotional_utd,
+    description = "Determination that allegation of Emotional Abuse was unable to be determined"
+  ) %>%
+  cb_add_col_attributes(
+    aps_abuse_emotional_other,
+    description = "Determination that allegation of Emotional Abuse could not be investigated due to being out of jurisdiction or other barriers, and thus no determination was able to be made"
+  ) %>%
+  cb_add_col_attributes(
+    total_exploitation,
+    description = "Total number of determinations for Exploitation associated with the observation"
+  ) %>%
+  cb_add_col_attributes(
+    aps_exploitation_valid,
+    description = "Determination that allegation of Exploitation was valid"
+  ) %>%
+  cb_add_col_attributes(
+    aps_exploitation_invalid,
+    description = "Determination that allegation of Exploitation was invalid"
+  ) %>%
+  cb_add_col_attributes(
+    aps_exploitation_utd,
+    description = "Determination that allegation of Exploitation was unable to be determined"
+  ) %>%
+  cb_add_col_attributes(
+    aps_exploitation_other,
+    description = "Determination that allegation of Exploitation could not be investigated due to being out of jurisdiction or other barriers, and thus no determination was able to be made"
+  ) %>%
+  cb_add_col_attributes(
+    total_neglect_medical,
+    description = "Total number of determinations for Medical Neglect associated with the observation"
+  ) %>%
+  cb_add_col_attributes(
+    aps_neglect_medical_valid,
+    description = "Determination that allegation of Medical Neglect was valid"
+  ) %>%
+  cb_add_col_attributes(
+    aps_neglect_medical_invalid,
+    description = "Determination that allegation of Medical Neglect was invalid"
+  ) %>%
+  cb_add_col_attributes(
+    aps_neglect_medical_utd,
+    description = "Determination that allegation of Medical Neglect was unable to be determined"
+  ) %>%
+  cb_add_col_attributes(
+    aps_neglect_medical_other,
+    description = "Determination that allegation of Medical Neglect could not be investigated due to being out of jurisdiction or other barriers, and thus no determination was able to be made"
+  ) %>%
+  cb_add_col_attributes(
+    total_neglect_mental,
+    description = "Total number of determinations for Mental Health Neglect associated with the observation"
+  ) %>%
+  cb_add_col_attributes(
+    aps_neglect_mental_valid,
+    description = "Determination that allegation of Mental Health Neglect was valid"
+  ) %>%
+  cb_add_col_attributes(
+    aps_neglect_mental_invalid,
+    description = "Determination that allegation of Mental Health Neglect was invalid"
+  ) %>%
+  cb_add_col_attributes(
+    aps_neglect_mental_utd,
+    description = "Determination that allegation of Mental Health Neglect was unable to be determined"
+  ) %>%
+  cb_add_col_attributes(
+    aps_neglect_mental_other,
+    description = "Determination that allegation of Mental Health Neglect could not be investigated due to being out of jurisdiction or other barriers, and thus no determination was able to be made"
+  ) %>%
+  cb_add_col_attributes(
+    total_abuse_physical,
+    description = "Total number of determinations for Physical Abuse associated with the observation"
+  ) %>%
+  cb_add_col_attributes(
+    aps_abuse_physical_valid,
+    description = "Determination that allegation of Physical Abuse was valid"
+  ) %>%
+  cb_add_col_attributes(
+    aps_abuse_physical_invalid,
+    description = "Determination that allegation of Physical Abuse was invalid"
+  ) %>%
+  cb_add_col_attributes(
+    aps_abuse_physical_utd,
+    description = "Determination that allegation of Physical Abuse was unable to be determined"
+  ) %>%
+  cb_add_col_attributes(
+    aps_abuse_physical_other,
+    description = "Determination that allegation of Physical Abuse could not be investigated due to being out of jurisdiction or other barriers, and thus no determination was able to be made"
+  ) %>%
+  cb_add_col_attributes(
+    total_neglect_physical,
+    description = "Total number of determinations for Physical Neglect associated with the observation"
+  ) %>%
+  cb_add_col_attributes(
+    aps_neglect_physical_valid,
+    description = "Determination that allegation of Physical Neglect was valid"
+  ) %>%
+  cb_add_col_attributes(
+    aps_neglect_physical_invalid,
+    description = "Determination that allegation of Physical Neglect was invalid"
+  ) %>%
+  cb_add_col_attributes(
+    aps_neglect_physical_utd,
+    description = "Determination that allegation of Physical Neglect was unable to be determined"
+  ) %>%
+  cb_add_col_attributes(
+    aps_neglect_physical_other,
+    description = "Determination that allegation of Physical Neglect could not be investigated due to being out of jurisdiction or other barriers, and thus no determination was able to be made"
+  ) %>%
+  cb_add_col_attributes(
+    total_abuse_sexual,
+    description = "Total number of determinations for Sexual Abuse associated with the observation"
+  ) %>%
+  cb_add_col_attributes(
+    aps_abuse_sexual_valid,
+    description = "Determination that allegation of Sexual Abuse was valid"
+  ) %>%
+  cb_add_col_attributes(
+    aps_abuse_sexual_invalid,
+    description = "Determination that allegation of Sexual Abuse was invalid"
+  ) %>%
+  cb_add_col_attributes(
+    aps_abuse_sexual_utd,
+    description = "Determination that allegation of Sexual Abuse was unable to be determined"
+  ) %>%
+  cb_add_col_attributes(
+    aps_abuse_sexual_other,
+    description = "Determination that allegation of Sexual Abuse could not be investigated due to being out of jurisdiction or other barriers, and thus no determination was able to be made"
+  ) %>%
+  cb_add_col_attributes(
+    aps_investigated_total,
+    description = "Total number of determinations across the observation"
+  ) %>%
+  cb_add_col_attributes(
+    aps_other_total,
+    description = "Total number of determinations that could not be investigated across the observation"
+  )
+```
+
+
+# Codebook Generation
+
+We generated our codebook, with title, subtitle, and description. We blocked summary statistics on our PHI fields.
+
+```{r}
+#| message: false
+
+book <- codebook(
+  df = aps,
+  title = "Texas Adult Protective Services Data",
+  subtitle = "Intake and Investigation Data for Clients aged 65 years and older and in Dallas, Johnson or Tarrant County; Intakes 12/31/2014 - 2/28/2018, Closures 1/3/2015 - 6/28/2018",
+  description = "In collaboration Texas Adult Protective Services.
+  Data was originally collected during the course of Adult Protective Services operations, with Intake dates from 12/31/2014 - 2/28/2018 and Closure dates from 1/3/2015 - 6/28/2018. Data was requested as part of the Detection of Elder abuse Through Emergency Care Technicans (DETECT) screening tool pilot project (doi: 10.1080/08946566.2018.1564104).",
+  no_summary_stats = phi_vars,
+  keep_blank_attributes = FALSE)
+```
+
+# Exporting Codebook to DOCX Format
+
+```{r}
+print(book, here("docs", "codebooks", "aps_codebook_01.docx"))
+```
+
