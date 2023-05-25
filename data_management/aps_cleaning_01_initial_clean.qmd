@@ -586,7 +586,7 @@ get_unique_value_summary(aps, 'pt_address_county')
 We finally converted the variable to an unordered factor.
 
 ```{r}
-aps$pt_address_county <- as.factor(aps$pt_address_county)
+aps$pt_address_county <- factor(aps$pt_address_county, ordered=FALSE)
 ```
 
 #### Patient Address ZIP `pt_address_zip`
@@ -730,7 +730,7 @@ nrow(checking)
 We finally converted the variable to an unordered factor.
 
 ```{r}
-aps$pt_address_city <- as.factor(aps$pt_address_city)
+aps$pt_address_city <- factor(aps$pt_address_city, ordered = FALSE)
 ```
 
 ##### Remaining Observations
@@ -1568,6 +1568,22 @@ get_unique_value_summary(aps,c('aps_abuse_emotional', 'aps_exploitation',
                                'aps_abuse_physical', 'aps_neglect_physical', 
                                'aps_abuse_sexual'))
 ```
+
+We converted the variables into unordered factors.
+
+```{r}
+determination_vars <- c('aps_abuse_emotional', 'aps_exploitation',
+                        'aps_neglect_medical', 'aps_neglect_mental', 
+                        'aps_abuse_physical', 'aps_neglect_physical',
+                        'aps_abuse_sexual')
+
+aps <- aps %>%
+  mutate(across(all_of(determination_vars), 
+                ~factor(.x, ordered = FALSE)
+                  )
+         )
+```
+
 
 # Unique ID
 
