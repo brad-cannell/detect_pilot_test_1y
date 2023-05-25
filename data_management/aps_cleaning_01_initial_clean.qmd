@@ -7,7 +7,123 @@ editor: visual
 
 # Summary
 
-Summary will go here
+The APS records data set contained 18152 observations of 47 variables which included patient demographic information, APS record keeping information, and APS investigation determination results.
+
+There was no single "unique report" identifier in the data set. According to documentation provided by APS along with the data, Intake Numbers and Investigation Numbers were assigned based on each informational intake. When these intakes involved more than one person contributing to a single report (such as a healthcare worker calling with a family member, or multiple family members and/or friends reporting on the same phone call), a new observation would be generated which contained the same Intake Number and Investigation Number. There were 17,938 unique Intake Numbers in the data set. 
+
+There was a unique *operational* identifier for each investigation episode: APS Case Number. According to documentation provided by APS along with the data, Case Numbers were assigned to each specific investigation case, most typically different reports (Intake Numbers) on the same date. New reports made relating to an existing case may or may not have been "merged" with the existing case, determined by the circumstances of the ongoing case in comparison to the new case's allegations. As such, it is not a strict identifier of unique investigations, but rather an operational identifier. There were 15,280 unique case numbers in the data set.
+
+The data set included a "unique subject identifier": APS Person ID. There were 7,723 observations that were the only occurrence of a unique APS Person ID. The remaining 10,429 observations in the data set had one of 3,455 APS Person ID values which appeared more than once. There were 5,854 observations, across 2,221 APS Person ID values, in which all occurrences of the APS Person ID had identical identifiers. The variation in the remaining 1,234 APS Person ID value groups, which contained 4,575 observations, were manually verified. There were 11,178 unique APS Person ID values in the data set, which were all considered valid identifications of a unique subject.  
+
+There were 985 observations (in 925 APS Subject IDs) which did not have an exclusive determination in at least one category of mistreatment. The 925 APS Subject IDs impacted are included in 2496 observations. All related variables, including flagging variable, were kept to facilitate potential further revision (or potential exclusion, if revision not possible).
+
+## Data Wrangling
+
+-   Addition of variable to indicate row number in original data set
+
+    -   `aps_row`
+
+-   Verification and Modification of Patient Full Name to be equivalent to "FIRST LAST" in all cases with both a first and last name, or whichever component was present without additional spaces.
+
+    -   `pt_name_first`, `pt_name_last`, and `pt_name_full`
+
+-   Modification of Patient Street Address variables to include variables for Street Number, Street Name, Unit, and PO BOX.
+
+    -   `pt_address_num`, `pt_address_street`, `pt_address_unit`, `pt_address_pobox`
+
+-   Modification of entries for Patient Address Street which reference homelessness to a new variable, and conversion in `pt_address_street` to missing (`NA`) values
+
+    -   `pt_homeless`
+
+-   Addition of Intake Year, Month, Day, Date, and Time variables from original aggregate variable for Intake Date/Time, without removal of original aggregate variable
+
+    -   `aps_intake_dt`, `aps_intake_date`, `aps_intake_time`, `aps_intake_year`, `aps_intake_month`, and `aps_intake_day` 
+    
+-   Addition of Investigation Close Year, Month, Day, Date, and Time variables from original aggregate variable for Investigation Close Date/Time, without removal of original aggregate variable
+
+    -   `aps_inv_close_dt`, `aps_inv_close_date`, `aps_inv_close_time`, `aps_inv_close_year`, `aps_inv_close_month`, and `aps_inv_close_day` 
+
+-   Addition of Patient Date of Birth Year, Month, and Day variables, from original aggregate variable, without removal of original aggregate variable
+
+    -   `pt_dob`, `pt_dob_year`, `pt_dob_month`, `pt_dob_day`
+
+-   Reorganization of variables into "Patient Demographics", "APS Investigation Record Variables", and "APS Determination Variables"
+
+-   Addition of variables to assist with further revision and cleaning of APS determinations in respective variables.
+
+    -   `flag_determinations`, `aps_abuse_emotional`, `total_abuse_emotional`, `aps_exploitation`, `total_exploitation`, `aps_neglect_medical`, `total_neglect_medical`, `aps_neglect_mental`, `total_neglect_mental`, `aps_abuse_physical`, `total_abuse_physical`, `aps_neglect_physical`, `total_neglect_physical`, `aps_abuse_sexual`, `total_abuse_sexual`
+
+## Data Cleaning
+
+-   Conversion of string data into uppercase to avoid case-mismatch
+
+-   Conversion of Patient Name entries which referenced the name being "Unknown" to missing (`NA`) values
+
+-   Conversion of empty strings to missing values (`NA`)
+
+-   Correction of invalid Patient Address Counties which referenced addresses out of state
+
+-   Correction of invalid Patient Address Zip codes (5+4 format entries, truncated entries likely caused by Excel trimming leading zeroes)
+
+-   Correction of Patient Address Cities which referenced identical cities but varied in use of abbreviation or full spelling
+
+-   Correction of a Patient Address City entry referenced a Street Address rather than a City
+
+-   Standardization of abbreviations for County Roads, Rural Roads, Private Roads, Farm to Market Roads, and Highways
+
+-   Conversion of a Patient Address Street entry which referenced a facility rather than an address
+
+-   Manual cleaning and verification of 312 Address values:
+
+    -   2 observations which had a Highway Street Address that ended in an additional unit number separated only by a single space
+    
+    -   1 observation which had a facility name in place of the Street Address (required PHI to clean)
+    
+    -   309 observations which appeared valid did not require any further processing
+
+-   Conversion of Categorical variables into unordered factors
+
+    -   `aps_reporter`, `aps_inv_close_reason`
+
+-   Omission of address flag variable utilized for completed processing
+
+    -   `flag_address`
+    
+-   Verification of binary format for all APS Determination Variables
+
+-   Calculation of exclusivity or potential error in APS Determination Variables for each category
+
+-   Generation of Categorical Determination of mistreatment categories from appropriate APS Determination Variables
+
+-   Generation of flag to facilitate future point revisions in observations with at least one incalculable determination
+
+-   Verification of validity of APS Person ID as a unique subject identifier
+
+    -   Verification that 2,221 values for `aps_person_id`, represented in 5,854 observations, were identical for all identifiers across all instances of an `aps_person_id` value
+    
+    -   Manual verification of 1,234 values for `aps_person_id`, represented in 4,575 observations, which had variation in at least one identifier across all instances of an `aps_person_id` value
+    
+        -   300 remaining APS Person ID values in 1192 observations with variation in Name Fields
+        
+            -   126 remaining APS Person ID values in 473 observations with variation in First Name
+
+            -   174 remaining APS Person ID values in 719 observations with variation in Last Name
+        
+        -   126 remaining APS Person ID values in 464 observations with variation in Date of Birth Fields
+
+        -   808 remaining APS Person ID values in 2919 observations with variation in Address Fields
+
+            -   3 remaining APS Person ID values in 13 observations with variation in PO BOX
+
+            -   127 remaining APS Person ID values in 474 observations with variation in County
+
+            -   328 remaining APS Person ID values in 1133 observations with variation in City
+
+            -   195 remaining APS Person ID values in 726 observations with variation in ZIP
+
+            -   115 remaining APS Person ID values in 415 observations with variation in Street Name
+
+            -   40 remaining APS Person ID values in 158 observations with variation in Street Number
 
 # Imports
 
@@ -23,6 +139,8 @@ library(vctrs)
 library(here)
 library(data.table)
 library(lubridate)
+library(questionr)
+library(mice)
 ```
 
 ## Data Imports
@@ -46,6 +164,14 @@ aps <- read_excel(here("data","DETECT Shared GRAs","aps_data.xlsx"),
          "numeric", "numeric", "numeric", 
          "numeric", "numeric", "numeric", 
          "numeric"))
+```
+
+A CSV file was created, which contained information required to manually clean 7 entries which would otherwise require PHI in code to clean.
+
+```{r}
+phi_cleaning <- read_csv(here("data","DETECT Shared GRAs","aps_cleaning",
+                              "aps_01_phi_cleaning.csv"), 
+                         show_col_types = FALSE)
 ```
 
 ## Functions
@@ -136,7 +262,9 @@ colnames(aps)
 
 # Data Processing
 
-## Variable Renaming
+## Initial Broad Modifications
+
+### Variable Renaming
 
 Variables were renamed to follow project style conventions. These conventions aimed to increase the usability of variables in code, ensure understanding of variable meanings, and facilitate organization of variables based on source and/or topic.
 
@@ -144,9 +272,9 @@ Variables were renamed to follow project style conventions. These conventions ai
 colnames(aps) <- c('pt_name_last', 'pt_name_first', 'pt_name_full', 
                    'pt_dob', 'aps_person_id', 'pt_address_street', 
                    'pt_address_city', 'pt_address_zip', 'pt_address_county',
-                   'pt_age', 'aps_case_num', 'aps_stage_inv', 
-                   'aps_stage_intake', 'aps_intake_date', 'aps_reporter',
-                   'aps_inv_close_date', 'aps_inv_close_reason', 
+                   'pt_age', 'aps_case_num', 'aps_inv_num', 
+                   'aps_intake_num', 'aps_intake_dt', 'aps_reporter',
+                   'aps_inv_close_dt', 'aps_inv_close_reason', 
                    'aps_abuse_emotional_valid', 'aps_exploitation_valid', 
                    'aps_neglect_medical_valid', 'aps_neglect_mental_valid',
                    'aps_abuse_physical_valid', 'aps_neglect_physical_valid',
@@ -166,16 +294,31 @@ colnames(aps) <- c('pt_name_last', 'pt_name_first', 'pt_name_full',
 colnames(aps)
 ```
 
-## Initiating Novel Variables
+### Initiating Novel & Temporary Variables
 
-We initiated the novel variables of our data set.
+We initiated the novel and temporary variables of our data set.
 
 ```{r}
 aps <- aps %>%
-  add_column(aps_row = NA)
+  add_column(aps_row = NA, pt_dob_year = NA, pt_dob_month = NA, pt_dob_day = NA,
+             pt_homeless = NA, pt_address_pobox = NA, pt_address_num = NA, 
+             pt_address_unit = NA, 
+             aps_intake_date = NA, aps_intake_time = NA,
+             aps_intake_year = NA, aps_intake_month = NA, aps_intake_day = NA,
+             aps_inv_close_date = NA, aps_inv_close_time = NA, 
+             aps_inv_close_year = NA, aps_inv_close_month = NA, 
+             aps_inv_close_day = NA, total_abuse_emotional = NA,
+             total_exploitation = NA, total_neglect_medical = NA, 
+             total_neglect_mental = NA, total_abuse_physical = NA,
+             total_neglect_physical = NA, total_abuse_sexual = NA,
+             aps_abuse_emotional = NA, aps_exploitation = NA,
+             aps_neglect_medical = NA, aps_neglect_mental = NA,
+             aps_abuse_physical = NA, aps_neglect_physical = NA,
+             aps_abuse_sexual = NA,
+             flag_address = FALSE, flag_determinations = FALSE)
 ```
 
-## Adding Row Numbers
+### Adding Row Numbers
 
 We added a variable containing the row numbers of each observation in the source data.
 
@@ -185,7 +328,7 @@ aps <- aps %>%
          )
 ```
 
-## Conversion of Target String Variables to Uppercase
+### Conversion of Target String Variables to Uppercase
 
 We converted all name and address fields to uppercase for uniformity and avoidance of case mismatch.
 
@@ -199,19 +342,35 @@ aps <- aps %>%
          )
 ```
 
-# Data Processing
+## Patient Demographic Variables
 
-## Patient Name `pt_name_first`, `pt_name_last`, `pt_name_full`
+### Patient Age `pt_age`
+
+We found that there were no missing (`NA`) values for patient age.
+
+```{r}
+freq.na(aps[c('pt_age')])
+```
+
+Data in `pt_age` was stored as a numeric double; all values were whole numbers, and all values were plausible.
+
+```{r}
+typeof(aps$pt_age)
+sum(!(aps$pt_age - floor(aps$pt_age)==0))
+summary(aps$pt_age)
+```
+
+### Patient Name `pt_name_first`, `pt_name_last`, `pt_name_full`
+
+#### Pattern of Missing (`NA`) Values
 
 We found that there were missing (`NA`) values in 72 rows for Last Name, 64 rows for First Name, and 57 rows for Full Name.
 
 ```{r}
-sum(is.na(aps$pt_name_first))
-sum(is.na(aps$pt_name_last))
-sum(is.na(aps$pt_name_full))
+freq.na(aps[c('pt_name_full','pt_name_first','pt_name_last')])
 ```
 
-We find that all 57 rows with missing (`NA`) values for Full Name are also missing both First and Last Name. This indicated that if the patient had any value for name, it was present in both the Full Name field and the appropriate Name Component field. 
+We found that all 57 rows with missing (`NA`) values for Full Name are also missing both First and Last Name. This indicated that if the patient had any value for name, it was present in both the Full Name field and the appropriate Name Component field. 
 
 ```{r}
 checking <- aps %>%
@@ -219,9 +378,47 @@ checking <- aps %>%
 
 nrow(filter(checking, rowSums(is.na(checking)) == ncol(checking)))
 sum(complete.cases(checking))
+
+md.pattern(checking, plot=FALSE)
+```
+#### "First Last" and "Full" Equivalence
+
+There were 23 observations which `pt_name_full` was neither a missing (`NA`) value nor identical to the format of First Last, with a single space between. Of these, 7 observations had a missing value for `pt_name_first`, 15 observations had a missing (`NA`) value for `pt_name_last`, and 1 observation had 2 spaces (rather than 1) between First and Last in Full Name.
+
+```{r}
+checking <- aps %>%
+  filter(pt_name_full != paste(pt_name_first, pt_name_last, sep = " "))
+
+nrow(checking)
+freq.na(checking[c('pt_name_full','pt_name_first','pt_name_last')])
 ```
 
-### Assessing for Unexpected Characters
+We modified any observation (in our case a single observation) in which neither First nor Last name were missing (`NA`) values, to ensure Full Name followed the "First Last" formula consistently.
+
+```{r}
+aps <- aps %>%
+  mutate(pt_name_full = case_when(
+    (is.na(pt_name_first) & is.na(pt_name_last)) ~ pt_name_full,
+    is.na(pt_name_first) ~ pt_name_last,
+    is.na(pt_name_last) ~ pt_name_first,
+    !(is.na(pt_name_first) & is.na(pt_name_last)) ~ 
+      paste(pt_name_first, pt_name_last, sep = " ")
+    )
+  )
+```
+
+In checking Full Name values, we find that the only names that continued to not follow the "First Last" formula were those missing either First or Last Name.
+
+```{r}
+checking <- aps %>%
+  filter(pt_name_full != paste(pt_name_first, pt_name_last, sep = " "))
+
+nrow(checking)
+freq.na(checking, c('pt_name_full','pt_name_first','pt_name_last'))
+md.pattern(checking[c('pt_name_full','pt_name_first','pt_name_last')], plot=FALSE)
+```
+
+#### Unexpected Characters
 
 There was a single observation which contained any unexpected characters (anything other than the letters A-Z of the Standard English Alphabet, an apostrophe, a space, a period, or a hyphen). There was a single entry identified, of which both First and Full name fields were impacted.
 
@@ -240,9 +437,58 @@ checking <- aps %>%
 subset(checking,select = c("pt_name_full", "pt_name_first", "pt_name_last"))
 ```
 
-### Assessing for "Unknown" or Equivalent Values
+#### "Unkown" and Equivalents (2 matches)
 
-The values for Full, First, and Last Name were examined for values equivalent to "UNKNOWN".
+There were 2 values which matched "UNKNOWN" - on verification of name contents, both were valid "UNKNOWN" equivalents.
+
+```{r}
+test_regex <- "(UNKNOWN)"
+
+checking <- aps %>%
+  filter( str_detect(pt_name_full, test_regex) | str_detect(pt_name_first, test_regex) | str_detect(pt_name_last, test_regex))
+
+nrow(subset(checking,select = c("pt_name_full", "pt_name_first", "pt_name_last")))
+
+get_unique_value_summary(checking, "pt_name_full")
+```
+
+We shifted these "UNKNOWN" values to missing (`NA`) values in all name fields.
+
+```{r}
+name_cols <- c("pt_name_full", "pt_name_first", "pt_name_last")
+
+aps <- aps %>%
+  mutate(across(all_of(name_cols), ~if_else(str_detect(.x,"(UNKNOWN)"), NA_character_, .x)))
+```
+
+In checking the results of our processing, we found that we only have the expected 2 additional missing (`NA`) values for both First and Full Name.
+
+```{r}
+freq.na(aps[c('pt_name_full','pt_name_first','pt_name_last')])
+
+test_regex <- "(UNKNOWN)"
+
+checking <- aps %>%
+  filter( str_detect(pt_name_full, test_regex) | str_detect(pt_name_first, test_regex) | str_detect(pt_name_last, test_regex))
+
+nrow(subset(checking,select = c("pt_name_full", "pt_name_first", "pt_name_last")))
+```
+#### "None", "Refused", "UTA" and Equivalents (0 relevant matches)
+
+While there were values which matched for "UTA" (Unable to Assess), "REF" (Refused), "NONE", "NO" (No, Non), "DENI" (Denied), and "UNA" (Unable) - on verification of name contents, none appeared to indicate an invalid name.
+
+```{r}
+test_regex <- "(NO|UTA|UNA|REF|NONE|DENI)"
+
+checking <- aps %>%
+  filter( str_detect(pt_name_full, test_regex) | str_detect(pt_name_first, test_regex) | str_detect(pt_name_last, test_regex))
+
+nrow(subset(checking,select = c("pt_name_full", "pt_name_first", "pt_name_last")))
+
+#get_unique_value_summary(checking, "pt_name_full")
+```
+
+#### "Not Applicable" and Equivalents (0 matches)
 
 There were no values which matched "NOT ", "N A", or "N.A" ("NOT APPLICABLE" equivalents)
 
@@ -252,7 +498,1681 @@ test_regex <- "^(NOT |N\\.A|N A)"
 checking <- aps %>%
   filter( str_detect(pt_name_full, test_regex) | str_detect(pt_name_first, test_regex) | str_detect(pt_name_last, test_regex))
 
-subset(checking,select = c("pt_name_full", "pt_name_first", "pt_name_last"))
+nrow(subset(checking,select = c("pt_name_full", "pt_name_first", "pt_name_last")))
+```
+
+### Patient Date of Birth `pt_dob`
+
+We found that there were no observations with missing (`NA`) values for Patient DOB.
+
+```{r}
+sum(is.na(aps$pt_dob))
+```
+Values for date of birth were split into Year, Month, and Day (`pt_dob_year`, `pt_dob_month`, `pt_dob_day` respectively) utilizing the date-parsing of the *lubridate* package.
+
+```{r}
+aps <- aps %>% 
+  mutate(pt_dob_year = year(pt_dob),
+         pt_dob_month = month(pt_dob),
+         pt_dob_day = day(pt_dob)
+         )
+```
+
+There were several values for Year of Birth which were questionable, in particular values for Years which were in the future. No modification of these dates were performed, as these dates were in the same format within the original source data EXCEL file. While it was plausible that some of the Year values (such as '2029') were caused by a formatting error (entry program appending '20' before all dates, while the actual birth year for the patient was '1929'), we could not confirm the validity of that assumption. As such, these values were left unmodified and attributed to data entry errors.
+
+```{r}
+range(aps$pt_dob_year)
+```
+
+Month and Day values appeared to only contain reasonable values.
+
+```{r}
+table(aps$pt_dob_month)
+table(aps$pt_dob_day)
+```
+
+###  Patient Address `pt_address_street`, `pt_address_city`, `pt_address_zip`, `pt_address_county`
+
+#### Pattern of Missing (`NA`) Values
+
+We found that there were 263 observations with missing (`NA`) values for Street Address, 24 for City, 359 for ZIP code, and 0 for County.
+
+```{r}
+freq.na(aps[c('pt_address_street','pt_address_city','pt_address_zip',
+            'pt_address_county')])
+```
+
+There were 20 observations which had no address information except for County. There were 17,781 complete cases for address fields, and a total of 371 observations which had some missing data for address.
+
+```{r}
+address_cols <- c('pt_address_street', 'pt_address_city', 'pt_address_zip')
+
+nrow(filter(aps[address_cols], rowSums(is.na(aps[address_cols])) == ncol(aps[address_cols])))
+nrow(na.omit(aps[address_cols]))
+sum(complete.cases(aps[address_cols]))
+```
+
+The 371 observations with missing observations were isolated for assessment. 
+
+There were 116 observations missing only one of the fields: 106 observations only missing ZIP, 9 observations only missing Street Address, and only 1 observation only missing City.
+
+There were 235 observations missing two of the fields: 232 observations missing both Street Address and ZIP, 1 missing both City and ZIP, and 2 missing both City and Street.
+
+There were 20 observations missing all 3 of the fields.
+
+```{r}
+checking <- aps %>%
+  filter(!complete.cases(aps[address_cols]))
+
+nrow(checking)
+nrow(filter(checking[address_cols], rowSums(is.na(checking[address_cols])) == ncol(checking[address_cols])))
+
+md.pattern(checking[address_cols], plot=FALSE)
+```
+#### Patient Address County `pt_address_county`
+
+There were no observations in the original data set with missing (`NA`) values for County.
+
+```{r}
+sum(is.na(aps$pt_address_county))
+```
+
+There were only three counties represented in the data set: Denton, Tarrant, and Johnson.
+
+```{r}
+get_unique_value_summary(aps, 'pt_address_county')
+```
+
+We finally converted the variable to an unordered factor.
+
+```{r}
+aps$pt_address_county <- as.factor(aps$pt_address_county)
+```
+
+#### Patient Address ZIP `pt_address_zip`
+
+There were 359 observations in the original data set with missing (`NA`) values for ZIP code, and 17,793 observations with values for ZIP code.
+
+```{r}
+sum(is.na(aps$pt_address_zip))
+```
+
+We expected ZIP codes to be 5 digit values, and only contain numbers. Similarly, all Texas Zip codes should start with the [numbers 7 or 8](https://www.unitedstateszipcodes.org/tx/). However, our values were stored as character strings that ranged in length from 1 to 10 characters long.
+
+```{r}
+typeof(aps$pt_address_zip)
+min(nchar(aps$pt_address_zip, keepNA=FALSE))
+max(nchar(aps$pt_address_zip, keepNA=FALSE))
+```
+
+##### 5 Digit Format
+
+There were 265 observations which contained ZIP code values that were exactly 5 characters long. On manual review, all of these values were plausible Texas zip codes, and only contained digits.
+
+```{r}
+checking <- aps %>%
+  filter(nchar(pt_address_zip, keepNA=FALSE) == 5)
+
+nrow(checking)
+```
+
+##### Length of 0
+
+There was a single observation that had a ZIP code value 1 character long (a value of "0").
+
+```{r}
+checking <- aps %>%
+  filter(nchar(pt_address_zip, keepNA = FALSE) == 1)
+
+checking$pt_address_zip
+```
+
+Since this was equivalent to a missing (`NA`) value, we shifted any single digit values for ZIP code to a missing (`NA`) value.
+
+```{r}
+aps <- aps %>%
+  mutate(pt_address_zip = if_else(nchar(pt_address_zip, keepNA = FALSE) == 1, 
+                                  NA_character_, 
+                                  pt_address_zip)
+         )
+```
+
+##### 5+4 Format
+
+A regular expression was utilized to find observations with ZIP code values that followed a 5+4 format, rather than a 5 digit format. This accounted for the remaining 17,527 observations.
+
+```{r}
+checking <- aps %>%
+  filter(str_detect(pt_address_zip,"^([0-9]{5}-[0-9]{4})$"))
+
+nrow(checking)
+```
+
+These values were trimmed so that only the first 5 digits would be kept.
+
+```{r}
+aps <- aps %>%
+  mutate(pt_address_zip = ifelse(nchar(pt_address_zip)>5, 
+                                 substr(pt_address_zip,start=1,stop=5), 
+                                 pt_address_zip)
+         )
+```
+
+In checking our modifications, we found no unanticipated additional missing (`NA`) values created. All values were now exactly 5 digits in length. 
+
+```{r}
+sum(is.na(aps$pt_address_zip))
+
+min(nchar(aps$pt_address_zip[!is.na(aps$pt_address_zip)], keepNA = FALSE))
+max(nchar(aps$pt_address_zip[!is.na(aps$pt_address_zip)], keepNA = FALSE))
+```
+
+There were no values which contained anything other than digits
+
+```{r}
+checking <- aps %>%
+  filter(str_detect(pt_address_zip, "([^0-9])"))
+
+nrow(checking)
+```
+
+##### Non-Texas ZIP Codes
+
+There were 58 observations in which ZIP code values began with a digit other than 7 or 8. In manual review, all of these observations were listed as belonging to either DENTON or TARRANT county. Online searches for "zip code city" for each zip code revealed the ZIP codes were valid matches for each city, which was located in another State. 
+
+```{r}
+checking <- aps %>%
+  filter(str_detect(pt_address_zip, "^([^7-8])"))
+
+nrow(checking)
+```
+
+As such, the ZIP code values were considered valid for these entries. However, the "County" values for these observations were considered invalid, and converted to missing (`NA`) values.
+
+```{r}
+aps <- aps %>%
+  mutate(pt_address_county = if_else(str_detect(pt_address_zip, "^([^7-8])"), 
+                                     NA_character_, 
+                                     pt_address_county)
+         )
+```
+
+#### Patient Address City `pt_address_city`
+
+There were 24 observations in the original data set with missing (`NA`) values for City. 
+
+```{r}
+sum(is.na(aps$pt_address_city))
+```
+##### Unexpected Characters
+
+We expected all values for city to only contain the Standard English Alphabet Characters A-Z and spaces. There was only one value which contained an unanticipated character.
+
+```{r}
+checking <- aps %>%
+  filter(str_detect(pt_address_city, "([^A-Z ])"))
+
+nrow(checking)
+```
+
+On manual inspection, this value was found to be a street address, rather than a city. The observation had a missing (`NA`) value for Street Address. As such, we shifted the value to the appropriate field.
+
+```{r}
+aps$pt_address_street[aps$aps_row == 9906] <- aps$pt_address_city[aps$aps_row == 9906]
+aps$pt_address_city[aps$aps_row == 9906] <- NA_character_
+
+checking <- aps %>%
+  filter(str_detect(pt_address_city, "([^A-Z ])"))
+
+nrow(checking)
+```
+
+We finally converted the variable to an unordered factor.
+
+```{r}
+aps$pt_address_city <- as.factor(aps$pt_address_city)
+```
+
+##### Remaining Observations
+
+Remaining observations appeared to be valid cities. Two cities (Fort Worth and North Richland Hills) were found to have been entered in more than one spelling (FT WORTH and FORT WORTH, and N RICHLAND HILLS and NORTH RICHLAND HILLS). No entries appeared to be obviously invalid.
+
+```{r}
+get_unique_value_summary(aps, 'pt_address_city')
+```
+
+The entries for FT WORTH were modified to FORT WORTH. The entries for N RICHLAND HILLS were modified to FORT WORTH.
+
+```{r}
+aps <- aps %>%
+  mutate(pt_address_city = if_else(pt_address_city == "FT WORTH", 
+                                   "FORT WORTH", 
+                                   pt_address_city)
+         ) %>%
+  mutate(pt_address_city = if_else(pt_address_city == "N RICHLAND HILLS",
+                                   "NORTH RICHLAND HILLS",
+                                   pt_address_city)
+         )
+```
+
+#### Patient Address Street `pt_address_street`
+
+There were 262 observations with missing (`NA`) values for Street Address, and 17,890 observations with non-missing values.
+
+```{r}
+sum(is.na(aps$pt_address_street))
+```
+
+##### Standardizing Numbered Road Conventions
+
+Highways, as well as private, county, farm, and rural roads in the U.S.A, tend to have numbers instead of letters for their names. These are valid addresses, but pose challenges for validation.
+
+###### County Roads
+
+There were a variety of ways in which county roads were named in our data set, including COUNTY ROAD and COUNTY RD.
+
+We generated a regular expression to catch these entries, which identified 139 entries.
+
+```{r}
+cr_regex <- "(?<![A-Z])(COUNTY ROAD|CO RD|COUNTY RD|C\\.R\\.)"
+
+checking <- aps %>%
+  filter (str_detect(pt_address_street, cr_regex))
+
+nrow(checking)
+```
+
+We processed the 139 entries to standardize COUNTY ROAD to CR, for consistency across our data sets.
+
+```{r}
+aps <- aps %>% 
+  mutate(pt_address_street = ifelse(str_detect(pt_address_street,cr_regex),
+                                    str_replace(pt_address_street,cr_regex,"CR")
+                                    ,pt_address_street)
+         )
 ```
 
 
+###### Farm to Market Roads
+
+Farm-to-market roads, commonly abbreviated as FM, were also represented by a variety of formats.
+
+We generated a regular expression to catch these entries, which identified 83 entries.
+
+```{r}
+fm_regex <- "(?<![A-Z])(FARMERS MARKET|FARMER MARKET|FARM ROAD|FM|F M|F\\.M\\.)"
+
+checking <- aps %>%
+  filter (str_detect(pt_address_street, fm_regex))
+
+nrow(checking)
+```
+
+We processed the 83 entries to standardize any FARM-TO-MARKET to FM, for consistency across our data sets. 
+
+```{r}
+aps <- aps %>% 
+  mutate(pt_address_street = ifelse(str_detect(pt_address_street,fm_regex),
+                                    str_replace(pt_address_street,fm_regex,"FM"),
+                                    pt_address_street)
+         )
+```
+
+
+###### Private Roads
+
+Private Roads, commonly abbreviated as PR, were also represented by a variety of formats.
+
+We generated a regular expression to catch these entries, which identified 1 entry.
+
+```{r}
+pr_regex <- "(?<![A-Z])(PRIVATE ROAD|P\\.R)"
+
+checking <- aps %>%
+  filter (str_detect(pt_address_street, pr_regex))
+
+nrow(checking)
+```
+
+We processed the entry to standardize any PRIVATE ROAD to PR, for consistency across our data sets.
+
+```{r}
+aps <- aps %>% 
+  mutate(pt_address_street = ifelse(str_detect(pt_address_street,pr_regex),
+                                    str_replace(pt_address_street,pr_regex,"PR"),
+                                    pt_address_street)
+         )
+```
+
+
+###### Highways
+
+Highways, commonly abbreviated as HWY, were also represented by a variety of formats.
+
+We generated a regular expression to catch these entries, which identified 105 entries.
+
+```{r}
+hwy_regex <- "(?<![A-Z])(HIGHWAY|HWAY|HWY|SWY)(?!\\s*(DR|RD|LN|ST))"
+
+checking <- aps %>%
+  filter (str_detect(pt_address_street, hwy_regex))
+
+nrow(checking)
+```
+
+We processed the 105 entries to standardize any HIGHWAY to HWY, for consistency across our data sets.
+
+```{r}
+aps <- aps %>% 
+  mutate(pt_address_street = ifelse(str_detect(pt_address_street,hwy_regex),
+                                    str_replace(pt_address_street,hwy_regex,"HWY"),
+                                    pt_address_street))
+```
+
+##### Unexpected Characters
+
+The vast majority of observations (17,872, 99.99% of non-missing observations) contained values other than the Standard English Alphabet Characters A-Z or a space. Visual inspection of the source data found that Street Address values included the Street Number, Street Name, and potentially a Unit Number.
+
+```{r}
+checking <- aps %>%
+  filter(str_detect(pt_address_street, "[^A-Z ]"))
+
+nrow(checking)
+```
+
+Inspection of the 18 observations which only contained the Standard English Alphabet Characters of A-Z or spaces demonstrated 2 observations for "HOMELESS", and one observation that gave the name of a health facility. The remaining observations gave street names without any unit or street number.
+
+```{r}
+checking <- aps %>%
+  filter(!str_detect(pt_address_street, "[^A-Z ]"))
+
+nrow(checking)
+```
+
+##### "Homeless" or Equivalent `pt_homeless`
+
+There were only two observations which indicated that the patient was "HOMELESS".
+
+```{r}
+checking <- aps %>%
+  filter(str_detect(pt_address_street, "(HOMELE|TRANS)"))
+
+nrow(checking)
+```
+
+The value of `pt_homeless` was set to "TRUE" for these observations, and the value for Street Address was converted into a missing (`NA`) value.
+
+```{r}
+aps <- aps %>%
+  mutate(pt_homeless = case_when(
+    is.na(pt_address_street) ~ pt_homeless,
+    str_detect(pt_address_street, "(HOMELES|TRANS)") ~ TRUE,
+    !(is.na(pt_address_street) | str_detect(pt_address_street, 
+                                  "(HOMELES|TRANS)")) ~ FALSE
+    )
+  ) %>%
+  mutate(pt_address_street = ifelse(pt_homeless == TRUE, 
+                                    NA_character_,
+                                    pt_address_street)
+  )
+```
+
+##### PO BOX `pt_address_pobox`
+
+There were 21 observations which had a PO BOX value in the street address field.
+
+```{r}
+pobox_regex<-c("^(PO BOX|PO  BOX|P\\.O\\. BOX|P\\.O BOX|POBOX|P\\. O\\. BOX|
+               P\\. O BOX|P O BOX|BOX|PO|P\\.O|P\\. O\\.|P O|P\\.O\\.)",
+               "\\s(PO BOX|PO  BOX|P\\.O\\. BOX|P\\.O BOX|POBOX|P\\. O\\. BOX|
+               P\\. O BOX|P O BOX|BOX|PO|P\\.O|P\\. O\\.|P O|P\\.O\\.)$")
+
+checking <- aps %>%
+  filter( (str_detect(pt_address_street,pobox_regex[1])|
+           str_detect(pt_address_street,pobox_regex[2])
+          )
+       )
+
+nrow(checking)
+```
+
+We processed these 21 entries, separating the PO BOX into `pt_address_pobox`
+
+```{r}
+aps <- aps %>%
+  mutate(pt_address_pobox = ifelse((str_detect(pt_address_street,pobox_regex[1])|
+                                      str_detect(pt_address_street,pobox_regex[2])), 
+                                   str_extract(pt_address_street,"([0-9]+)"), 
+                                   pt_address_pobox)
+         ) %>%
+  mutate(pt_address_street = ifelse((str_detect(pt_address_street,pobox_regex[1])|
+                                       str_detect(pt_address_street,pobox_regex[2])),
+                                    NA_character_, pt_address_street)
+         ) 
+```
+
+##### Separating Street Number `pt_address_num`
+
+Addresses in the US almost exclusively start with a street number. We flagged all entries that did not start with a number for manual review. This resulted in 16 flags.
+
+```{r}
+aps <- aps %>%
+  mutate(flag_address = case_when(is.na(pt_address_street) ~ flag_address,
+                                  str_detect(pt_address_street,"^([^0-9])") ~ TRUE,
+                                  TRUE ~ flag_address)
+         )
+
+get_unique_value_summary(aps, "flag_address")
+```
+
+We separated the street number from the remaining entries. 
+
+```{r}
+aps <- aps %>%
+  mutate(pt_address_num = str_match(pt_address_street,"^([0-9-]*)(.*)")[,2]
+         ) %>%
+  mutate(pt_address_street = str_trim(str_match(pt_address_street,"^([0-9-]*)(.*)")[,3])
+         ) %>%
+  mutate(pt_address_num = na_if(pt_address_num, "")
+         )
+```
+
+##### Separating Unit Number `pt_address_unit`
+
+There were several addresses that ended with numbers, rather than characters. There were 306 entries which fit this pattern. However, this was a broad definition which could include numeric street names such as county roads or highways.
+
+```{r}
+checking <- aps %>%
+  filter(str_detect(pt_address_street, "([0-9])$")
+       )
+
+nrow(checking)
+
+sum((str_detect(aps$pt_address_street, "([0-9])$")), na.rm=TRUE)
+```
+
+We developed a regular expression to capture suffixes which would be reasonably assumed to be unit numbers, which matched 10 entries.
+
+```{r}
+apt_regex <- c("(.+?)[\\s,.]+?(APT#|APT|APART|APARTMENT|UNIT|PLOT|PLOT #|PLOT#|LOT#|LOT #|LOT|#|SUITE|BLDG|BUILDING|ROOM|RM|NUMBER|,|APT\\.|APPT|PPT|RM\\.)(\\s)*([A-Z0-9]*[\\s]*[0-9]*)[\\.,]?$"
+               )
+
+checking <- aps %>%
+  filter(str_detect(pt_address_street, apt_regex)
+       )
+
+nrow(checking)
+```
+
+We processed the matching entries.
+
+```{r}
+aps <- aps %>%
+  mutate(pt_address_unit = str_match(pt_address_street,apt_regex)[,5]
+         ) %>%
+  mutate(pt_address_street = case_when(is.na(pt_address_street) ~ pt_address_street,
+                                       str_detect(pt_address_street,apt_regex) ~
+                                         str_trim(str_match(pt_address_street,apt_regex)[,2]),
+                                       TRUE ~ pt_address_street)
+         ) %>%
+  mutate(pt_address_unit = na_if(pt_address_unit, "")
+         )
+```
+
+After processing, we continued to have 297 entries which ended in numerals
+
+```{r}
+sum(!is.na(aps$pt_address_unit))
+sum((str_detect(aps$pt_address_street,"([0-9])$")), na.rm=TRUE)
+```
+
+###### Separating Non-Numbered Road Numerical Suffixes
+
+A regular expression to detect the flags for these numbered roads was developed. We saw that 294 of the 297 remaining entries fit this pattern. For the remaining 3 entries, the numbers at the end of the address were most likely a unit number.
+
+```{r}
+numbered_road_regex <- "(RR|CR|CR-|VZCR|HCR|IH|I-| I |HWY|BUSINESS|INTERSTATE|SPUR|ROUTE|LOOP|PR|FM)[^A-Z]"
+
+checking <- aps %>%
+  filter(str_detect(pt_address_street,"([0-9]$)")
+         )
+
+sum(!(is.na(checking$pt_address_street)))
+
+sum((str_detect(checking$pt_address_street,numbered_road_regex)), na.rm=TRUE)
+```
+We processed those 3 entries.
+
+```{r}
+aps <- aps %>%
+  mutate(pt_address_unit = case_when(
+    is.na(pt_address_street) ~ pt_address_unit,
+    (str_detect(pt_address_street,"([0-9]$)") & !str_detect(pt_address_street,numbered_road_regex)) ~ 
+      str_trim(str_match(pt_address_street,"(.*)\\s([A-Z0-9]+)$")[,3]),
+    TRUE ~ pt_address_unit
+    )
+  ) %>%
+  mutate(pt_address_street = case_when(
+    is.na(pt_address_street) ~ pt_address_street,
+    str_detect(pt_address_street,"([0-9]$)") & !str_detect(pt_address_street,numbered_road_regex) ~
+      str_trim(str_match(pt_address_street,"(.*)\\s([A-Z0-9]+)$")[,2]),
+    TRUE ~ pt_address_street
+    )
+  )
+```
+
+We found we had 3 fewer addresses which ended in a number, and 3 more observations with a unit number in our data set.
+
+```{r}
+sum(!is.na(aps$pt_address_unit))
+sum((str_detect(aps$pt_address_street,"([0-9])$")), na.rm=TRUE)
+```
+
+#### Flagging for Manual Review `flag_address`
+
+We flagged the remaining street names that ended in a number for a quick manual review, producing 294 flags.
+
+```{r}
+aps <- aps %>%
+  mutate(flag_address = case_when(
+    is.na(pt_address_street) ~ flag_address,
+    str_detect(pt_address_street,"([0-9])$") ~ TRUE,
+    TRUE ~ flag_address
+    )
+  )
+
+get_unique_value_summary(aps,"flag_address")
+```
+
+We also flagged any street name less than 5 characters long for manual review, producing 2 flags.
+
+```{r}
+aps <- aps %>%
+  mutate(flag_address = case_when(is.na(pt_address_street) ~ flag_address,
+                                  nchar(pt_address_street) < 5 ~ TRUE,
+                                  TRUE ~ flag_address)
+         )
+
+get_unique_value_summary(aps,"flag_address")
+```
+
+We flagged any entry that had a street address but no street number, which did not produce any new flags.
+
+```{r}
+aps <- aps %>%
+  mutate(flag_address = case_when(is.na(pt_address_street) ~ flag_address,
+                                  is.na(pt_address_num) ~ TRUE,
+                                  TRUE ~ flag_address)
+         )
+
+get_unique_value_summary(aps,"flag_address")
+```
+
+We flagged any entry that had a unit number but no street number, which did not produce any new flags.
+
+```{r}
+aps <- aps %>%
+  mutate(flag_address = case_when(is.na(pt_address_unit) ~ flag_address,
+                                  is.na(pt_address_num) ~ TRUE,
+                                  TRUE ~ flag_address)
+         )
+
+get_unique_value_summary(aps,"flag_address")
+```
+
+#### Manual Cleaning of Flags `flag_address`
+
+The 312 flagged observations were isolated for manual review, including comparison with source data.
+
+```{r}
+addr_check_vars <- aps %>%
+  select(aps_row, pt_homeless, pt_address_street, pt_address_num, 
+         pt_address_unit, pt_address_city, pt_address_zip, pt_address_county, 
+         flag_address) %>%
+  names()
+
+checking <- aps %>%
+  filter(flag_address) %>%
+  subset(select = addr_check_vars)
+```
+
+There were only three observations which required cleaning.
+-   Two observations which had Highway addresses that ended in a number, but also included a unit number that was only separated by a single space.
+-   One observation had a facility name instead of a street name. This single entry required the entry of PHI to clean.
+
+```{r}
+aps$pt_address_unit[aps$aps_row == 4611] <- 
+  str_match(aps$pt_address_street[aps$aps_row==4611], "(.*)(\\s)(.*)$")[,4]
+aps$pt_address_street[aps$aps_row == 4611] <- 
+  str_match(aps$pt_address_street[aps$aps_row==4611], "(.*)(\\s)(.*)$")[,2]
+
+aps$pt_address_unit[aps$aps_row == 4612] <- 
+  str_match(aps$pt_address_street[aps$aps_row==4612], "(.*)(\\s)(.*)$")[,4]
+aps$pt_address_street[aps$aps_row == 4612] <- 
+  str_match(aps$pt_address_street[aps$aps_row==4612], "(.*)(\\s)(.*)$")[,2]
+
+for (col in colnames(phi_cleaning[-1])){
+  target_row = phi_cleaning$aps_row[1]
+  aps[aps$aps_row == target_row,col] <- as.character(phi_cleaning[1,col])
+}
+```
+
+## Investigation Variables
+
+### Pattern of Missing (`NA`) Values
+
+There were 18,105 complete cases for the APS case variables (99.74% of cases), with 47 incomplete cases. The only variables missing were Investigation Close Reason and Investigation Close Date/Time.
+
+```{r}
+inv_vars <- aps %>%
+  select(aps_case_num, aps_reporter, aps_intake_dt, aps_inv_close_dt, 
+         aps_inv_close_reason, aps_intake_num, aps_inv_num
+  ) %>%
+  names()
+
+nrow(filter(aps[inv_vars], rowSums(is.na(aps[inv_vars])) == ncol(aps[inv_vars])))
+nrow(na.omit(aps[inv_vars]))
+sum(complete.cases(aps[inv_vars]))
+
+freq.na(aps[inv_vars])
+```
+
+Of the 47 incomplete entries, 4 observations were missing a Close Date/Time, 11 were missing a Close Reason, and 32 were missing both.
+
+```{r}
+missing_cols <- c("aps_inv_close_dt", "aps_inv_close_reason")
+
+checking <- aps %>%
+  filter(!complete.cases(aps[missing_cols]))
+
+nrow(checking)
+nrow(filter(checking[missing_cols], rowSums(is.na(checking[missing_cols])) == ncol(checking[missing_cols])))
+
+md.pattern(checking[missing_cols], plot=FALSE)
+```
+
+
+### Reporter Type `aps_reporter`
+
+We expected values for reporter to be standardized and selected from a pre-defined list. We found this to be true.
+
+```{r}
+get_unique_value_summary(aps,'aps_reporter')
+```
+
+There were 389 observations for "Blank/Unknown", which we considered equivalent to a missing (`NA`) value. As such, we corrected these values.
+
+```{r}
+aps <- aps %>%
+  mutate(aps_reporter = na_if(aps_reporter, "Blank/Unknown"))
+
+get_unique_value_summary(aps,'aps_reporter')
+```
+
+We finally converted the variable to an unordered factor.
+
+```{r}
+aps$aps_reporter <- as.factor(aps$aps_reporter)
+```
+
+
+### Investigation Closure Reason `aps_inv_close_reason`
+
+We expected values for Close Reason to be standardized and selected from a pre-defined list. We found this to be true.
+
+```{r}
+get_unique_value_summary(aps,'aps_inv_close_reason')
+```
+
+We finally converted the variable to an unordered factor.
+
+```{r}
+aps$aps_inv_close_reason <- as.factor(aps$aps_inv_close_reason)
+```
+
+### Intake Date/Time `aps_intake_dt`
+
+We divided `aps_intake_dt` into `aps_intake_year`, `aps_intake_month`, `aps_intake_day`, `aps_intake_date` and `aps_intake_time` utilizing the *lubridate* package.
+
+```{r}
+aps <- aps %>% 
+  mutate(aps_intake_year = year(aps_intake_dt),
+         aps_intake_month = month(aps_intake_dt),
+         aps_intake_day = day(aps_intake_dt),
+         aps_intake_date = date(aps_intake_dt),
+         aps_intake_time = format(as.POSIXct(aps_intake_dt), format = "%H:%M:%S")
+         )
+```
+
+### Investigation Closure Date/Time `aps_inv_close_dt`
+
+We divided `aps_inv_close_dt` into `aps_inv_close_year`, `aps_inv_close_month`, `aps_inv_close_day`, `aps_inv_close_date` and `aps_inv_close_time` utilizing the *lubridate* package.
+
+```{r}
+aps <- aps %>% 
+  mutate(aps_inv_close_year = year(aps_inv_close_dt),
+         aps_inv_close_month = month(aps_inv_close_dt),
+         aps_inv_close_day = day(aps_inv_close_dt),
+         aps_inv_close_date = date(aps_inv_close_dt),
+         aps_inv_close_time = format(as.POSIXct(aps_inv_close_dt), format = "%H:%M:%S")
+         )
+```
+
+### Case Numbers `aps_case_num`
+
+All case numbers were provided as a whole number that was 8 digits in length, stored as a numeric double. There were 15280 unique case numbers in the data set.
+
+```{r}
+typeof(aps$aps_case_num)
+min(nchar(aps$aps_case_num, keepNA=FALSE))
+max(nchar(aps$aps_case_num, keepNA=FALSE))
+sum(!(aps$aps_case_num - floor(aps$aps_case_num)==0))
+length(unique(aps$aps_case_num))
+```
+
+### Investigation Stage Number & Investigation Intake Number `aps_inv_num`, `aps_intake_num`
+
+Per the documentation provided by APS, each report generates a unique Intake Number. This number may be duplicated if more than one person reports on the same call/report, such situations when two family members call together, or a medical provider calls with a family member. Each Investigation Stage Number was generated from this Intake Number.
+
+We found that there were an equal number of unique Intake and Stage Numbers in our data set.
+
+```{r}
+length(unique(aps$aps_inv_num))
+length(unique(aps$aps_intake_num))
+```
+
+We isolated the 425 observations which had a duplicate value for either Intake or Investigation Stage Number, and found that there were no observations were one number was duplicated but the other was not.
+
+```{r}
+dup_stage_nums <- aps %>%
+  filter( (duplicated(aps_inv_num)|duplicated(aps_inv_num, fromLast = TRUE))
+          ) %>%
+  subset(select = c(aps_row, aps_inv_num, aps_intake_num))
+
+dup_intake_nums <- aps %>%
+    filter( (duplicated(aps_intake_num)|duplicated(aps_intake_num, fromLast = TRUE))
+          ) %>%
+  subset(select = c(aps_row, aps_inv_num, aps_intake_num))
+
+setdiff(dup_intake_nums$aps_row, dup_stage_nums$aps_row)
+```
+
+We found that for each Intake Number, there was only one Investigation Stage Number. This indicated that these values were equivalent as identifiers.
+
+```{r}
+unequal_dups <- aps %>%
+  group_by(aps_intake_num) %>%
+  filter(length(unique(aps_inv_num))!= 1)
+
+nrow(unequal_dups)
+```
+
+All Intake Numbers were provided as a whole number that was 8 digits in length, stored as a numeric double. There were 17,938 unique Intake Numbers in the data set.
+
+```{r}
+typeof(aps$aps_intake_num)
+min(nchar(aps$aps_intake_num, keepNA=FALSE))
+max(nchar(aps$aps_intake_num, keepNA=FALSE))
+sum(!(aps$aps_intake_num - floor(aps$aps_intake_num)==0))
+length(unique(aps$aps_intake_num))
+```
+
+All Investigation Stage Numbers were provided as a whole number that was 8 digits in length, stored as a numeric double. There were 17,938 unique Investigation Stage Numbers in the data set.
+
+```{r}
+typeof(aps$aps_inv_num)
+min(nchar(aps$aps_inv_num, keepNA=FALSE))
+max(nchar(aps$aps_inv_num, keepNA=FALSE))
+sum(!(aps$aps_inv_num - floor(aps$aps_inv_num)==0))
+length(unique(aps$aps_inv_num))
+```
+
+## Assessment Determination Variables
+
+### Pattern of Missing (`NA`) Values
+
+All 18,152 observations were complete for all of the the assessment variables.
+
+```{r}
+aps_assess_vars <- aps %>%
+  select(aps_abuse_emotional_valid, aps_exploitation_valid, 
+         aps_neglect_medical_valid, aps_neglect_mental_valid,
+         aps_abuse_physical_valid, aps_neglect_physical_valid,
+         aps_abuse_sexual_valid, aps_abuse_emotional_invalid,
+         aps_exploitation_invalid, aps_neglect_medical_invalid,
+         aps_neglect_mental_invalid, aps_abuse_physical_invalid,
+         aps_neglect_physical_invalid, aps_abuse_sexual_invalid,
+         aps_abuse_emotional_utd, aps_exploitation_utd, 
+         aps_neglect_medical_utd, aps_neglect_mental_utd, 
+         aps_abuse_physical_utd, aps_neglect_physical_utd,
+         aps_abuse_sexual_utd, aps_investigated_total,
+         aps_abuse_emotional_other, aps_exploitation_other, 
+         aps_neglect_medical_other, aps_neglect_mental_other,
+         aps_abuse_physical_other, aps_neglect_physical_other,
+         aps_abuse_sexual_other, aps_other_total
+         ) %>%
+  names()
+
+nrow(filter(aps[aps_assess_vars], rowSums(is.na(aps[aps_assess_vars])) == ncol(aps[aps_assess_vars])))
+nrow(na.omit(aps[aps_assess_vars]))
+sum(complete.cases(aps[aps_assess_vars]))
+```
+
+### Validity of Values Assessment
+
+We expected for an assessment, all assessment variables to have only dichotomous "YES" or "NO" values. On inspection of the Emotional Abuse Assessment variables, we found that the variables were coded in a binary 0/1, with 0 indicating "NO" and 1 indicating "YES".
+
+```{r}
+emot_abuse_vars <- aps %>%
+  select(aps_abuse_emotional_valid, aps_abuse_emotional_invalid, 
+         aps_abuse_emotional_utd, aps_abuse_emotional_other) %>%
+  names()
+
+get_unique_value_summary(aps, emot_abuse_vars)
+```
+
+We found that this was consistent across all the Assessment Determination Variables.
+
+```{r}
+aps_assess_vars <- aps %>%
+  select(aps_abuse_emotional_valid, aps_exploitation_valid, 
+         aps_neglect_medical_valid, aps_neglect_mental_valid,
+         aps_abuse_physical_valid, aps_neglect_physical_valid,
+         aps_abuse_sexual_valid, 
+         aps_abuse_emotional_invalid,
+         aps_exploitation_invalid, aps_neglect_medical_invalid,
+         aps_neglect_mental_invalid, aps_abuse_physical_invalid,
+         aps_neglect_physical_invalid, aps_abuse_sexual_invalid,
+         aps_abuse_emotional_utd, aps_exploitation_utd, 
+         aps_neglect_medical_utd, aps_neglect_mental_utd, 
+         aps_abuse_physical_utd, aps_neglect_physical_utd,
+         aps_abuse_sexual_utd,
+         aps_abuse_emotional_other, aps_exploitation_other, 
+         aps_neglect_medical_other, aps_neglect_mental_other,
+         aps_abuse_physical_other, aps_neglect_physical_other,
+         aps_abuse_sexual_other
+         ) %>%
+  names()
+
+get_unique_value_summary(aps, aps_assess_vars)$value
+```
+
+According to the documentation provided by APS, each allegation represented a single perpetrator-victim pair. Each allegation has a single determination ("Valid", "Invalid", "Unable to Determine", or "Other"). Determinations of "Valid", "Invalid", and "Unable to Determine" indicated that the allegation was investigated, while "Other" indicated that the allegation was not investigated, such as when it was determined the allegation was out of jurisdiction.
+
+The data set contained each allegation further divided by its determination. As such, there were four binary determination variables for each potential allegation. We expected that for each allegation category, the sum total of these binary determination variables should sum to either 0 (no allegation, and thus no determination) or 1 (determination made from allegation). 
+
+On inspection of the Emotional Abuse Assessment Determination variables, we found that this was not the case. In this single category, 32 observations had a sum across all determination variables greater than 1.
+
+```{r}
+emot_abuse_vars <- aps %>%
+  select(aps_abuse_emotional_valid, aps_abuse_emotional_invalid, 
+         aps_abuse_emotional_utd, aps_abuse_emotional_other) %>%
+  names()
+
+sum(rowSums(aps[,emot_abuse_vars]) > 1)
+```
+
+Even with exclusion of the "Other" determination, 22 observations had a total allegation determination values for Emotional Abuse greater than 1.
+
+```{r}
+emot_abuse_vars <- aps %>%
+  select(aps_abuse_emotional_valid, aps_abuse_emotional_invalid, 
+         aps_abuse_emotional_utd) %>%
+  names()
+
+sum(rowSums(aps[,emot_abuse_vars]) > 1)
+```
+
+We calculated the values when all determinations for a single category/allegation's determination variables for each observation.
+
+```{r}
+aps <- aps %>%
+  mutate(
+    total_abuse_emotional = select(., starts_with("aps_abuse_emotional_")
+                              ) %>% rowSums(),
+    total_exploitation = select(., starts_with("aps_exploitation_")
+                              ) %>% rowSums(),
+    total_neglect_medical = select (., starts_with("aps_neglect_medical_")
+                              ) %>% rowSums(),
+    total_neglect_mental = select (., starts_with("aps_neglect_mental_")
+                              ) %>% rowSums(),
+    total_abuse_physical = select (., starts_with("aps_abuse_physical_")
+                              ) %>% rowSums(),
+    total_neglect_physical = select (., starts_with("aps_neglect_physical_")
+                              ) %>% rowSums(),
+    total_abuse_sexual = select (., starts_with("aps_abuse_sexual_")
+                              ) %>% rowSums()
+        ) 
+```
+
+We saw that Sexual Abuse was the only category that neatly had only 0 or 1 as the sum value of all determinations. Every other category had at least one observation with a determination sum total greater than 1, with a maximum of 3 determinations for a single category.
+
+```{r}
+total_vars <- aps %>%
+  select(starts_with("total_")) %>%
+  names()
+
+get_unique_value_summary(aps, total_vars)
+```
+
+
+### Flagging Questionable Observations `flag_determinations`
+
+We flagged any observation which had a determination sum greater than 1 for any category for further review. This resulted in 969 flags (5.34% of observations).
+
+```{r}
+aps <- aps %>%
+  mutate(flag_determinations = ifelse( (total_abuse_emotional > 1 | 
+                                         total_exploitation > 1 |
+                                         total_neglect_medical > 1 |
+                                         total_neglect_mental > 1 |
+                                         total_abuse_physical > 1 |
+                                         total_neglect_physical > 1 |
+                                         total_abuse_sexual > 1),
+                                       TRUE, flag_determinations)
+         )
+
+get_unique_value_summary(aps, 'flag_determinations')
+```
+
+### Consolidating Single Determinations
+
+For the remaining 17,183 observations, we could consolidate the four binary determination variables into a single determination as a factor variable - "Valid", "Invalid", "Unable to Determine", "Other - Not Investigated" for the respective determination value of 1, and "No Determination" for a total determination value of 0. For observations with a total determination count greater than 1 in the category, a missing (`NA`) value was utilized for that category.
+
+```{r}
+aps <- aps %>%
+  mutate(aps_abuse_emotional = case_when(
+    total_abuse_emotional > 1 ~ NA_character_,
+    total_abuse_emotional == 0 ~ "No Determination",
+    (total_abuse_emotional == 1 & aps_abuse_emotional_valid == 1) ~ "Valid",
+    (total_abuse_emotional == 1 & aps_abuse_emotional_invalid == 1) ~ "Invalid",
+    (total_abuse_emotional == 1 & aps_abuse_emotional_utd == 1) ~ 
+      "Unable to Determine",
+    (total_abuse_emotional == 1 & aps_abuse_emotional_other == 1) ~ 
+      "Other - Not Investigated"
+                                         )
+    ) %>%
+  mutate(aps_exploitation = case_when(
+    total_exploitation > 1 ~ NA_character_,
+    total_exploitation == 0 ~ "No Determination",
+    (total_exploitation == 1 & aps_exploitation_valid == 1) ~ "Valid",
+    (total_exploitation == 1 & aps_exploitation_invalid == 1) ~ "Invalid",
+    (total_exploitation == 1 & aps_exploitation_utd == 1) ~ 
+      "Unable to Determine",
+    (total_exploitation == 1 & aps_exploitation_other == 1) ~ 
+      "Other - Not Investigated"
+                                         )
+    ) %>%
+  mutate(aps_neglect_medical = case_when(
+    total_neglect_medical > 1 ~ NA_character_,
+    total_neglect_medical == 0 ~ "No Determination",
+    (total_neglect_medical == 1 & aps_neglect_medical_valid == 1) ~ "Valid",
+    (total_neglect_medical == 1 & aps_neglect_medical_invalid == 1) ~ "Invalid",
+    (total_neglect_medical == 1 & aps_neglect_medical_utd == 1) ~ 
+      "Unable to Determine",
+    (total_neglect_medical == 1 & aps_neglect_medical_other == 1) ~ 
+      "Other - Not Investigated"
+                                         )
+    ) %>%
+  mutate(aps_neglect_mental = case_when(
+    total_neglect_mental > 1 ~ NA_character_,
+    total_neglect_mental == 0 ~ "No Determination",
+    (total_neglect_mental == 1 & aps_neglect_mental_valid == 1) ~ "Valid",
+    (total_neglect_mental == 1 & aps_neglect_mental_invalid == 1) ~ "Invalid",
+    (total_neglect_mental == 1 & aps_neglect_mental_utd == 1) ~ 
+      "Unable to Determine",
+    (total_neglect_mental == 1 & aps_neglect_mental_other == 1) ~ 
+      "Other - Not Investigated"
+                                         )
+    ) %>%
+  mutate(aps_abuse_physical = case_when(
+    total_abuse_physical > 1 ~ NA_character_,
+    total_abuse_physical == 0 ~ "No Determination",
+    (total_abuse_physical == 1 & aps_abuse_physical_valid == 1) ~ "Valid",
+    (total_abuse_physical == 1 & aps_abuse_physical_invalid == 1) ~ "Invalid",
+    (total_abuse_physical == 1 & aps_abuse_physical_utd == 1) ~ 
+      "Unable to Determine",
+    (total_abuse_physical == 1 & aps_abuse_physical_other == 1) ~ 
+      "Other - Not Investigated"
+                                         )
+    ) %>%
+  mutate(aps_neglect_physical = case_when(
+    total_neglect_physical > 1 ~ NA_character_,
+    total_neglect_physical == 0 ~ "No Determination",
+    (total_neglect_physical == 1 & aps_neglect_physical_valid == 1) ~ "Valid",
+    (total_neglect_physical == 1 & aps_neglect_physical_invalid == 1) ~ "Invalid",
+    (total_neglect_physical == 1 & aps_neglect_physical_utd == 1) ~ 
+      "Unable to Determine",
+    (total_neglect_physical == 1 & aps_neglect_physical_other == 1) ~ 
+      "Other - Not Investigated"
+                                         )
+    ) %>%
+  mutate(aps_abuse_sexual = case_when(
+    total_abuse_sexual > 1 ~ NA_character_,
+    total_abuse_sexual == 0 ~ "No Determination",
+    (total_abuse_sexual == 1 & aps_abuse_sexual_valid == 1) ~ "Valid",
+    (total_abuse_sexual == 1 & aps_abuse_sexual_invalid == 1) ~ "Invalid",
+    (total_abuse_sexual == 1 & aps_abuse_sexual_utd == 1) ~ 
+      "Unable to Determine",
+    (total_abuse_sexual == 1 & aps_abuse_sexual_other == 1) ~ 
+      "Other - Not Investigated"
+                                         )
+    )
+```
+
+We check the newly created variables, and find the values are in the pattern that we anticipated.
+
+```{r}
+get_unique_value_summary(aps,c('aps_abuse_emotional', 'aps_exploitation', 
+                               'aps_neglect_medical', 'aps_neglect_mental', 
+                               'aps_abuse_physical', 'aps_neglect_physical', 
+                               'aps_abuse_sexual'))
+```
+
+# Unique ID
+
+## Initial Validity of Existing "Person ID" `aps_person_id`
+
+The APS data set came with a potential identifier for unique subjects. There were no observations that had missing (`NA`) values for this identifier
+
+```{r}
+sum(is.na(aps$aps_person_id))
+```
+
+There were 11,178 unique values for `aps_person_id` in the original data set of 18,152 observations. There were 10,429 observations which contained duplicate `aps_person_id` values in the data set (57.45%), representing 3,455 unique values for `aps_person_id` (30.91%).
+
+```{r}
+length(unique(aps$aps_person_id))
+
+duplicates <- aps %>%
+  filter( duplicated(aps_person_id) | duplicated(aps_person_id, fromLast=TRUE) )
+
+nrow(duplicates)
+length(unique(duplicates$aps_person_id))
+```
+
+Of the 10,429 duplicated observations in the data set, 5854 observations (56.13% of duplicates) representing 2221 APS Person IDs (64.28%) had identical identifiers across all instances of the APS Person ID.
+
+```{r}
+checking <- duplicates %>%
+  group_by(aps_person_id) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full, pt_name_first, 
+                                    pt_name_last, pt_dob, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals == 1)
+
+nrow(checking)
+length(unique(checking$aps_person_id))
+```
+
+
+### Variations in Patient Name
+
+There were 300 APS Person ID values across 1192 observations which had deviations in Patient Name, as represented by the Full Name field.
+
+```{r}
+checking <- duplicates %>%
+  group_by(aps_person_id) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full, pt_name_first, 
+                                    pt_name_last, pt_dob, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1
+         ) %>%
+  group_by(aps_person_id
+           ) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1)
+
+nrow(checking)
+length(unique(checking$aps_person_id))
+```
+
+#### Variation in Last Name
+
+There were 126 APS Person ID values across 473 observations flagged for variation in Last Name between duplicate APS Person ID Numbers.
+
+```{r}
+checking <- duplicates %>%
+  group_by(aps_person_id) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full, pt_name_first, 
+                                    pt_name_last, pt_dob, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1
+         ) %>%
+  group_by(aps_person_id
+           ) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_last)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1)
+
+nrow(checking)
+length(unique(checking$aps_person_id))
+```
+
+All observations were manually screened. All 473 appeared to be valid assignments of APS Person ID. The majority of mismatches appeared to be due to an individual potentially having a hyphenated last name, alternative spellings of a last name, or transposition of first and last name. Values for Date of Birth were either identical or substantially similar. Some observations appeared to have alternative addresses but otherwise identical identifier values.
+
+As such, all 473 observations were removed from the subset of duplicates as they were considered valid.
+
+```{r}
+duplicates <- duplicates[!(duplicates$aps_row %in% checking$aps_row),]
+```
+
+#### Variation in First Name
+
+There were 174 APS Person ID values across 719 remaining observations flagged for variation in Last Name between duplicate APS Person ID Numbers.
+
+```{r}
+checking <- duplicates %>%
+  group_by(aps_person_id) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full, pt_name_first, 
+                                    pt_name_last, pt_dob, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1
+         ) %>%
+  group_by(aps_person_id
+           ) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_first)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1)
+
+nrow(checking)
+length(unique(checking$aps_person_id))
+```
+
+All observations were manually screened. All 719 appeared to be valid assignments of APS Person ID. The majority of mismatches appeared to be due to variations in spelling of a name, use of a nickname, and potential use of a middle name rather than legal first name. There were some observations that appeared to potentially be a familial pairing rather than a single individual, but identical intake numbers or other notations indicated that these referred to the same person but the names were differentiated in entry due to circumstances of intake.
+
+As such, all 719 observations were removed from the subset of duplicates as they were considered valid.
+
+```{r}
+duplicates <- duplicates[!(duplicates$aps_row %in% checking$aps_row),]
+```
+
+#### Variation in Full Name Recheck
+
+There were no remaining observations which had continued deviations in Full Name.
+
+```{r}
+checking <- duplicates %>%
+  group_by(aps_person_id) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full, pt_name_first, 
+                                    pt_name_last, pt_dob, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1
+         ) %>%
+  group_by(aps_person_id
+           ) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1)
+
+nrow(checking)
+length(unique(checking$aps_person_id))
+```
+
+### Variations in Patient Date of Birth
+
+There were 126 APS Person ID values across 464 remaining observations flagged for variation in Patient Date of Birth between duplicate APS Person ID Numbers.
+
+```{r}
+checking <- duplicates %>%
+  group_by(aps_person_id) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full, pt_name_first, 
+                                    pt_name_last, pt_dob, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1
+         ) %>%
+  group_by(aps_person_id
+           ) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_dob)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1)
+
+nrow(checking)
+length(unique(checking$aps_person_id))
+```
+
+All observations were manually screened. All 464 appeared to be valid assignments of APS Person ID. The majority of mismatches appeared to be due to data entry errors or estimation based on a stated age (such as when the reporting party does not know the Patient's date of birth). Other identifiers, such as patient names and addresses were substantially similar.
+
+As such, all 464 observations were removed from the subset of duplicates as they were considered valid.
+
+```{r}
+duplicates <- duplicates[!(duplicates$aps_row %in% checking$aps_row),]
+```
+
+### Variations in Patient Address
+
+There were 808 APS Person ID values across 2919 remaining observations flagged for variation in Patient Address values between duplicate APS Person ID Numbers.
+
+```{r}
+checking <- duplicates %>%
+  group_by(aps_person_id) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full, pt_name_first, 
+                                    pt_name_last, pt_dob, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1
+         ) %>%
+  group_by(aps_person_id
+           ) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1)
+
+nrow(checking)
+length(unique(checking$aps_person_id))
+```
+
+#### PO BOX
+
+There were 3 APS Person ID values across 13 remaining observations flagged for variation in Patient Address PO BOX numbers between duplicate APS Person ID Numbers.
+
+```{r}
+checking <- duplicates %>%
+  group_by(aps_person_id) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full, pt_name_first, 
+                                    pt_name_last, pt_dob, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1
+         ) %>%
+  group_by(aps_person_id
+           ) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1)
+
+nrow(checking)
+length(unique(checking$aps_person_id))
+```
+
+All 13 observations were manually screened. As Patient Name, Date of Birth, and other identifiers were significantly similar, the observations were deemed to be a true match.
+
+As such, all 13 observations were removed from the subset of duplicates as they were considered valid.
+
+```{r}
+duplicates <- duplicates[!(duplicates$aps_row %in% checking$aps_row),]
+```
+
+#### Variations in County
+
+There were 127 APS Person ID values across 474 remaining observations flagged for variation in Patient Address County between duplicate APS Person ID Numbers.
+
+```{r}
+checking <- duplicates %>%
+  group_by(aps_person_id) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full, pt_name_first, 
+                                    pt_name_last, pt_dob, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1
+         ) %>%
+  group_by(aps_person_id
+           ) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_address_county)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1)
+
+nrow(checking)
+length(unique(checking$aps_person_id))
+```
+
+All observations were manually screened. All 474 appeared to be valid assignments of APS Person ID. The majority of mismatches appeared to be due to data entry errors (such as otherwise identical addresses having different counties), missing values in one entry, or otherwise valid changes such as moves.
+
+As such, all 474 observations were removed from the subset of duplicates as they were considered valid.
+
+```{r}
+duplicates <- duplicates[!(duplicates$aps_row %in% checking$aps_row),]
+```
+
+
+#### Variations in City
+
+There were 328 APS Person ID values across 1,133 remaining observations flagged for variation in Patient Address City between duplicate APS Person ID Numbers.
+
+```{r}
+checking <- duplicates %>%
+  group_by(aps_person_id) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full, pt_name_first, 
+                                    pt_name_last, pt_dob, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1
+         ) %>%
+  group_by(aps_person_id
+           ) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_address_city)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1)
+
+nrow(checking)
+length(unique(checking$aps_person_id))
+```
+
+All observations were manually screened. All 1,133 appeared to be valid assignments of APS Person ID. The majority of mismatches appeared to be due to data entry errors (such as otherwise identical addresses having different cities selected), missing values in one or more observations, or otherwise valid appearing changes such as moves.
+
+As such, all 1,133 observations were removed from the subset of duplicates as they were considered valid.
+
+```{r}
+duplicates <- duplicates[!(duplicates$aps_row %in% checking$aps_row),]
+```
+
+#### Variations in Zip Code
+
+There were 195 APS Person ID values across 726 remaining observations flagged for variation in Patient Address ZIP between duplicate APS Person ID Numbers.
+
+```{r}
+checking <- duplicates %>%
+  group_by(aps_person_id) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full, pt_name_first, 
+                                    pt_name_last, pt_dob, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1
+         ) %>%
+  group_by(aps_person_id
+           ) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_address_zip)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1)
+
+nrow(checking)
+length(unique(checking$aps_person_id))
+```
+
+All observations were manually screened. All 726 appeared to be valid assignments of APS Person ID. The majority of mismatches appeared to be due to data entry errors (such as otherwise identical addresses having a slight variation in zip code), missing values in one or more observations, or otherwise valid appearing changes such as moves.
+
+As such, all 726 observations were removed from the subset of duplicates as they were considered valid.
+
+```{r}
+duplicates <- duplicates[!(duplicates$aps_row %in% checking$aps_row),]
+```
+
+#### Variations in Street Address
+
+There were 115 APS Person ID values across 415 remaining observations flagged for variation in Patient Street Address between duplicate APS Person ID Numbers.
+
+```{r}
+checking <- duplicates %>%
+  group_by(aps_person_id) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full, pt_name_first, 
+                                    pt_name_last, pt_dob, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1
+         ) %>%
+  group_by(aps_person_id
+           ) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_address_street)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1)
+
+nrow(checking)
+length(unique(checking$aps_person_id))
+```
+
+All observations were manually screened. All 415 appeared to be valid assignments of APS Person ID. The majority of mismatches appeared to be due to data entry errors (such as slight variations in spelling or addition of suffixes), missing values in one or more observations, or otherwise valid appearing changes such as moves.
+
+As such, all 415 observations were removed from the subset of duplicates as they were considered valid.
+
+```{r}
+duplicates <- duplicates[!(duplicates$aps_row %in% checking$aps_row),]
+```
+
+
+#### Variations in Street Number
+
+There were 40 APS Person ID values across 158 remaining observations flagged for variation in Street Number between duplicate APS Person ID Numbers.
+
+```{r}
+checking <- duplicates %>%
+  group_by(aps_person_id) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full, pt_name_first, 
+                                    pt_name_last, pt_dob, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1
+         ) %>%
+  group_by(aps_person_id
+           ) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_address_num)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1)
+
+nrow(checking)
+length(unique(checking$aps_person_id))
+```
+
+All observations were manually screened. All 158 appeared to be valid assignments of APS Person ID. The majority of mismatches appeared to be due to data entry errors (such as slight variations in number, but otherwise similar). 
+
+As such, all 158 observations were removed from the subset of duplicates as they were considered valid.
+
+```{r}
+duplicates <- duplicates[!(duplicates$aps_row %in% checking$aps_row),]
+```
+
+#### Variations in Address Unit Number
+
+There were no remaining observations flagged for variation in Patient Unit Number between duplicate APS Person ID Numbers.
+
+```{r}
+checking <- duplicates %>%
+  group_by(aps_person_id) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full, pt_name_first, 
+                                    pt_name_last, pt_dob, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1
+         ) %>%
+  group_by(aps_person_id
+           ) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_address_unit)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1)
+
+nrow(checking)
+length(unique(checking$aps_person_id))
+```
+
+#### Variation in Address Recheck
+
+There were no remaining observations flagged for variation in Patient Address values between duplicate APS Person ID Numbers.
+
+```{r}
+checking <- duplicates %>%
+  group_by(aps_person_id) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full, pt_name_first, 
+                                    pt_name_last, pt_dob, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1
+         ) %>%
+  group_by(aps_person_id
+           ) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1)
+
+nrow(checking)
+length(unique(checking$aps_person_id))
+```
+
+## Remaining Variation
+
+There were no remaining duplicated observations which demonstrated variation in any identifiers.
+
+```{r}
+checking <- duplicates %>%
+  group_by(aps_person_id) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_full, pt_name_first, 
+                                    pt_name_last, pt_dob, pt_address_street,
+                                    pt_address_num, pt_address_city,
+                                    pt_address_unit, pt_address_zip,
+                                    pt_address_county, pt_address_pobox)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1
+         ) %>%
+  group_by(aps_person_id
+           ) %>%
+  mutate(distinct_vals = n_distinct(aps_person_id, pt_name_first)
+         ) %>%
+  ungroup() %>%
+  filter(distinct_vals != 1)
+
+nrow(checking)
+length(unique(checking$aps_person_id))
+```
+
+As all variations between observations of APS Person ID were manually screened, we concluded that APS Person ID was a valid identifier for unique individuals in the data set.
+
+# Dropping Flag Variable
+
+The only flag variable that was able to be dropped at this time was `flag_address`
+
+```{r}
+aps <- subset(aps, select= -c(flag_address))
+```
+
+# Reordering Columns
+
+We ordered our columns, for clarity.
+
+```{r}
+bookkeeping_cols <- c("aps_row", "aps_person_id")
+
+pt_demo_cols <- c("pt_name_full", "pt_name_first", "pt_name_last",
+                  "pt_age", "pt_dob", "pt_dob_year", "pt_dob_month", "pt_dob_day",
+                  "pt_homeless", "pt_address_pobox","pt_address_num",
+                  "pt_address_street", "pt_address_unit", "pt_address_city", 
+                  "pt_address_county", "pt_address_zip")
+
+inv_cols <- c("aps_case_num", "aps_intake_num", "aps_inv_num", "aps_reporter",
+              "aps_intake_dt", "aps_intake_date", "aps_intake_time",
+              "aps_intake_year", "aps_intake_month", "aps_intake_day",
+              "aps_inv_close_dt", "aps_inv_close_date", "aps_inv_close_time",
+              "aps_inv_close_year", "aps_inv_close_month", "aps_inv_close_day",
+              "aps_inv_close_reason")
+
+assess_cols <- c("aps_abuse_emotional", "aps_exploitation", 
+                 "aps_neglect_medical", "aps_neglect_mental", 
+                 "aps_abuse_physical", "aps_neglect_physical",
+                 "aps_abuse_sexual")
+
+assess_cleaning_cols <- c('flag_determinations', 'total_abuse_emotional', 
+                          'aps_abuse_emotional_valid', 
+                          'aps_abuse_emotional_invalid', 'aps_abuse_emotional_utd',
+                          'aps_abuse_emotional_other',
+                          'total_exploitation', 'aps_exploitation_valid',
+                          'aps_exploitation_invalid','aps_exploitation_utd',
+                          'aps_exploitation_other',
+                          'total_neglect_medical', 'aps_neglect_medical_valid',
+                          'aps_neglect_medical_invalid', 'aps_neglect_medical_utd',
+                          'aps_neglect_medical_other',
+                          'total_neglect_mental', 'aps_neglect_mental_valid',
+                          'aps_neglect_mental_invalid', 'aps_neglect_mental_utd',
+                          'aps_neglect_mental_other',
+                          'total_abuse_physical', 'aps_abuse_physical_valid', 
+                          'aps_abuse_physical_invalid', 'aps_abuse_physical_utd',
+                          'aps_abuse_physical_other',
+                          'total_neglect_physical', 'aps_neglect_physical_valid',
+                          'aps_neglect_physical_invalid', 
+                          'aps_neglect_physical_utd', 'aps_neglect_physical_other',
+                          'total_abuse_sexual', 'aps_abuse_sexual_valid',
+                          'aps_abuse_sexual_invalid', 'aps_abuse_sexual_utd',
+                          'aps_abuse_sexual_other', 'aps_investigated_total',
+                          'aps_other_total')
+
+
+
+col_order <- c(bookkeeping_cols,pt_demo_cols,inv_cols,assess_cols, 
+               assess_cleaning_cols)
+
+```
+
+And we reordered our data set
+
+```{r}
+aps <- aps[,col_order]
+```
+
+
+# Save and Export
+
+The processed APS data file was saved and exported.
+
+```{r}
+saveRDS(aps,here("data","DETECT Shared GRAs","aps_cleaning",
+                             "aps_01.rds"))
+```
