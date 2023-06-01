@@ -1,0 +1,526 @@
+---
+title: "Getting a Unique Subject ID for all Subjects: Merging MedStar and APS Data"
+format: html
+editor: visual
+---
+
+# Summary
+
+-   Groups with entries in the 0.45 - 0.93 posterior probability threshold, without duplicate entries, were revised first
+
+    -   Resulted in \*\* new Unique Subject IDs
+
+## Assumptions and Considerations
+
+-   The unique subject IDS for both MedStar and APS data sets (`ms_id` and `aps_person_id` respectively) represent in-set representations of the same subject
+
+    -   MedStar subject ID was created during this data processing, while the APS ID came from APS
+
+    -   Either set may have accidental failed matches
+
+-   Typographical errors (or miss-selection errors for fields which appear to be pre-defined lists) may occur in any field, but are less likely to occur consistently
+
+-   Common First and Last Names are more likely to result in accidental mismatches
+
+    -   Hispanic naming conventions, which may include multiple family names and many relatively common names, may increase the probability these names are either mismatched or fail to match
+
+-   Names
+
+    -   First names may include nicknames or a middle name that the subject "goes by" in some observations, but their legal first name in others
+
+        -   As twins are unlikely, individuals that identical other than First Name are likely to refer to the same person
+
+    -   Individuals with hyphenated Last Names may go by either or both names
+
+        -   More likely in Female patients, due to name change conventions around marriage in the U.S.A.
+
+            -   The ability to keep a maiden name, hyphenate, or take a new last name [was not codified in the U.S.A until the 1980s](https://scholarship.law.wm.edu/wmjowl/vol17/iss1/6/), and as such is comparatively more common in younger women
+
+            -   [Informal polls have found that today, approximately 10% of women chose to hyphenate and 20% keep their maiden name in full.](https://time.com/3939688/maiden-names-married-women-report/) These rates are likely lower in older populations.
+
+        -   Men are both less likely to change their name at all based on name change conventions in the U.S.A, but also [face greater legal barriers in some states to obtaining name change on marriage](https://heinonline.org/HOL/LandingPage?handle=hein.journals/tclj24&div=10&id=&page=)
+
+    -   Two individuals with the First and Last Name at the same Address, but with birth dates greater than 12 years apart may potentially be parent and child using a Junior/Senior naming conventionpe
+
+        -   More likely in Male patients, due to naming conventions
+
+        -   Birth Date considerations relating to the possibility of JR/SR relationships or other familial pairing apply
+
+-   Gender
+
+    -   Values for gender are subject to miss-selection error and potentially bias
+
+        -   There are few studies which quantify the rate at which those over 65 identify as a gender other than their sex assigned at birth
+
+    -   Older women are more likely to follow more extensive practices of rules of coverture, which may include using their husband's name in lieu of their own for all formal matters such as paperwork
+
+        -   This practice is still listed in [many modern etiquette guides](https://emilypost.com/advice/ms-miss-or-mrs-whats-the-difference)
+
+        -   [This practice has been noted to be common as recently as the 1980s](https://blog.statemuseum.nd.gov/blog/beyond-mrs-husbands-name-researching-womens-full-names)
+
+-   Birth Dates
+
+    -   Slight differences in any one Birth Date value is likely to be a data entry error if all other fields are either identical or significantly similar
+
+    -   Month and Date values are most likely to be transposed in data entry errors
+
+-   Address
+
+    -   Address values may have been entered as the location of the call for service, rather than the subject's residential or mailing address
+
+    -   There are multiple multi-residence facilities, such as apartment complexes and healthcare facilities represented in the data - these addresses should be weighed less heavily as identifiers for differentiation
+
+    -   Individuals may move or be at a temporary location for a call for service
+
+        -   Healthcare facilities, homeless shelters, and businesses should be considered indicators that the patient's address should be weighed less heavily as an identifier
+
+        -   Multiple observations that appear to "alternate" between addresses are less likely to refer to the same individual
+
+        -   Calls for service may have a nearby address entered in error - if addresses are within 0.5 miles of each other, or otherwise appear sufficiently close on a map that a GPS error may have occurred, consideration should be given that it was an error rather than a truly different value
+
+-   Judgement should err on the side of separating observations if doubt exists that they refer to the same person
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(here)
+library(fastLink)
+```
+
+## Data Imports
+
+The initial Group ID assignment data set was read in for further processing
+
+```{r}
+# Original ID assignments
+id_base <- readRDS(here("data","DETECT Shared GRAs","merge_aps_medstar",
+                             "merge_aps_medstar_01_id_initial.rds"))
+```
+
+The MedStar data set was loaded for processing.
+
+```{r}
+medstar <- readRDS(here("data","DETECT Shared GRAs","medstar_cleaning",
+                             "medstar_01.rds"))
+```
+
+The APS data set was loaded for processing.
+
+```{r}
+aps <- readRDS(here("data","DETECT Shared GRAs","aps_cleaning",
+                             "aps_01.rds")
+               ) %>%
+    mutate(pt_dob = as.character(pt_dob)
+         )
+```
+
+## Functions
+
+### Unique Value Summary
+
+A function written in a previous cleaning document was imported. It was written to display counts of each unique observations within a selection of columns.
+
+```{r}
+get_unique_value_summary <- function(df,cols){
+  
+  # Input: 
+  #     df (data frame) - original source data frame
+  #     cols (list) - list of target column names as strings
+  # Output:
+  #     unique_summary (data frame) - summary counts of each unique value in
+  #           each of the target columns
+  
+  # Get list of unique values in all target columns
+  
+  val <- unique(as.factor(as.vector(as.matrix(df[cols]))))
+  
+  # Initialize output data frame with unique value row
+  
+  unique_summary <- data.frame("value"=val)
+  
+  # Get counts of unique values in original data frame
+  
+  for (i in cols){
+    
+    # utilizes table to get summary count of each column
+    
+    table <- as.data.frame(table(df[i]))
+    
+    # sets column names to "value" and "freq"
+    
+  colnames(table) <- c("value","freq")
+  
+    # adds count of missing values in each column
+  
+  table<- add_row(table, value = NA, freq = sum(is.na(df[i])))
+  
+    # readjusts names of columns to "value" and the name of the target column
+  
+  colnames(table) <- c("value",i)
+  
+    # joins table's summary counts to complete the count values
+  
+    unique_summary <- left_join(unique_summary,table, by="value")
+  }
+  
+  # returns completed, but unordered, data frame
+  
+  unique_summary
+  }
+```
+
+### Visualizing Stacked Pairs
+
+A convenience function was written to facilitate the comparison of paired observations as stacked pairs, with identifiers from the source data sets (including identifers that were not used in fastLink, but are beneficial in manual review).
+
+```{r}
+get_stacked_pairs <- function(combined_id_df, ids, identifiers) {
+  #
+  # Uses stacked-pair output from stack_ids() and source data frames
+  # to stack the identifer rows from each source data frame
+  # along with pair, group ID, and posterior probabilities for comparison
+  #
+  # Inputs:
+  #     combined_id_df: data frame, output from stack_ids()
+  #     ids:            $dfA = source data frame A
+  #                     $dfB = source data frame B
+  #                     $a = ID variables from data frame A
+  #                         can be a list, but first value MUST be the 
+  #                         unique row ID
+  #                     $b = ID variables from data frame B
+  #                         can be a list, but first value MUST be the 
+  #                         unique row ID
+  #                     $source = list of strings defining source of dfA and dfB
+  #     identifiers:    list of variable names that contain the identifiers
+  #                     present in both dfA and dfB for comparison
+  #
+  # Returns:
+  #     split_pairs:    data frame which displays the paired observations from
+  #                     dfA and dfB for match comparison
+  #
+  
+  
+  # Extracts ID, Pair #, Posterior probability, and associated IDs from the
+  # combined_id_df variable
+  
+  all_pairs <- combined_id_df %>%
+    dplyr::select(id, posterior, ids$a, ids$b) %>%
+    dplyr::mutate(pair = row_number()) %>%
+    dplyr::relocate(id, pair, posterior)
+  
+  
+  # Initializes the output data table, which will show Group ID, Pair, Source,
+  # Posterior Probability, Source_Row, and Source_ID
+  
+  split_pairs <- tibble::as_tibble( matrix(nrow=0, ncol=6), 
+           .name_repair = ~c("id", "pair", "source", "posterior", 
+                             "source_row", "source_id"))
+  
+  # Separates each "in-line pair" into stacked rows, adds the identifier
+  # variables from the respective source data set, then appends to output df
+  
+  for (row in 1:nrow(combined_id_df)){
+    
+    # Initiates a new, temporary tibble from each "in-line pair"
+    
+    pair_ids <- tibble::tibble(
+      id = all_pairs$id[row],
+      pair = row,
+      source = ids$source,
+      posterior = all_pairs$posterior[row],
+      source_row = c(pull(all_pairs[row, ids$a[1]]), pull(all_pairs[row, ids$b[1]])),
+      source_id = c(pull(all_pairs[row, ids$a[2]]), pull(all_pairs[row, ids$b[2]])) 
+      )
+    
+    # Collects identifiers for the paired observations from the source data sets
+    
+    ident_rows <- rbind(ids$dfA[ids$dfA[1] == pair_ids$source_row[1], identifiers],
+                         ids$dfB[ids$dfB[1] == pair_ids$source_row[2], identifiers])
+    
+    # Attaches identifiers to temporary tibble, then appends temporary tibble 
+    # to output dataframe
+    
+    pair_ids <- cbind(pair_ids, ident_rows)
+    split_pairs <- rbind(split_pairs, pair_ids)
+  }
+  
+  # Returns output df
+  
+  split_pairs
+}
+```
+
+### Checking Pair Groups
+
+A convenience function was written to allow for comparison of paired observations across all occurences of the respective Unique Subject ID in each data set.
+
+```{r}
+pair_comparison <- function(stacked_pairs, ids, pair){
+  #
+  # Checks "unique subject ids" from a specific stacked pair and pulls
+  # all observations for both groups together for comparison
+  #
+  # Inputs:
+  #     stacked_pairs:  data frame, output from get_stacked_pairs()
+  #     ids:            $dfA = source data frame A
+  #                     $dfB = source data frame B
+  #                     $a = ID variables from data frame A
+  #                         can be a list, but first value MUST be the 
+  #                         unique row ID, second must be Unique Subject ID
+  #                     $b = ID variables from data frame B
+  #                         can be a list, but first value MUST be the 
+  #                         unique row ID, second must be Unique Subject ID
+  #                     $source = list of strings defining source of dfA and dfB
+  #     identifiers:    list of variable names that contain the identifiers
+  #                     present in both dfA and dfB for comparison
+  #
+  # Returns:
+  #     rows:           data frame which displays the observations that match
+  #                     the Unique Subject ID in each data set for a pair
+  #
+  
+  # Extract IDs
+  group_a <- stacked_pairs$source_id[2*pair-1]
+  group_b <- stacked_pairs$source_id[2*pair]
+  
+  # Pull matching rows from each data set
+  row_a <- ids$dfA[ids$dfA[2]==group_a, identifiers]
+  row_b <- ids$dfB[ids$dfB[2]==group_b, identifiers]
+  
+  # Combine for output
+  rows <- rbind(row_a, row_b)
+  rows <- cbind(id = stacked_pairs$id[2*pair], pair = pair, rows)
+  rows
+}
+```
+
+### Extracting Unique Subject ID for Replacement Map
+
+A convenience function was written to extract a Unique Subject ID from a single data set within a pair that was identified as a mismatch.
+
+```{r}
+extract_subj_ids <- function(stacked_pairs, ids, target_pairs, j=1){
+  #
+  # Extracts the Unique Subject ID value for a data set from the output
+  # of get_stacked_pairs() to facilitate creation of a Group ID replacement map
+  #
+  # Inputs:
+  #     stacked_pairs:  data frame, output from get_stacked_pairs()
+  #     ids:            $dfA = source data frame A
+  #                     $dfB = source data frame B
+  #                     $a = ID variables from data frame A
+  #                         can be a list, but first value MUST be the 
+  #                         unique row ID, second must be Unique Subject ID
+  #                     $b = ID variables from data frame B
+  #                         can be a list, but first value MUST be the 
+  #                         unique row ID, second must be Unique Subject ID
+  #                     $source = list of strings defining source of dfA and dfB
+  #     target_pairs:   Pair to target due to mismatching between
+  #                     data sets
+  #     j:              The index of the target source in ids$source
+  #                     default is 1
+  #
+  # Returns:
+  #     target_rows:    list of the unique subject IDs targeted for correction
+  #
+  
+  target_rows <- stacked_pairs %>%
+    filter(pair %in% target_pairs) %>%
+    filter(source == packed_data$source[j]) %>%
+    select(source_id)
+  
+  pull(target_rows)
+}
+```
+
+
+### Appending to Replacement Data Frame
+
+A convenience function was written for ease of appending large amounts of data incrementally to a data frame that mapped replacement Group IDs.
+
+```{r}
+add_replacement_rows <- function(df, rows, id) {
+  # Takes list of target rows and an id value, and appends to the data frame
+  # Requires variables have specific names
+  
+  df <- rbind(df,tibble("ms_epcr_row"=rows,"id"=id))
+  
+  df
+}
+```
+
+# Packaging Data for Manual Review
+
+We established the identifier variables and IDs to be used in manual review.
+
+```{r}
+identifiers <- medstar %>%
+  select(pt_name_full, pt_dob, pt_age, pt_address_num, pt_address_street, pt_address_unit, pt_address_zip, pt_address_pobox) %>%
+  names()
+
+ms_ids <- medstar %>%
+  select(ms_epcr_row, ms_id) %>%
+  names()
+
+aps_ids <- aps %>%
+  select(aps_row, aps_person_id) %>%
+  names()
+```
+
+We packaged our data for processing with the `get_stacked_pairs()` function
+
+```{r}
+packed_data <- list()
+packed_data$a <- ms_ids
+packed_data$b <- aps_ids
+packed_data$source <- c("MedStar", "APS")
+
+packed_data$dfA <- medstar %>% 
+  select(all_of(ms_ids), all_of(identifiers)
+         )
+
+packed_data$dfB <- aps %>% 
+  select(all_of(aps_ids), all_of(identifiers)
+         )
+```
+
+# Review of Initial ID Assignments
+
+There were 4,722 pairs in the Initial Group ID Assignment data set. There were no pairs missing a value for `ms_epcr_row`, `aps_row`, or `id`. There were 2,126 unique IDs (1 - 2126) assigned.
+
+```{r}
+nrow(id_base)
+
+sum(is.na(id_base$ms_epcr_row))
+sum(is.na(id_base$aps_row))
+
+sum(is.na(id_base$id))
+length(unique(id_base$id))
+summary(id_base$id)
+```
+
+## Duplicated Source Row Numbers
+
+There were 3,630 pairs in 1,034 groups which contained a duplicate value for APS Row, MedStar ePCR Row, or both values. These pairs contained 1,577 APS Row values and 1,989 MedStar ePCR Row values. All pairs with a duplicated APS Row value also had a duplicated MedStar ePCR Row value.
+
+```{r}
+duplicates <- id_base %>%
+  filter((flag_aps | flag_ms | flag_both))
+
+nrow(duplicates)
+length(unique(duplicates$id))
+length(unique(duplicates$aps_row))
+length(unique(duplicates$ms_epcr_row))
+
+get_unique_value_summary(id_base, c("flag_aps","flag_ms","flag_both"))
+```
+
+There were 3,096 pairs with duplicate observations for APS Row, representing 1,043 APS Rows in 789 groups. These observations were previously flagged for review under the `flag_aps` variable.
+
+```{r}
+duplicates_aps <- id_base %>%
+  filter((duplicated(aps_row) | duplicated(aps_row, fromLast=TRUE)))
+
+nrow(duplicates_aps)
+length(unique(duplicates_aps$aps_row))
+length(unique(duplicates_aps$id))
+
+sum(is.na(duplicates_aps$aps_row))
+
+nrow(duplicates_aps) == length(unique(duplicates_aps$aps_row))
+get_unique_value_summary(id_base, "flag_aps")
+```
+
+There were 2,458 pairs with duplicate observations for MedStar ePCR Row, representing 817 MedStar ePCR Rows in 537 groups. These observations were previously flagged for review under the `flag_ms` variable.
+
+```{r}
+duplicates_ms <- id_base %>%
+  filter((duplicated(ms_epcr_row) | duplicated(ms_epcr_row, fromLast=TRUE)))
+
+nrow(duplicates_ms)
+length(unique(duplicates_ms$ms_epcr_row))
+length(unique(duplicates_ms$id))
+
+sum(is.na(duplicates_ms$ms_epcr_row))
+
+nrow(duplicates_ms) == length(unique(duplicates_ms$ms_epcr_row))
+get_unique_value_summary(id_base, "flag_ms")
+```
+
+## Posterior Probability in Manual Verification Range of 0.45 - 0.93
+
+The 575 potential pairs with posterior probabilities in the manual verification range of 0.45 - 0.93 were previously flagged for manual review.
+
+```{r}
+get_unique_value_summary(id_base,c("flag_posterior"))
+```
+
+## Summary of Flags, Subsetting Flagged Data
+
+These 3,743 pairs were isolated to facilitate manual review.
+
+```{r}
+checking <- id_base %>%
+  filter ( (flag_aps | flag_ms | flag_both | flag_posterior))
+```
+
+# Manual Review of Flags
+
+## Posteriors without Duplicates
+
+The 113 pairs across 113 Group ID values that were flagged for having a posterior probability between 0.45 and 0.93, without a duplicate APS or MedStar ePCR Row value, were further isolated and manually reviewed. This subset contained no duplicate Unique Subject ID values from either the MedStar or APS data sets
+
+```{r}
+checking_cols <- filter(checking, 
+                        (flag_posterior & !(flag_aps | flag_ms| flag_both))
+                        )
+
+nrow(checking_cols)
+length(unique(checking_cols$id))
+length(unique(checking_cols$aps_person_id))
+length(unique(checking_cols$ms_id))
+```
+
+We stacked our paired observations for comparison.
+
+```{r}
+stacked_pairs <- get_stacked_pairs(checking_cols, packed_data, identifiers)
+```
+
+We examined each pair's related Unique Subject IDs to increase the robustness of our comparison.
+
+```{r}
+for (i in 1:nrow(checking_cols)) {
+  print(pair_comparison(stacked_pairs, packed_data, i))
+}
+```
+
+We found 16 mismatched pairs (12.03% Mismatch Rate), which resulted in the generation of an additional 16 new Group ID numbers (values from 2127 - 2143). The majority of observations appeared to be the same individual, but one address was either a facility, less than 0.5 miles away (potential addressing error), or otherwise appeared to reflect a valid move for a single individual.
+
+```{r}
+target_pairs <- c(11, 13, 16, 17, 18, 19, 21, 22, 23, 24, 25, 26, 30, 31, 33, 34)
+
+replacement_by_ms <- tibble::tibble(
+  ms_id = extract_subj_ids(stacked_pairs, packed_data, target_pairs),
+  id = seq(2127,length(target_groups)+2126, by = 1)
+)
+```
+
+We removed all 113 checked pairs from our checking subset.
+
+```{r}
+checking <- checking %>%
+  filter(!(id %in% checking_cols$id))
+```
+
+## Duplicated APS Rows
+
+
+
+# Bottom Placeholder
