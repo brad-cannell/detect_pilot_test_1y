@@ -1,0 +1,1395 @@
+---
+title: "Linking MedStar and APS IDs"
+format: html
+editor: visual
+---
+
+# Summary
+
+Variables utilized in fastLink adjusted the weighting of each difference in entries. As such, we evaluated potential combinations of variables to generate a range of posterior probabilities that would be useful in creating Unique Subject IDs, with a reasonably sized useful range of posterior probabilities for manual verification and threshold setting.
+
+Variables for matching were determined to be:
+
+-   Patient Name: First Name, Last Name (`pt_name_first`,`pt_name_last`)
+
+    -   Middle name was absent from the APS data set, and adding Full Name would increase the weight of Names
+
+-   Patient Date of Birth: Year, Month, Day (`pt_dob_year`,`pt_dob_month`,`pt_dob_day`)
+
+    -   This weighting allowed for slight typos in one field of date of birth to have limited influence, while entirely different dates of birth had increasingly significant influence (most useful for familial relations with similar names and addresses)
+
+-   Patient Address: Street Name (`pt_address_street`)
+
+    -   Using all values for address overly weighted values
+    -   Zip code proved to be too broad of a category and resulted in many false matches
+    -   While neighbors may live on the same street, they are not likely to also have similar names or dates of birth
+    -   Using a single value avoided overly-weighting address for familial relations with similar names and addresses, and subjects which resided at the same multi-residence location (such as an apartment complex, senior living community, or nursing home)
+
+-   Partial Matching was utilized for Patient Name and Patient Address
+
+    -   This increased true-matches between observations with human-recognizeable similar names, which had significant transpositions or typos
+
+-   A threshold of 0.93 was established for "true matches", and a threshold of 0.45 was established for "false matches"
+
+    -   Matches between 0.45 and 0.93 (482 potential pairs) would benefit from manual verification and assignment
+
+-   Our final fastLink output was produced with a lower threshold posterior probability of 0.45 for matches.
+
+    -   There were 29,271 observations in the Originally Assigned Group ID modified data set, with 16,637 unique IDs assigned. No observations (per PCR report numbers) were lost
+
+        -   Of these, 1,662 observations were duplicated in 293 group IDs
+
+        -   A total of 2,199 observations were flagged for manual cleaning and review
+
+            -   The 1,675 observations that either had duplicated PCR report numbers or were part of a group with duplicated observations were flagged for manual review
+
+            -   All 1,675 previously flagged observations, and an additional 524 observations, were within the 0.54 - 0.903 manual verification threshold and flagged for manual review
+
+-   Data was exported and saved to achieve consistency, as fastLink output returns slight variations in results with each execution even with identical input
+
+    -   The fastLink output
+
+        -   `fl_out` --\> `ms_epcr_fastlink.rds`
+
+    -   The stacked pairs with posterior probabilities
+
+        -   `test_stack` --\> `ms_epcr_stacked_pairs.rds`
+
+    -   Originally Assigned Group ID modified data set
+
+        -   `test_id` --\> `ms_epcr_id_base.rds`
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(here)
+library(fastLink)
+```
+
+## Data Imports
+
+The MedStar data set was loaded for processing.
+
+```{r}
+medstar <- readRDS(here("data","DETECT Shared GRAs","medstar_cleaning",
+                             "medstar_01.rds"))
+```
+
+The APS data set was loaded for processing.
+
+```{r}
+aps <- readRDS(here("data","DETECT Shared GRAs","aps_cleaning",
+                             "aps_01.rds"))
+```
+
+## Functions
+
+### Unique Value Summary
+
+A function written in a previous cleaning document was imported. It was written to display counts of each unique observations within a selection of columns.
+
+```{r}
+get_unique_value_summary <- function(df,cols){
+  
+  # Input: 
+  #     df (data frame) - original source data frame
+  #     cols (list) - list of target column names as strings
+  # Output:
+  #     unique_summary (data frame) - summary counts of each unique value in
+  #           each of the target columns
+  
+  # Get list of unique values in all target columns
+  
+  val <- unique(as.factor(as.vector(as.matrix(df[cols]))))
+  
+  # Initialize output data frame with unique value row
+  
+  unique_summary <- data.frame("value"=val)
+  
+  # Get counts of unique values in original data frame
+  
+  for (i in cols){
+    
+    # utilizes table to get summary count of each column
+    
+    table <- as.data.frame(table(df[i]))
+    
+    # sets column names to "value" and "freq"
+    
+  colnames(table) <- c("value","freq")
+  
+    # adds count of missing values in each column
+  
+  table<- add_row(table, value = NA, freq = sum(is.na(df[i])))
+  
+    # readjusts names of columns to "value" and the name of the target column
+  
+  colnames(table) <- c("value",i)
+  
+    # joins table's summary counts to complete the count values
+  
+    unique_summary <- left_join(unique_summary,table, by="value")
+  }
+  
+  # returns completed, but unordered, data frame
+  
+  unique_summary
+  }
+```
+
+### Match Check
+
+A function was written to modify the fastLink::getMatches output to facilitate immediate pairwise comparison of identifiers in a fastLink match pair. This function was based on the original function written by Dr. Cannell to view stacked pairs when fastLink had been used to match observations within a single data set.
+
+```{r}
+get_pair_data <- function(dfA_pack, dfB_pack, match_vars, fastlink_out, 
+                          match_threshold = 0.85){
+  #
+  # Uses fastlink::getMatches to get matched pairs from dfA and dfB
+  # Takes data from dfA and dfB to allow comparison of matches based on
+  # the variables utilized for fastLink matching
+  #
+  #
+  # Inputs:
+  #     dfA_pack: $df = dataframe A
+  #               $ids = identifiers for dfA, with row-unique ID first
+  #               $prefix = a prefix to specifiy a column came from dfA
+  #     dfB_pack: $df = dataframe B
+  #               $ids = identifiers for dfB, with row-unique ID first
+  #               $prefix = a prefix to specifiy a column came from dfB
+  #     match_vars: list of variables used in fastLink matching
+  #     fastlink_out: fastlink object, output from fastLink matching
+  #     match_threshold: threshold posterior probability for a match
+  #               default is 0.85 (same as fastLink)
+  #
+  # Returns:
+  #     pair_data: dataframe where each row represents a fastLink match,
+  #                 outlines posterior probability, identifiers, contents
+  #                 of each match variable for side-by-side comparison, and
+  #                 gamma of the variable comparison
+  
+  
+  # Unpack all dfA values for stack creation
+  dfA <- dfA_pack$df
+  dfA_ids <- dfA_pack$ids
+  dfA_vars <- c()
+  for (var in match_vars){
+      dfA_vars <- c(dfA_vars, paste(dfA_pack$prefix,var, sep="_"))
+    }
+  
+  # Unpack all dfB values for stack creation  
+  dfB <- dfB_pack$df
+  dfB_ids <- dfB_pack$ids
+  dfB_vars <- c()
+  for (var in match_vars){
+      dfB_vars <- c(dfB_vars, paste(dfB_pack$prefix,var, sep="_"))
+    }
+
+  # Get match data using fastLink & fastLink output
+  matches <- getMatches(dfA, dfB, fl.out = fastlink_out, 
+                        threshold.match = match_threshold)
+  
+  # Subset only desired data from matches
+  match_data_vars <- matches %>%
+    select(posterior, all_of(dfA_ids), all_of(dfB_ids),
+           all_of(starts_with("gamma"))
+           ) %>%
+    names()
+  
+  pair_data <- subset(matches, select = match_data_vars)
+  
+  # Initialize output data frame column names with posteriors, IDs, and gammas
+  
+  col_order <- pair_data %>%
+    select(posterior, all_of(dfA_ids), all_of(dfB_ids)
+      ) %>%
+    names()
+  
+  # Iteratively match and build output data frame
+  
+  for (i in 1:length(match_vars)){
+  
+    # Match dfA variable data for each match
+    dfA_cols <- subset(dfA, select = c(dfA_ids[1], match_vars[i]))
+    names(dfA_cols)[2] <- dfA_vars[i]
+    pair_data <- left_join(pair_data, dfA_cols, by=dfA_ids[1], relationship = "many-to-one")
+  
+    # Match dfB variable data for each match
+    dfB_cols <- subset(dfB, select = c(dfB_ids[1], match_vars[i]))
+    names(dfB_cols)[2] <- dfB_vars[i]
+    pair_data <- left_join(pair_data, dfB_cols, by=dfB_ids[1], relationship = "many-to-one")
+    
+    # Update list of column names
+    
+    col_order <- c(col_order, dfA_vars[i], dfB_vars[i], paste("gamma",i,sep="."))
+                   
+  }
+  
+  # Reorder output columns
+  pair_data <- pair_data[,col_order]
+  
+  # Return output
+  pair_data
+
+}
+```
+
+### Subject ID Creation
+
+A function was written to add a unique group ID based on fastLink pair match data. This function was based on the original function written by Dr. Cannell to add a unique subject ID when fastLink had been used to match observations within a single data set.
+
+```{r}
+stack_ids <- function(dfA_pack, dfB_pack, paired_matches){
+  #
+  # Takes match data from fastLink object and pair-comparison tibble created
+  # using get_pair_data() to add a unique group ID to the paired match data
+  #
+  # Inputs:
+  #     dfA_pack: $df = dataframe A
+  #               $ids = identifiers for dfA, with row-unique ID first
+  #               $prefix = a prefix to specifiy a column came from dfA
+  #     dfB_pack: $df = dataframe B
+  #               $ids = identifiers for dfB, with row-unique ID first
+  #               $prefix = a prefix to specifiy a column came from dfB
+  #     paired_matches: tibble, output from get_pair_data()
+  #
+  # Returns:
+  #     out:      Modified paired_matches which includes a unique group ID
+  
+  
+  # Turn fastLink results into tibble of rows and their matches
+  matches <- paired_matches %>%
+    select(dfA_pack$ids[1],dfB_pack$ids[1])
+  
+  colnames(matches) <- c("dfA_row", "dfB_row")
+  
+  # Nest all matches for each row
+  matches <- matches %>% 
+    dplyr::group_by(dfB_row) %>% 
+    dplyr::mutate(AmatchesB = list(dfA_row)) %>%
+    dplyr::ungroup() %>%
+    dplyr::group_by(dfA_row) %>%
+    dplyr::mutate(BmatchesA = list(dfB_row)) %>%
+    ungroup()
+  
+  # Reduce to unique sets of matching rows
+  # i.e. 1,2,3 is the same as 3,2,1
+  matches <- matches %>% 
+    dplyr::mutate(dfA_matchesB = purrr::map_chr(
+      AmatchesB,
+      function(x) {
+        x = sort(x) # 1,2,3 is the same as 3,2,1
+        x = paste(x, collapse = ",") # Convert list to character string
+        x
+      })
+    ) %>% 
+    dplyr::mutate(dfB_matchesA = purrr::map_chr(
+      BmatchesA,
+      function(x) {
+        x = sort(x) # 1,2,3 is the same as 3,2,1
+        x = paste(x, collapse = ",") # Convert list to character string
+        x
+      })
+    ) %>% 
+    dplyr::select(dfA_matchesB, dfB_matchesA) %>%
+    distinct() # Reduce to 1 row per group of matches
+  
+  
+  # Sequentially number each group of matches
+  # This will become the unique id
+  matches <- matches %>%
+    dplyr::mutate(
+      id = row_number(),
+      dfA_row = purrr::map( # Turn back into list
+        dfA_matchesB,
+        ~ scan(text = ., what = 0L, sep = ",", quiet = TRUE)
+        ),
+      dfB_row = purrr::map( # Turn back into list
+        dfB_matchesA,
+        ~ scan(text = ., what = 0L, sep = ",", quiet = TRUE)
+        )
+    )
+  
+  # Covert to data frame with the appropriate id number for each
+  # unique observation id combination from dfA and dfB
+  
+  matches <- matches %>%
+    tidyr::unnest(cols=c(dfA_row)) %>%
+    tidyr::unnest(cols=c(dfB_row)) %>%
+    dplyr::select(id, dfA_row, dfB_row)
+  
+  # Join the unique ID into the paired matches set for review, based on
+  # the dfA unique observation ID
+  
+  out <- matches %>%
+    dplyr::right_join(
+      paired_matches,
+      by = c('dfA_row'=dfA_pack$ids[1], 'dfB_row'=dfB_pack$ids[1])
+    )
+  
+  colnames(out)[2:3] <- c(dfA_pack$ids[1], dfB_pack$ids[1])
+  
+  # Return revised paired matches with pair ID
+  out
+}
+```
+
+# Preparing Datasets for Match
+
+## Variable Selection
+
+Our data sets contained many more variables than we required for matching. To reduce the memory burden of the match process, both data sets had their variables reduced to those necessary for performing the match, verifying matches in previously matched groups, and adding the new group ID into the original data sets.
+
+The 13 identifiers common to both data sets would be utilized:
+
+-   Name: `pt_name_full`, `pt_name_first`, `pt_name_last`
+-   Date of Birth: `pt_dob`, `pt_dob_year`, `pt_dob_month`, `pt_dob_day`
+-   Address: `pt_address_num`, `pt_address_street`, `pt_address_unit`, `pt_address_city`, `pt_address_zip`, `pt_address_pobox`
+
+```{r}
+identifiers <- aps %>%
+  select(pt_name_full, pt_name_first, pt_name_last, 
+         pt_dob, pt_dob_year, pt_dob_month, pt_dob_day, 
+         pt_address_num, pt_address_street, pt_address_unit, pt_address_city, 
+         pt_address_zip, pt_address_pobox) %>%
+  names()
+```
+
+The record ID from the source data, and the unique subject ID, were also selected from each data set.
+
+```{r}
+aps_vars <- aps %>%
+  select(aps_row, aps_person_id) %>%
+  names()
+
+medstar_vars <- medstar %>%
+  select(ms_epcr_row, ms_id) %>%
+  names()
+```
+
+We reduced our data sets to only include these variables.
+
+```{r}
+aps <- aps %>%
+  subset(select = c(aps_vars, identifiers))
+
+medstar <- medstar %>%
+  subset(select = c(medstar_vars, identifiers))
+```
+
+## Row Reduction to only Unique Combinations
+
+The MedStar data set contained 28,228 observations, while the APS data set contained 18,152 observations.
+
+```{r}
+nrow(medstar)
+nrow(aps)
+```
+
+To reduce the memory burden of matching, we reduced our data sets into only unique combinations of the unique subject id and all identifiers.
+
+### MedStar Reduction
+
+There were 16,578 unique MedStar Subject IDs in the MedStar data set.
+
+```{r}
+length(unique(medstar$ms_id))
+```
+
+By reducing only to unique combinations of identifiers in each MedStar Subject ID, we were able to reduce our search space to 20,100 observations (28.79% reduction) without loss of any MedStar Subject ID.
+
+```{r}
+reducing_vars <- medstar %>%
+  select(all_of(identifiers), ms_id) %>%
+  names()
+
+medstar <- medstar %>%
+  group_by(ms_id) %>%
+  distinct(pick(all_of(reducing_vars)), .keep_all = TRUE) %>%
+  ungroup()
+
+nrow(medstar)
+length(unique(medstar$ms_id))
+```
+
+### APS Reduction
+
+There were 11,178 unique APS Person IDs in the APS data set.
+
+```{r}
+length(unique(aps$aps_person_id))
+```
+
+By reducing only to unique combinations of identifiers in each APS Person ID, we were able to reduce our search space to 12,676 observations (30.17% reduction) without the loss of any APS Person ID.
+
+```{r}
+reducing_vars <- aps %>%
+  select(all_of(identifiers), aps_person_id) %>%
+  names()
+
+aps <- aps %>%
+  group_by(aps_person_id) %>%
+  distinct(pick(all_of(reducing_vars)), .keep_all = TRUE) %>%
+  ungroup()
+
+nrow(aps)
+length(unique(aps$aps_person_id))
+```
+
+## Packing of Source Data Frames for Match Checking
+
+We packed our variables for use with the `get_pair_data()` function.
+
+```{r}
+dfA_pack <- list()
+dfA_pack$df <- medstar
+dfA_pack$ids <- c("ms_epcr_row", "ms_id")
+dfA_pack$prefix <- "ms"
+
+dfB_pack <- list()
+dfB_pack$df <- aps
+dfB_pack$ids <- c("aps_row", "aps_person_id")
+dfB_pack$prefix <- "aps"
+```
+
+# Determination of Variables for Matching
+
+## Initial Attempt
+
+Initial attempts to link records matched based on 9 identifying variables: Patient Name (First and Last), Patient DOB (Year, Month, and Day), and Patient Address (Street Number, Street Name, City, and Zip).
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street","pt_address_num","pt_address_city", "pt_address_zip")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year")
+
+match_vars <- c(str_vars, num_vars)
+
+## fastLink
+fl_out <- fastLink(
+  dfA = dfA_pack$df, 
+  dfB = dfB_pack$df,
+  varnames = match_vars,
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE
+  )
+```
+
+We used the fastLink output to inspect our matches.
+
+```{r}
+checking_stack <- get_pair_data(dfA_pack, dfB_pack, match_vars, fl_out)
+checking_ids <- stack_ids(dfA_pack, dfB_pack, checking_stack)
+```
+
+### Output Summary
+
+This processing produced 32,396 pairs; when pairs were processed to add group IDs, the presence of multiple-match pairs resulted in 254,161 pairs across 3,075 group IDs.
+
+```{r}
+nrow(checking_stack)
+
+nrow(checking_ids)
+length(unique(checking_ids$id))
+```
+
+Posterior probabilities ranged from 0.8506993701347 to 0.9999999999993. No entries had posterior probabilities of 1.0, which would have indicated a perfect match.
+
+```{r}
+sum(is.na(checking_ids$posterior))
+
+sum(checking_stack$posterior == 1)
+
+summary(checking_stack$posterior)
+```
+
+Cursory examination revealed a prodigious number of mismatches due to similarities in birth date or address, but vastly different names.
+
+### Duplicate Checking
+
+We found there were 2,207 APS Row Numbers repeated across 2,096 Group IDs and 252,779 observations. There were no pairs missing an APS Row Number
+
+```{r}
+duplicates_aps <- checking_ids %>%
+  filter((duplicated(aps_row) | duplicated(aps_row, fromLast=TRUE)))
+
+length(unique(duplicates_aps$aps_row))
+length(unique(duplicates_aps$id))
+nrow(duplicates_aps)
+
+sum(is.na(duplicates_aps$aps_row))
+
+nrow(duplicates_aps) == length(unique(duplicates_aps$aps_row))
+```
+
+We found there were 3,915 MedStar ePCR Row Numbers repeated across 1,924 Group IDs and 252,348 observations. There were no pairs missing an MedStar ePCR Row Number.
+
+```{r}
+duplicates_ms <- checking_ids %>%
+  filter((duplicated(ms_epcr_row) | duplicated(ms_epcr_row, fromLast=TRUE)))
+
+length(unique(duplicates_ms$ms_epcr_row))
+length(unique(duplicates_ms$id))
+nrow(duplicates_ms)
+
+sum(is.na(duplicates_ms$ms_epcr_row))
+
+nrow(duplicates_ms) == length(unique(duplicates_ms$ms_epcr_row))
+```
+
+We flagged all observations with a matching `aps_row` or `id` from the duplicated observations for a manual review. We similarly flagged all observations with a matching `ms_epcr_row` from the duplicated observations, and observations which flagged for both.
+
+All 252,779 observations flagged for duplicate APS Row Number values were also flagged for duplicate MedStar ePCR Row Number values.
+
+```{r}
+checking_ids$flag_aps <- FALSE
+checking_ids$flag_ms <- FALSE
+checking_ids$flag_both <- FALSE
+
+checking_ids <- checking_ids %>%
+  mutate(flag_aps = case_when(id %in% duplicates_aps$id ~ TRUE,
+                          aps_row %in% duplicates_aps$aps_row ~ TRUE,
+                          TRUE ~ flag_aps)
+         ) %>%
+  mutate(flag_ms = case_when(id %in% duplicates_ms$id ~ TRUE,
+                          ms_epcr_row %in% duplicates_ms$ms_epcr_row ~ TRUE,
+                          TRUE ~ flag_aps)
+         ) %>%
+  mutate(flag_both = ifelse((flag_aps & flag_ms), TRUE, flag_aps)
+         )
+
+get_unique_value_summary(checking_ids,c("flag_aps","flag_ms","flag_both"))
+```
+
+Only 1,382 pairs (0.54%) in 979 groups (31.84%) did not contain a duplicate observation.
+
+```{r}
+nondup_ids <- checking_ids %>% 
+  filter(!flag_both) %>% 
+  select(id)
+
+nrow(nondup_ids)
+length(unique(nondup_ids$id))
+```
+
+In checking these values, we saw that many of them appeared to be caused by a prodigious number of false matches, similar to the cursory examination.
+
+```{r}
+checking <- filter(checking_ids, (flag_aps | flag_ms | flag_both))
+```
+
+## Reduction of Address Search Space
+
+As the address variable appeared to be overly-weighted in the initial match, the number of address variables were reduced to only Street Name and ZIP Code.
+
+An attempt was made to link records matched based on 7 identifying variables: Patient Name (First and Last), Patient DOB (Year, Month, and Day), and Patient Address (Street Name, ZIP).
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street", "pt_address_zip")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year")
+
+match_vars <- c(str_vars, num_vars)
+
+## fastLink
+fl_out <- fastLink(
+  dfA = dfA_pack$df, 
+  dfB = dfB_pack$df,
+  varnames = match_vars,
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE
+  )
+```
+
+We used the fastLink output to inspect our matches.
+
+```{r}
+checking_stack <- get_pair_data(dfA_pack, dfB_pack, match_vars, fl_out)
+checking_ids <- stack_ids(dfA_pack, dfB_pack, checking_stack)
+```
+
+### Output Summary
+
+This processing produced 4,694 pairs; when pairs were processed to add group IDs, the presence of multiple-match pairs resulted in 7,363 pairs across 2,567 group IDs.
+
+```{r}
+nrow(checking_stack)
+
+nrow(checking_ids)
+length(unique(checking_ids$id))
+```
+
+Posterior probabilities ranged from 0.8726207057033 to 0.9999999804534. No entries had posterior probabilities of 1.0, which would have indicated a perfect match.
+
+```{r}
+sum(is.na(checking_ids$posterior))
+
+sum(checking_stack$posterior == 1)
+
+summary(checking_stack$posterior)
+```
+
+Cursory examination revealed a continued large number of mismatches due to similarities in birth date or address, but vastly different names.
+
+### Duplicate Checking
+
+We found there were 1,300 APS Row Numbers repeated across 1,366 Group IDs and 5,898 observations. There were no pairs missing an APS Row Number
+
+```{r}
+duplicates_aps <- checking_ids %>%
+  filter((duplicated(aps_row) | duplicated(aps_row, fromLast=TRUE)))
+
+length(unique(duplicates_aps$aps_row))
+length(unique(duplicates_aps$id))
+nrow(duplicates_aps)
+
+sum(is.na(duplicates_aps$aps_row))
+
+nrow(duplicates_aps) == length(unique(duplicates_aps$aps_row))
+```
+
+We found there were 1,237 MedStar ePCR Row Numbers repeated across 1,094 Group IDs and 5,170 observations. There were no pairs missing an MedStar ePCR Row Number.
+
+```{r}
+duplicates_ms <- checking_ids %>%
+  filter((duplicated(ms_epcr_row) | duplicated(ms_epcr_row, fromLast=TRUE)))
+
+length(unique(duplicates_ms$ms_epcr_row))
+length(unique(duplicates_ms$id))
+nrow(duplicates_ms)
+
+sum(is.na(duplicates_ms$ms_epcr_row))
+
+nrow(duplicates_ms) == length(unique(duplicates_ms$ms_epcr_row))
+```
+
+We flagged all observations with a matching `aps_row` or `id` from the duplicated observations for a manual review. We similarly flagged all observations with a matching `ms_epcr_row` from the duplicated observations, and observations which flagged for both.
+
+All 5,898 observations flagged for duplicate APS Row Number values were also flagged for duplicate MedStar ePCR Row Number values.
+
+```{r}
+checking_ids$flag_aps <- FALSE
+checking_ids$flag_ms <- FALSE
+checking_ids$flag_both <- FALSE
+
+checking_ids <- checking_ids %>%
+  mutate(flag_aps = case_when(id %in% duplicates_aps$id ~ TRUE,
+                          aps_row %in% duplicates_aps$aps_row ~ TRUE,
+                          TRUE ~ flag_aps)
+         ) %>%
+  mutate(flag_ms = case_when(id %in% duplicates_ms$id ~ TRUE,
+                          ms_epcr_row %in% duplicates_ms$ms_epcr_row ~ TRUE,
+                          TRUE ~ flag_aps)
+         ) %>%
+  mutate(flag_both = ifelse((flag_aps & flag_ms), TRUE, flag_aps)
+         )
+
+get_unique_value_summary(checking_ids,c("flag_aps","flag_ms","flag_both"))
+```
+
+Only 1,465 pairs (19.90%) in 1,201 groups (46.79%) did not contain a duplicate observation.
+
+```{r}
+nondup_ids <- checking_ids %>% 
+  filter(!flag_both) %>% 
+  select(id)
+
+nrow(nondup_ids)
+length(unique(nondup_ids$id))
+```
+
+In checking these values, we saw that many of them appeared to be caused by a prodigious number of false matches, similar to the cursory examination.
+
+```{r}
+checking <- filter(checking_ids, (flag_aps | flag_ms | flag_both))
+```
+
+## Further Reduction of Address Search Space
+
+Address continued to appear overly-weighted. A trial was performed by reducing the search space for address further, and only matching based on Street Name.
+
+An attempt was made to link records matched based on 6 identifying variables: Patient Name (First and Last), Patient DOB (Year, Month, and Day), and Patient Address (Street Name).
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year")
+
+match_vars <- c(str_vars, num_vars)
+
+## fastLink
+fl_out <- fastLink(
+  dfA = dfA_pack$df, 
+  dfB = dfB_pack$df,
+  varnames = match_vars,
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  dedupe.matches = FALSE
+  )
+```
+
+We used the fastLink output to inspect our matches.
+
+```{r}
+checking_stack <- get_pair_data(dfA_pack, dfB_pack, match_vars, fl_out)
+checking_ids <- stack_ids(dfA_pack, dfB_pack, checking_stack)
+```
+
+### Output Summary
+
+This processing produced 3,898 pairs; when pairs were processed to add group IDs, the presence of multiple-match pairs resulted in 4,242 pairs across 2,004 group IDs.
+
+```{r}
+nrow(checking_stack)
+
+nrow(checking_ids)
+length(unique(checking_ids$id))
+```
+
+Posterior probabilities ranged from 0.8825078962382 to 0.9999991784529. No entries had posterior probabilities of 1.0, which would have indicated a perfect match.
+
+```{r}
+sum(is.na(checking_ids$posterior))
+
+sum(checking_stack$posterior == 1)
+
+summary(checking_stack$posterior)
+```
+
+Cursory examination revealed a resolution to the over-matching, with the desired matching achieved.
+
+### Duplicate Checking
+
+We found there were 915 APS Row Numbers repeated across 707 Group IDs and 2,675 observations. There were no pairs missing an APS Row Number
+
+```{r}
+duplicates_aps <- checking_ids %>%
+  filter((duplicated(aps_row) | duplicated(aps_row, fromLast=TRUE)))
+
+length(unique(duplicates_aps$aps_row))
+length(unique(duplicates_aps$id))
+nrow(duplicates_aps)
+
+sum(is.na(duplicates_aps$aps_row))
+
+nrow(duplicates_aps) == length(unique(duplicates_aps$aps_row))
+```
+
+We found there were 706 MedStar ePCR Row Numbers repeated across 464 Group IDs and 2,105 observations. There were no pairs missing an MedStar ePCR Row Number.
+
+```{r}
+duplicates_ms <- checking_ids %>%
+  filter((duplicated(ms_epcr_row) | duplicated(ms_epcr_row, fromLast=TRUE)))
+
+length(unique(duplicates_ms$ms_epcr_row))
+length(unique(duplicates_ms$id))
+nrow(duplicates_ms)
+
+sum(is.na(duplicates_ms$ms_epcr_row))
+
+nrow(duplicates_ms) == length(unique(duplicates_ms$ms_epcr_row))
+```
+
+We flagged all observations with a matching `aps_row` or `id` from the duplicated observations for a manual review. We similarly flagged all observations with a matching `ms_epcr_row` from the duplicated observations, and observations which flagged for both.
+
+All 2,675 observations flagged for duplicate APS Row Number values were also flagged for duplicate MedStar ePCR Row Number values.
+
+```{r}
+checking_ids$flag_aps <- FALSE
+checking_ids$flag_ms <- FALSE
+checking_ids$flag_both <- FALSE
+
+checking_ids <- checking_ids %>%
+  mutate(flag_aps = case_when(id %in% duplicates_aps$id ~ TRUE,
+                          aps_row %in% duplicates_aps$aps_row ~ TRUE,
+                          TRUE ~ flag_aps)
+         ) %>%
+  mutate(flag_ms = case_when(id %in% duplicates_ms$id ~ TRUE,
+                          ms_epcr_row %in% duplicates_ms$ms_epcr_row ~ TRUE,
+                          TRUE ~ flag_aps)
+         ) %>%
+  mutate(flag_both = ifelse((flag_aps & flag_ms), TRUE, flag_aps)
+         )
+
+get_unique_value_summary(checking_ids,c("flag_aps","flag_ms","flag_both"))
+```
+
+Only 1,567 pairs (36.94%) in 1,297 groups (64.72%) did not contain a duplicate observation.
+
+```{r}
+nondup_ids <- checking_ids %>% 
+  filter(!flag_both) %>% 
+  select(id)
+
+nrow(nondup_ids)
+length(unique(nondup_ids$id))
+```
+
+In checking these values, we found a mix of true and false matches.
+
+```{r}
+checking <- filter(checking_ids, (flag_aps | flag_ms | flag_both))
+```
+
+## Assessment for Partial Matching
+
+Previous fastLink matching (MedStar ePCR data) yielded benefit in utilizing partial-matching for First Name, Last Name, and Address. This modification was assessed.
+
+An attempt was made to link records matched based on 6 identifying variables: Patient Name (First and Last), Patient DOB (Year, Month, and Day), and Patient Address (Street Name).
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year")
+
+match_vars <- c(str_vars, num_vars)
+
+## fastLink
+fl_out <- fastLink(
+  dfA = dfA_pack$df, 
+  dfB = dfB_pack$df,
+  varnames = match_vars,
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  partial.match = c("pt_name_first","pt_name_last", "pt_address_street"),
+  dedupe.matches = FALSE
+  )
+```
+
+We used the fastLink output to inspect our matches.
+
+```{r}
+checking_stack <- get_pair_data(dfA_pack, dfB_pack, match_vars, fl_out)
+checking_ids <- stack_ids(dfA_pack, dfB_pack, checking_stack)
+```
+
+### Output Summary
+
+This processing produced 3,902 pairs; when pairs were processed to add group IDs, the presence of multiple-match pairs resulted in 4,318 pairs across 2,000 group IDs.
+
+```{r}
+nrow(checking_stack)
+
+nrow(checking_ids)
+length(unique(checking_ids$id))
+```
+
+Posterior probabilities ranged from 0.8650827511693 to 0.9999998990133. No entries had posterior probabilities of 1.0, which would have indicated a perfect match.
+
+```{r}
+sum(is.na(checking_ids$posterior))
+
+sum(checking_stack$posterior == 1)
+
+summary(checking_stack$posterior)
+```
+
+Cursory examination revealed an increased number of both true and false matches.
+
+### Duplicate Checking
+
+We found there were 916 APS Row Numbers repeated across 712 Group IDs and 2,764 observations. There were no pairs missing an APS Row Number
+
+```{r}
+duplicates_aps <- checking_ids %>%
+  filter((duplicated(aps_row) | duplicated(aps_row, fromLast=TRUE)))
+
+length(unique(duplicates_aps$aps_row))
+length(unique(duplicates_aps$id))
+nrow(duplicates_aps)
+
+sum(is.na(duplicates_aps$aps_row))
+
+nrow(duplicates_aps) == length(unique(duplicates_aps$aps_row))
+```
+
+We found there were 720 MedStar ePCR Row Numbers repeated across 482 Group IDs and 2,206 observations. There were no pairs missing an MedStar ePCR Row Number.
+
+```{r}
+duplicates_ms <- checking_ids %>%
+  filter((duplicated(ms_epcr_row) | duplicated(ms_epcr_row, fromLast=TRUE)))
+
+length(unique(duplicates_ms$ms_epcr_row))
+length(unique(duplicates_ms$id))
+nrow(duplicates_ms)
+
+sum(is.na(duplicates_ms$ms_epcr_row))
+
+nrow(duplicates_ms) == length(unique(duplicates_ms$ms_epcr_row))
+```
+
+We flagged all observations with a matching `aps_row` or `id` from the duplicated observations for a manual review. We similarly flagged all observations with a matching `ms_epcr_row` from the duplicated observations, and observations which flagged for both.
+
+All 2,764 observations flagged for duplicate APS Row Number values were also flagged for duplicate MedStar ePCR Row Number values.
+
+```{r}
+checking_ids$flag_aps <- FALSE
+checking_ids$flag_ms <- FALSE
+checking_ids$flag_both <- FALSE
+
+checking_ids <- checking_ids %>%
+  mutate(flag_aps = case_when(id %in% duplicates_aps$id ~ TRUE,
+                          aps_row %in% duplicates_aps$aps_row ~ TRUE,
+                          TRUE ~ flag_aps)
+         ) %>%
+  mutate(flag_ms = case_when(id %in% duplicates_ms$id ~ TRUE,
+                          ms_epcr_row %in% duplicates_ms$ms_epcr_row ~ TRUE,
+                          TRUE ~ flag_aps)
+         ) %>%
+  mutate(flag_both = ifelse((flag_aps & flag_ms), TRUE, flag_aps)
+         )
+
+get_unique_value_summary(checking_ids,c("flag_aps","flag_ms","flag_both"))
+```
+
+Only 1,554 pairs (35.99%) in 1,288 groups (64.40%) did not contain a duplicate observation.
+
+```{r}
+nondup_ids <- checking_ids %>% 
+  filter(!flag_both) %>% 
+  select(id)
+
+nrow(nondup_ids)
+length(unique(nondup_ids$id))
+```
+
+In checking these values, we found a mix of true and false matches. There appeared to be a greater number of true matches, which had failed to match in the previous attempt without partial matching.
+
+```{r}
+checking <- filter(checking_ids, (flag_aps | flag_ms | flag_both))
+```
+
+# Determination of Posterior Probability Ranges
+
+## fastLink
+
+We utilized fastLink and requested all matches with posterior probabilities greater than 0.001.
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year")
+
+match_vars <- c(str_vars, num_vars)
+
+## fastLink
+fl_out <- fastLink(
+  dfA = dfA_pack$df, 
+  dfB = dfB_pack$df,
+  varnames = match_vars,
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  partial.match = c("pt_name_first","pt_name_last", "pt_address_street"),
+  dedupe.matches = FALSE,
+  return.all = TRUE
+  )
+```
+
+We used the fastLink output to generate our stacked pairs for inspection, and a version of the data set with unique IDs based on these matches.
+
+```{r}
+checking_stack <- get_pair_data(dfA_pack, dfB_pack, match_vars, fl_out, match_threshold = 0.00001)
+checking_ids <- stack_ids(dfA_pack, dfB_pack, checking_stack)
+```
+
+### Output Summary
+
+This processing produced 13,132 pairs; when pairs were processed to add group IDs, the presence of multiple-match pairs resulted in 85,581 pairs across 7,241 group IDs.
+
+```{r}
+nrow(checking_stack)
+
+nrow(checking_ids)
+length(unique(checking_ids$id))
+```
+
+Posterior probabilities ranged from 0.001071284967867 to 0.999999899010824. No entries had posterior probabilities of 1.0, which would have indicated a perfect match.
+
+```{r}
+sum(is.na(checking_stack$posterior))
+
+sum(checking_stack$posterior == 1)
+
+summary(checking_stack$posterior)
+```
+
+Cursory examination revealed an increased number of both true and false matches.
+
+### Evaluation of Posterior Probability Ranges
+
+#### 0.95 - 1
+
+The 3,772 pairs with posteriors between 0.95 - 1 were examined.
+
+```{r}
+checking <- checking_stack %>%
+  filter( (between(posterior,0.95,1)))
+
+nrow(checking)
+```
+
+All pairs appeared to be valid true-matches within the range.
+
+#### 0.90 - 0.95
+
+The 77 pairs with posteriors between 0.90 - 0.95 were examined.
+
+```{r}
+checking <- checking_stack %>%
+  filter( (between(posterior,0.90,0.95)))
+
+nrow(checking)
+```
+
+The first suspect match, which appeared to be a potential familial mismatch, occured at the posterior of 0.9381054411003550. All pairs with a posterior of 0.94 or greater appeared to be valid, true matches.
+
+#### 0.85 - 0.90
+
+The 53 pairs with posteriors between 0.85 - 0.90 were examined.
+
+```{r}
+checking <- checking_stack %>%
+  filter( (between(posterior,0.85,0.90)))
+
+nrow(checking)
+```
+
+All pairs observed appeared to be a mix of true matches and false matches. The majority of mismatches appeared to be potential familial pairs.
+
+#### 0.80 - 0.85
+
+The 56 pairs with posteriors between 0.80 - 0.85 were examined.
+
+```{r}
+checking <- checking_stack %>%
+  filter( (between(posterior,0.80,0.85)))
+
+nrow(checking)
+```
+
+All pairs observed appeared to be a mix of true matches and false matches. Many true matches appeared to be the same individual at different addresses or with alternative address spellings.
+
+#### 0.75 - 0.80
+
+There were no pairs with a posterior probability between 0.75 - 0.80.
+
+```{r}
+checking <- checking_stack %>%
+  filter( (between(posterior,0.75,0.70)))
+
+nrow(checking)
+```
+
+#### 0.70 - 0.75
+
+The 21 pairs with posteriors between 0.70 - 0.75 were examined.
+
+```{r}
+checking <- checking_stack %>%
+  filter( (between(posterior,0.70,0.75)))
+
+nrow(checking)
+```
+
+All pairs observed appeared to be a mix of true matches and false matches. Many true matches appeared to be the same individual at different addresses or with alternative address spellings, or with transposed date of birth values.
+
+#### 0.65 - 0.70
+
+The 42 pairs with posteriors between 0.65 - 0.70 were examined.
+
+```{r}
+checking <- checking_stack %>%
+  filter( (between(posterior,0.65,0.70)))
+
+nrow(checking)
+```
+
+All pairs observed appeared to be a mix of true matches and false matches. Many true matches appeared to be the same individual at different addresses or with alternative address spellings, or with transposed date of birth values.
+
+#### 0.60 - 0.65
+
+The 15 pairs with posteriors between 0.60 - 0.65 were examined.
+
+```{r}
+checking <- checking_stack %>%
+  filter( (between(posterior,0.60,0.65)))
+
+nrow(checking)
+```
+
+All pairs observed appeared to be a mix of true matches and false matches. Many true matches appeared to have date of birth differences.
+
+#### 0.55 - 0.60
+
+The 81 pairs with posteriors between 0.55 - 0.60 were examined.
+
+```{r}
+checking <- checking_stack %>%
+  filter( (between(posterior,0.55,0.60)))
+
+nrow(checking)
+```
+
+All pairs observed appeared to be a mix of true matches and false matches. Many true matches appeared to be the same individual at different addresses or with alternative address spellings, or with transposed date of birth values.
+
+#### 0.50 - 0.55
+
+The 38 pairs with posteriors between 0.50 - 0.55 were examined.
+
+```{r}
+checking <- checking_stack %>%
+  filter( (between(posterior,0.50,0.55)))
+
+nrow(checking)
+```
+
+All pairs observed appeared to be a mix of true matches and false matches. Hyphenated names and alternative address spellings appeared to be the largest contributors to the true-matches.
+
+#### 0.45 - 0.50
+
+The 12 pairs with posteriors between 0.45 - 0.50 were examined.
+
+```{r}
+checking <- checking_stack %>%
+  filter( (between(posterior,0.45,0.50)))
+
+nrow(checking)
+```
+
+The last "true match" appeared to occur at a posterior of 0.4753276701661390 - remaining values appeared to be common names matched to observations with missing values for address and significantly different date of birth values.
+
+#### 0.40 - 0.45
+
+There were no pairs with a posterior between 0.40 - 0.45
+
+```{r}
+checking <- checking_stack %>%
+  filter( (between(posterior,0.40,0.45)))
+
+nrow(checking)
+```
+
+#### 0.35 - 0.40
+
+The 4 pairs with posteriors between 0.35 - 0.40 were examined.
+
+```{r}
+checking <- checking_stack %>%
+  filter( (between(posterior,0.35,0.40)))
+
+nrow(checking)
+```
+
+All appeared to be false matches
+
+#### 0.30 - 0.35
+
+The 40 pairs with posteriors between 0.30 - 0.35 were examined.
+
+```{r}
+checking <- checking_stack %>%
+  filter( (between(posterior,0.30,0.35)))
+
+nrow(checking)
+```
+
+All appeared to be false matches
+
+#### Summary (0.45 - 0.93)
+
+There were 482 pairs with reverse probabilities within the range of 0.45 - 0.93, which would require manual verification of proper pairing and ID. As such, only 3.67% of potential matches were likely to benefit from manual verification.
+
+```{r}
+checking <- checking_stack %>%
+  filter( (between(posterior,0.45,0.93)))
+
+nrow(checking)
+```
+
+# Assigning Unique ID
+
+## fastLink
+
+We utilized fastLink, requesting that all pairs above the 0.45 threshold be returned as paired matches
+
+```{r}
+## Defining Target Variables
+str_vars <- c("pt_name_first","pt_name_last","pt_address_street")
+num_vars <- c("pt_dob_month","pt_dob_day","pt_dob_year")
+
+match_vars <- c(str_vars, num_vars)
+
+## fastLink
+fl_out <- fastLink(
+  dfA = dfA_pack$df, 
+  dfB = dfB_pack$df,
+  varnames = match_vars,
+  stringdist.match = str_vars,
+  numeric.match = num_vars,
+  partial.match = c("pt_name_first","pt_name_last", "pt_address_street"),
+  dedupe.matches = FALSE,
+  return.all = FALSE,
+  threshold.match = 0.45
+  )
+```
+
+We used the fastLink output to generate our stacked pairs for inspection, and a version of the data set with unique IDs based on these matches.
+
+```{r}
+checking_stack <- get_pair_data(dfA_pack, dfB_pack, match_vars, fl_out, match_threshold = 0.45)
+checking_ids <- stack_ids(dfA_pack, dfB_pack, checking_stack)
+```
+
+### Output Summary
+
+This processing produced 4,328 pairs; when pairs were processed to add group IDs, the presence of multiple-match pairs resulted in 4,722 pairs across 2,126 group IDs.
+
+```{r}
+nrow(checking_stack)
+
+nrow(checking_ids)
+length(unique(checking_ids$id))
+```
+
+Posterior probabilities ranged from 0.4561624294887 to 0.9999998990021. No entries had posterior probabilities of 1.0, which would have indicated a perfect match.
+
+```{r}
+sum(is.na(checking_ids$posterior))
+
+sum(checking_stack$posterior == 1)
+
+summary(checking_stack$posterior)
+```
+
+### Duplicate Checking
+
+We found there were 1,043 APS Row Numbers repeated across 798 Group IDs and 3,096 observations. There were no pairs missing an APS Row Number
+
+```{r}
+duplicates_aps <- checking_ids %>%
+  filter((duplicated(aps_row) | duplicated(aps_row, fromLast=TRUE)))
+
+length(unique(duplicates_aps$aps_row))
+length(unique(duplicates_aps$id))
+nrow(duplicates_aps)
+
+sum(is.na(duplicates_aps$aps_row))
+
+nrow(duplicates_aps) == length(unique(duplicates_aps$aps_row))
+```
+
+We found there were 817 MedStar ePCR Row Numbers repeated across 537 Group IDs and 2,458 observations. There were no pairs missing an MedStar ePCR Row Number.
+
+```{r}
+duplicates_ms <- checking_ids %>%
+  filter((duplicated(ms_epcr_row) | duplicated(ms_epcr_row, fromLast=TRUE)))
+
+length(unique(duplicates_ms$ms_epcr_row))
+length(unique(duplicates_ms$id))
+nrow(duplicates_ms)
+
+sum(is.na(duplicates_ms$ms_epcr_row))
+
+nrow(duplicates_ms) == length(unique(duplicates_ms$ms_epcr_row))
+```
+
+We flagged all observations with a matching `aps_row` or `id` from the duplicated observations for a manual review. We similarly flagged all observations with a matching `ms_epcr_row` from the duplicated observations, and observations which flagged for both.
+
+All 3,096 observations flagged for duplicate APS Row Number values were also flagged for duplicate MedStar ePCR Row Number values.
+
+```{r}
+checking_ids$flag_aps <- FALSE
+checking_ids$flag_ms <- FALSE
+checking_ids$flag_both <- FALSE
+
+checking_ids <- checking_ids %>%
+  mutate(flag_aps = case_when(id %in% duplicates_aps$id ~ TRUE,
+                          aps_row %in% duplicates_aps$aps_row ~ TRUE,
+                          TRUE ~ flag_aps)
+         ) %>%
+  mutate(flag_ms = case_when(id %in% duplicates_ms$id ~ TRUE,
+                          ms_epcr_row %in% duplicates_ms$ms_epcr_row ~ TRUE,
+                          TRUE ~ flag_aps)
+         ) %>%
+  mutate(flag_both = ifelse((flag_aps & flag_ms), TRUE, flag_aps)
+         )
+
+get_unique_value_summary(checking_ids,c("flag_aps","flag_ms","flag_both"))
+```
+
+Only 1,626 pairs (34.43%) in 1,328 groups (62.46%) did not contain a duplicate observation.
+
+```{r}
+nondup_ids <- checking_ids %>% 
+  filter(!flag_both) %>% 
+  select(id)
+
+nrow(nondup_ids)
+length(unique(nondup_ids$id))
+```
+
+In checking these values, we found a mix of true and false matches.
+
+```{r}
+checking <- filter(checking_ids, (flag_aps | flag_ms | flag_both))
+```
+
+## Flagging Pairs by Posterior
+
+There were 575 pairs in the posterior range of 0.45 - 0.93, which we identified as benefitting from manual checking
+
+```{r}
+checking <- checking_ids %>%
+  filter( (between(posterior,0.45,0.93)))
+
+nrow(checking)
+```
+
+In order to flag these pairs in the Group ID assignment tibble, we generated a new variable in the subset tibble that contained only pairs in our target posterior range. This variable concatenated the row ID variables from each data set into a single variable that could be compared against. 
+
+```{r}
+checking <- checking %>%
+  rowwise() %>%
+  mutate (pair_rows = paste(c(ms_epcr_row,aps_row), collapse="_"))
+```
+
+We generated our flag by processing the comparison, which identified the 575 pairs with posterior probabilities between 0.45 - 0.93 for later review.
+
+```{r}
+checking_ids <- checking_ids %>%
+  rowwise() %>%
+  mutate(flag_posterior = ifelse ( 
+    paste(c(ms_epcr_row,aps_row), collapse="_") %in% checking$pair_rows, 
+    TRUE, 
+    FALSE
+    )
+  )
+
+get_unique_value_summary(checking_ids, "flag_posterior")
+```
+
+# Export of Data
+
+Data was saved and exported to ensure continuity through the manual clean operation, as fastLink produces slight variations in output with each execution of the algorithm despite consistent output.
+
+```{r}
+# fastLink Output
+saveRDS(fl_out,here("data","DETECT Shared GRAs","merge_aps_medstar",
+                             "merge_aps_medstar_01_fastlinkobj.rds"))
+
+# Stacked Pairs with Posteriors > 0.54
+saveRDS(checking_stack,here("data","DETECT Shared GRAs","merge_aps_medstar",
+                             "merge_aps_medstar_01_stacked_pairs.rds"))
+
+# Original ID assignments
+saveRDS(checking_ids,here("data","DETECT Shared GRAs","merge_aps_medstar",
+                             "merge_aps_medstar_01_id_initial.rds"))
+```
