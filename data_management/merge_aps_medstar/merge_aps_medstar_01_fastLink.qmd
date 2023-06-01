@@ -61,7 +61,7 @@ Variables for matching were determined to be:
 
 # Imports
 
-test## Library Imports
+## Library Imports
 
 ```{r}
 #| message: false
@@ -712,7 +712,7 @@ In checking these values, we saw that many of them appeared to be caused by a pr
 checking <- filter(checking_ids, (flag_aps | flag_ms | flag_both))
 ```
 
-## Further Reduction of Address Search Space 
+## Further Reduction of Address Search Space
 
 Address continued to appear overly-weighted. A trial was performed by reducing the search space for address further, and only matching based on Street Name.
 
@@ -967,7 +967,6 @@ In checking these values, we found a mix of true and false matches. There appear
 checking <- filter(checking_ids, (flag_aps | flag_ms | flag_both))
 ```
 
-
 # Determination of Posterior Probability Ranges
 
 ## fastLink
@@ -1000,7 +999,6 @@ We used the fastLink output to generate our stacked pairs for inspection, and a 
 checking_stack <- get_pair_data(dfA_pack, dfB_pack, match_vars, fl_out, match_threshold = 0.00001)
 checking_ids <- stack_ids(dfA_pack, dfB_pack, checking_stack)
 ```
-
 
 ### Output Summary
 
@@ -1089,6 +1087,7 @@ checking <- checking_stack %>%
 
 nrow(checking)
 ```
+
 #### 0.70 - 0.75
 
 The 21 pairs with posteriors between 0.70 - 0.75 were examined.
@@ -1343,6 +1342,39 @@ In checking these values, we found a mix of true and false matches.
 checking <- filter(checking_ids, (flag_aps | flag_ms | flag_both))
 ```
 
+## Flagging Pairs by Posterior
+
+There were 575 pairs in the posterior range of 0.45 - 0.93, which we identified as benefitting from manual checking
+
+```{r}
+checking <- checking_ids %>%
+  filter( (between(posterior,0.45,0.93)))
+
+nrow(checking)
+```
+
+In order to flag these pairs in the Group ID assignment tibble, we generated a new variable in the subset tibble that contained only pairs in our target posterior range. This variable concatenated the row ID variables from each data set into a single variable that could be compared against. 
+
+```{r}
+checking <- checking %>%
+  rowwise() %>%
+  mutate (pair_rows = paste(c(ms_epcr_row,aps_row), collapse="_"))
+```
+
+We generated our flag by processing the comparison, which identified the 575 pairs with posterior probabilities between 0.45 - 0.93 for later review.
+
+```{r}
+checking_ids <- checking_ids %>%
+  rowwise() %>%
+  mutate(flag_posterior = ifelse ( 
+    paste(c(ms_epcr_row,aps_row), collapse="_") %in% checking$pair_rows, 
+    TRUE, 
+    FALSE
+    )
+  )
+
+get_unique_value_summary(checking_ids, "flag_posterior")
+```
 
 # Export of Data
 
@@ -1361,4 +1393,3 @@ saveRDS(checking_stack,here("data","DETECT Shared GRAs","merge_aps_medstar",
 saveRDS(checking_ids,here("data","DETECT Shared GRAs","merge_aps_medstar",
                              "merge_aps_medstar_01_id_initial.rds"))
 ```
-
