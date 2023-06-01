@@ -1344,7 +1344,7 @@ checking <- filter(checking_ids, (flag_aps | flag_ms | flag_both))
 
 ## Flagging Pairs by Posterior
 
-There were 575 pairs in the posterior range of 0.45 - 0.93, which we identified as benefitting from manual checking
+There were 575 pairs in the posterior range of 0.45 - 0.93, which we identified as benefiting from manual checking
 
 ```{r}
 checking <- checking_ids %>%
@@ -1358,7 +1358,8 @@ In order to flag these pairs in the Group ID assignment tibble, we generated a n
 ```{r}
 checking <- checking %>%
   rowwise() %>%
-  mutate (pair_rows = paste(c(ms_epcr_row,aps_row), collapse="_"))
+  mutate (pair_rows = paste(c(ms_epcr_row,aps_row), collapse="_")) %>%
+  ungroup()
 ```
 
 We generated our flag by processing the comparison, which identified the 575 pairs with posterior probabilities between 0.45 - 0.93 for later review.
@@ -1371,7 +1372,8 @@ checking_ids <- checking_ids %>%
     TRUE, 
     FALSE
     )
-  )
+  ) %>%
+  ungroup()
 
 get_unique_value_summary(checking_ids, "flag_posterior")
 ```
