@@ -6,9 +6,13 @@ editor: visual
 
 # Summary
 
--   Groups with entries in the 0.45 - 0.93 posterior probability threshold, without duplicate entries, were revised first
+-   The 144 groups across all Subject IDs associated with the 113 Group IDs assigned from pairs in the 0.45 - 0.93 posterior probability threshold, without duplicate entries, were revised
 
-    -   Resulted in \*\* new Unique Subject IDs
+    -   Resulted in 51 new Unique Group IDs
+
+-   The 28 groups across all Subject IDs associated with the 23 Group IDs assigned from pairs with duplicated APS Row Number values and only assigned in the 0.45 - 0.93 posterior probability range, were revised
+
+    -   Resulted in 10 new Unique Group IDs
 
 ## Assumptions and Considerations
 
@@ -177,13 +181,13 @@ get_unique_value_summary <- function(df,cols){
 
 ### Visualizing Stacked Pairs
 
-A convenience function was written to facilitate the comparison of paired observations as stacked pairs, with identifiers from the source data sets (including identifers that were not used in fastLink, but are beneficial in manual review).
+A convenience function was written to facilitate the comparison of paired observations as stacked pairs, with identifiers from the source data sets (including identifiers that were not used in fastLink, but are beneficial in manual review).
 
 ```{r}
-get_stacked_pairs <- function(combined_id_df, ids, identifiers) {
+get_stacked_pairs <- function(combined_id_df, ids, identifiers, flag_vars=NULL) {
   #
   # Uses stacked-pair output from stack_ids() and source data frames
-  # to stack the identifer rows from each source data frame
+  # to stack the identifier rows from each source data frame
   # along with pair, group ID, and posterior probabilities for comparison
   #
   # Inputs:
@@ -198,14 +202,18 @@ get_stacked_pairs <- function(combined_id_df, ids, identifiers) {
   #                         unique row ID
   #                     $source = list of strings defining source of dfA and dfB
   #     identifiers:    list of variable names that contain the identifiers
-  #                     present in both dfA and dfB for comparison
+  #                       present in both dfA and dfB for comparison
+  #     flag_vars:      list of variable names that contain any flags in
+  #                       combined_id_df (but not dfA or dfB) that may be useful
+  #                       in manual cleaning.
+  #                       default of NULL does not add any columns.
   #
   # Returns:
   #     split_pairs:    data frame which displays the paired observations from
   #                     dfA and dfB for match comparison
   #
-  
-  
+
+
   # Extracts ID, Pair #, Posterior probability, and associated IDs from the
   # combined_id_df variable
   
@@ -213,6 +221,15 @@ get_stacked_pairs <- function(combined_id_df, ids, identifiers) {
     dplyr::select(id, posterior, ids$a, ids$b) %>%
     dplyr::mutate(pair = row_number()) %>%
     dplyr::relocate(id, pair, posterior)
+  
+  # Extracts flag variables (optional)
+  
+  if (!is.null(flag_vars)){
+    all_pairs <- cbind(all_pairs, 
+                       combined_id_df %>%
+                         dplyr::select(all_of(flag_vars))
+                       )
+  }
   
   
   # Initializes the output data table, which will show Group ID, Pair, Source,
@@ -234,8 +251,8 @@ get_stacked_pairs <- function(combined_id_df, ids, identifiers) {
       pair = row,
       source = ids$source,
       posterior = all_pairs$posterior[row],
-      source_row = c(pull(all_pairs[row, ids$a[1]]), pull(all_pairs[row, ids$b[1]])),
-      source_id = c(pull(all_pairs[row, ids$a[2]]), pull(all_pairs[row, ids$b[2]])) 
+      source_row = c(all_pairs[row, ids$a[1]], all_pairs[row, ids$b[1]]),
+      source_id = c(all_pairs[row, ids$a[2]], all_pairs[row, ids$b[2]]) 
       )
     
     # Collects identifiers for the paired observations from the source data sets
@@ -247,6 +264,14 @@ get_stacked_pairs <- function(combined_id_df, ids, identifiers) {
     # to output dataframe
     
     pair_ids <- cbind(pair_ids, ident_rows)
+    
+    # Adds flag variables (optional)
+    
+    if(!is.null(flag_vars)){
+      pair_ids <- cbind(pair_ids, rbind(all_pairs[row, flag_vars],
+                                        all_pairs[row,flag_vars]))
+    }
+    
     split_pairs <- rbind(split_pairs, pair_ids)
   }
   
@@ -256,15 +281,197 @@ get_stacked_pairs <- function(combined_id_df, ids, identifiers) {
 }
 ```
 
-### Checking Pair Groups
+### Extracting Subject IDs from Group IDs
 
-A convenience function was written to allow for comparison of paired observations across all occurences of the respective Unique Subject ID in each data set.
+A convenience function was written that would extract the Subject IDs, divided by source data frame, associated with given Group IDs. (Group ID --\> Subject IDs)
 
 ```{r}
-pair_comparison <- function(stacked_pairs, ids, pair){
+get_subjid_from_groups <- function(stacked_pairs, ids, group_ids) {
+  #
+  # Uses stacked-pair output from get_stacked_pairs() and a list of group_ids
+  # to obtain the Unique Subject IDs from dfA and dfB that occur in the
+  # Group IDs
+  #
+  # Inputs:
+  #     stacked_pairs:  data frame, output from get_stacked_pairs()
+  #     ids:            $dfA = source data frame A
+  #                     $dfB = source data frame B
+  #                     $a = ID variables from data frame A
+  #                         can be a list, but first value MUST be the 
+  #                         unique row ID
+  #                     $b = ID variables from data frame B
+  #                         can be a list, but first value MUST be the 
+  #                         unique row ID
+  #                     $source = list of strings defining source of dfA and dfB
+  #     group_ids:      list of all groups which contain the Subject IDs from
+  #                     either dfA OR dfB
+  #
+  # Returns:
+  #     subjids:        $a = list of Subject IDs from dfA
+  #                     $b = list of Subject IDs from dfB 
+  #
+    
+  # Extract Subject IDs for dfA 
+  
+  dfA_ids <- unique(pull(stacked_pairs %>%
+                         filter(source == ids$source[1], id %in% group_ids
+                                ) %>%
+                         select(source_id)
+                       )
+                  )
+  
+  # Extract Subject IDs for dfB
+  dfB_ids <- unique(pull(stacked_pairs %>%
+                         filter(source == ids$source[2], id %in% group_ids
+                                ) %>%
+                         select(source_id)
+                       )
+                  )  
+
+  # Package output
+  subjids <- list("a" = dfA_ids, "b" = dfB_ids)
+  
+  # Return output
+  subjids
+}
+
+```
+
+### Extracting Group IDs from Subject IDs
+
+A convenience function was written that would extract the Group IDs associated with given Subject IDs for the source data frames. (Subject IDs --\> Group IDs)
+
+```{r}
+get_groups_from_subjids <- function(stacked_pairs, ids, subjids){
+  #
+  # Uses stacked-pair output from get_stacked_pairs() and subjids from 
+  # get_subjids_from_groups() to obtain all Group IDs in which any of the
+  # Subject IDs appear for their respective original data sets/pairs
+  #
+  # Inputs:
+  #     stacked_pairs:  data frame, output from stacked_pairs()
+  #     ids:            $dfA = source data frame A
+  #                     $dfB = source data frame B
+  #                     $a = ID variables from data frame A
+  #                         can be a list, but first value MUST be the 
+  #                         unique row ID
+  #                     $b = ID variables from data frame B
+  #                         can be a list, but first value MUST be the 
+  #                         unique row ID
+  #                     $source = list of strings defining source of dfA and dfB
+  #     subjids:        $a = list of Subject IDs from dfA
+  #                     $b = list of Subject IDs from dfB  
+  #
+  # Returns:
+  #     group_ids:      list of all groups which contain the Subject IDs from
+  #                     either dfA OR dfB
+  #
+
+
+  # Unpack subjids variable
+  ids_a <- subjids$a
+  ids_b <- subjids$b
+
+  # Initialize group_id variable
+  group_ids <- c()
+  
+  # Get Group IDs for all observations of the same Subject ID in dfA
+
+  group_ids <- unique(c(group_ids, 
+                        pull(stacked_pairs %>% 
+                          filter(source == ids$source[1], 
+                                 source_id %in% ids_a
+                                 ) %>% 
+                          select(id)
+                          )
+                        )
+                      )
+
+  # Get Group IDs for all observations of the same Subject ID in dfB
+
+  group_ids <- unique(c(group_ids, 
+                        pull(stacked_pairs %>% 
+                          filter(source == ids$source[2], 
+                                 source_id %in% ids_b
+                                 ) %>% 
+                          select(id)
+                          )
+                        )
+                      )
+
+
+  # Return output
+  group_ids
+}
+```
+
+### Extracting All Group IDs and Subject IDs in a Search Space
+
+A convenience function was written to extract the Group IDs and Subject IDs that defined an isolated search space (All Subject IDs only contained present Group IDs and vice versa)
+
+```{r}
+get_all_groups_subjids <- function(stacked_pairs, ids, group_ids) {
+  #
+  # Expands search space to include all occurrences of a Group ID and respective
+  # Subject IDs to identify the Group IDs and Subject IDs that define a singular
+  # search space
+  #
+  # Inputs:
+  #     stacked_pairs:  data frame, output from get_stacked_pairs()
+  #     group_ids:      list of all groups which contain the Subject IDs from
+  #                     either dfA OR dfB
+  #     ids:            $dfA = source data frame A
+  #                     $dfB = source data frame B
+  #                     $a = ID variables from data frame A
+  #                         can be a list, but first value MUST be the 
+  #                         unique row ID
+  #                     $b = ID variables from data frame B
+  #                         can be a list, but first value MUST be the 
+  #                         unique row ID
+  #                     $source = list of strings defining source of dfA and dfB
+  #
+  # Returns:
+  #     out:            $group = list of Group ID values
+  #                     $a = list of Subject IDs from dfA
+  #                     $b = list of Subject IDs from dfB 
+  #
+  
+  # Initialize variables
+  
+  group1 <- group_ids
+  group2 <- c()
+  subjid1 <- c(a = c(), b = c())
+  subjid2 <- c(a = c(), b = c())
+  
+  # Alternate between (Group ID --> Subj IDs) and (Subj IDs --> Group ID) twice
+  # Continue until Group ID and Subject ID sets cannot be expanded further
+  
+  while( !identical(group1, group2) | !identical(subjid1, subjid2) ) {
+    subjid1 <- get_subjid_from_groups(stacked_pairs, ids, group1)
+    group2 <- get_groups_from_subjids(stacked_pairs, ids, subjid1)
+    subjid2 <- get_subjid_from_groups(stacked_pairs, ids, group2)
+    group1 <- get_groups_from_subjids(stacked_pairs, ids, subjid2)
+  }
+  
+  # Package output
+  out <- list("group" = group1, "id_a" = subjid2$a, "id_b" = subjid2$b)
+  
+  #Return output
+  out
+  
+}
+```
+
+### Checking Search Spaces
+
+A convenience function was written to allow for comparison of paired observations across all occurrences of the respective Unique Subject IDs in each data set. (Group ID --\> Pair --\> Subject IDs --\> Data Rows).
+
+```{r}
+search_by_group <- function(stacked_pairs, ids, groups=NULL, recursive = FALSE){
   #
   # Checks "unique subject ids" from a specific stacked pair and pulls
-  # all observations for both groups together for comparison
+  # all observations for both groups together for comparison. The in-set
+  # subject group ID and row ID are also pulled to facilitate comparison
   #
   # Inputs:
   #     stacked_pairs:  data frame, output from get_stacked_pairs()
@@ -277,26 +484,122 @@ pair_comparison <- function(stacked_pairs, ids, pair){
   #                         can be a list, but first value MUST be the 
   #                         unique row ID, second must be Unique Subject ID
   #                     $source = list of strings defining source of dfA and dfB
-  #     identifiers:    list of variable names that contain the identifiers
-  #                     present in both dfA and dfB for comparison
+  #     groups:         list of Group IDs in stacked_pairs for review
+  #                     default of NULL results in pulling ALL groups 
+  #                     in stacked_pairs sequentially
+  #     recursive:      boolean - if TRUE, uses get_all_groups_subjids() to
+  #                     define a full search space; requires groups
+  #                     default is FALSE
   #
   # Returns:
-  #     rows:           data frame which displays the observations that match
+  #     out:            data frame which displays the observations that match
   #                     the Unique Subject ID in each data set for a pair
   #
   
-  # Extract IDs
-  group_a <- stacked_pairs$source_id[2*pair-1]
-  group_b <- stacked_pairs$source_id[2*pair]
+  # If recursive, define a full search space using get_all_groups_subjids()
+  # requires at least one initial Group ID
   
-  # Pull matching rows from each data set
-  row_a <- ids$dfA[ids$dfA[2]==group_a, identifiers]
-  row_b <- ids$dfB[ids$dfB[2]==group_b, identifiers]
+  if(recursive & !is.null(groups)){
+    groups <- get_all_groups_subjids(stacked_pairs, ids, groups)$group
+  }
   
-  # Combine for output
-  rows <- rbind(row_a, row_b)
-  rows <- cbind(id = stacked_pairs$id[2*pair], pair = pair, rows)
-  rows
+  
+  # If groups not given, get all group IDs in stacked_pairs
+  
+  if(is.null(groups)){
+    groups <- unique(stacked_pairs$id)
+  }
+  
+  # Get all pairs in target groups
+  
+  pairs <- unique(stacked_pairs$pair[stacked_pairs$id %in% groups])
+  
+  # Initialize output
+  
+  out <- list()
+  
+  # Process all pairs...
+  
+  for (pair_num in pairs) {
+    # Get the Group ID for the source data sets within the pair
+    group_a <- pull(stacked_pairs %>%
+      filter(source == ids$source[1] & pair == pair_num) %>%
+      select(source_id))
+    group_b <- pull(stacked_pairs %>%
+      filter(source == ids$source[2] & pair == pair_num) %>%
+      select(source_id))
+    
+    # Pull matching rows from dfA
+    row_a <- tibble::tibble(
+      id = pull(stacked_pairs %>% 
+                  filter(source == ids$source[1] & pair == pair_num) %>%
+                  select(id)
+                ),
+      pair = pair_num,
+      source = ids$source[1], 
+      source_id = pull(ids$dfA[ids$dfA[2]==group_a, ids$a[2]]),
+      source_row = pull(ids$dfA[ids$dfA[2]==group_a, ids$a[1]])
+                          ) %>%
+      cbind(ids$dfA[ids$dfA[2]==group_a, identifiers])
+     
+    # Pull matching rows from dfB
+    
+    row_b <- tibble::tibble(
+      id = pull(stacked_pairs %>% 
+                  filter(source == ids$source[2] & pair == pair_num) %>%
+                  select(id)
+                ),
+      pair = pair_num,
+      source = ids$source[2], 
+      source_id = pull(ids$dfB[ids$dfB[2]==group_b, ids$b[2]]),
+      source_row = pull(ids$dfB[ids$dfB[2]==group_b, ids$b[1]])
+                          ) %>%
+      cbind(ids$dfB[ids$dfB[2]==group_b, identifiers])
+          
+    # Stack and add to output
+    rows <- rbind(row_a, row_b)
+    out <- rbind(out, rows)
+  }
+
+  # Warn if more than 1 Source ID from dfA in any group
+  
+  check <- out %>%
+    select(id, source, source_id) %>%
+    filter(source == ids$source[1]) %>%
+    group_by(id) %>%
+    mutate(n_source_ids = n_distinct(source_id)) %>%
+    ungroup() %>%
+    filter(n_source_ids > 1) %>%
+    select(id)
+    
+    if (length(unique(pull(check))) > 0){
+      warning(paste("More than one source ID from dfA in group(s): ", 
+                  paste(unique(pull(check)), collapse = ", "), 
+                  "\n"),
+              immediate. = TRUE)
+    }
+  
+  # Warn if more than 1 Source ID from dfB in any group
+  
+  check <- out %>%
+    select(id, source, source_id) %>%
+    filter(source == ids$source[2]) %>%
+    group_by(id) %>%
+    mutate(n_source_ids = n_distinct(source_id)) %>%
+    ungroup() %>%
+    filter(n_source_ids > 1) %>%
+    select(id)
+    
+    if (length(unique(pull(check))) > 0){
+      warning(paste("More than one source ID from dfB in group(s): ", 
+                  paste(unique(pull(check)), collapse = ", "), 
+                  "\n"),
+              immediate. = TRUE)
+    }
+  
+  # Return output
+  
+  out
 }
 ```
 
@@ -305,7 +608,7 @@ pair_comparison <- function(stacked_pairs, ids, pair){
 A convenience function was written to extract a Unique Subject ID from a single data set within a pair that was identified as a mismatch.
 
 ```{r}
-extract_subj_ids <- function(stacked_pairs, ids, target_pairs, j=1){
+get_subjid_from_row <- function(stacked_pairs, ids, target_row, j=1){
   #
   # Extracts the Unique Subject ID value for a data set from the output
   # of get_stacked_pairs() to facilitate creation of a Group ID replacement map
@@ -321,21 +624,142 @@ extract_subj_ids <- function(stacked_pairs, ids, target_pairs, j=1){
   #                         can be a list, but first value MUST be the 
   #                         unique row ID, second must be Unique Subject ID
   #                     $source = list of strings defining source of dfA and dfB
-  #     target_pairs:   Pair to target due to mismatching between
-  #                     data sets
+  #     target_row:     Source Row Number associated with the desired Source
+  #                     Subject ID
   #     j:              The index of the target source in ids$source
   #                     default is 1
   #
   # Returns:
-  #     target_rows:    list of the unique subject IDs targeted for correction
+  #     out:            source Subject ID associated with the given Target Row
   #
   
-  target_rows <- stacked_pairs %>%
-    filter(pair %in% target_pairs) %>%
-    filter(source == packed_data$source[j]) %>%
-    select(source_id)
+  # Extract Source ID
   
-  pull(target_rows)
+  out <- pull(unique(stacked_pairs %>%
+      filter(source == ids$source[j] & source_row == c(target_row)) %>%
+      select(source_id)
+        )
+      )
+  
+  # Return output
+  
+  out
+}
+```
+
+### Revising Source Group ID Assignments
+
+Two convenience functions were written to facilitate revising the Unique Subject ID assignments made in the original source data frames, and across all data frames used in revising Group ID assignments connecting the two data frames.
+
+```{r}
+replace_ms_ids <- function(old_ms_row, new_ms_row){
+  #
+  # Replaces MedStar Subject ID values across the data sets used to clean
+  # the Group ID assignments in the APS/MedStar Merge.
+  #
+  # Inputs:
+  #     old_ms_row:     integer. A MedStar ePCR Row associated with the
+  #                     MedStar Subject ID to replace
+  #     new_ms_row:     integer. A MedStar ePCR Row associated with the 
+  #                     desired MedStar Subject ID
+  #
+  # Returns:
+  #     out:            $medstar_: revised medstar data frame
+  #                     $id_base_: revised id_base data frame
+  #                     $id_stacked_: revised id_stacked data frame
+  #                     $checking_: revised id_checking data frame
+  #
+  
+  # Obtaining MedStar Subject ID value(s) to target for replacement
+  
+  old_ms_id <- pull(unique(medstar[medstar$ms_epcr_row %in% old_ms_row, 'ms_id']))
+  new_ms_id <- pull(unique(medstar[medstar$ms_epcr_row %in% new_ms_row, 'ms_id']))
+  
+  # Replacing in MedStar data set
+  medstar_ <- medstar %>%
+    mutate(ms_id = ifelse(ms_id %in% old_ms_id, new_ms_id, ms_id))
+  
+  # Replacing in id_base
+  id_base_ <- id_base %>%
+    mutate(ms_id = ifelse(ms_id %in% old_ms_id, new_ms_id, ms_id))
+  
+  # Replacing in id_stacked
+  id_stacked_ <- id_stacked %>%
+    mutate(source_id = ifelse((source_id %in% old_ms_id & source == "MedStar"), 
+                          new_ms_id, source_id))
+  
+  # Replacing in checking subset
+  checking_ <- checking %>%
+    mutate(source_id = ifelse((source_id %in% old_ms_id & source == "MedStar"), 
+                          new_ms_id, source_id))
+  # Package output
+  
+  out<- list()
+  out$medstar_ <- medstar_
+  out$id_base_ <- id_base_
+  out$id_stacked_ <- id_stacked
+  out$checking_ <- checking_
+  
+  # Return output
+  
+  out
+}
+
+replace_aps_ids <- function(old_aps_row, new_aps_row){
+  #
+  # Replaces APS Person ID values across the data sets used to clean
+  # the Group ID assignments in the APS/MedStar Merge.
+  #
+  # Inputs:
+  #     old_aps_row:    integer. An APS Row associated with the APS Person ID
+  #                     to replace
+  #     new_aps_row:    integer. An APS Row associated with the desired
+  #                     APS Person ID value
+  #       
+  # Returns:
+  #     out:            $aps_: revised aps data frame
+  #                     $id_base_: revised id_base data frame
+  #                     $id_stacked_: revised id_stacked data frame
+  #                     $checking_: revised id_checking data frame
+  #
+  
+  # Obtaining MedStar Subject ID value(s) to target for replacement
+  
+  old_aps_id <- pull(unique(aps[aps$aps_row %in% old_aps_row, 'aps_person_id']))
+  new_aps_id <- pull(unique(aps[aps$aps_row %in% new_aps_row, 'aps_person_id'])) 
+  
+  # Replacing in APS data set
+  aps_ <- aps %>%
+    mutate(aps_person_id = ifelse(aps_person_id %in% old_aps_id, 
+                                  new_aps_id, 
+                                  aps_person_id))
+  
+  # Replacing in id_base
+  id_base_ <- id_base %>%
+    mutate(aps_person_id = ifelse(aps_person_id %in% old_aps_id, 
+                                  new_aps_id, 
+                                  aps_person_id))
+  
+  # Replacing in id_stacked
+  id_stacked_ <- id_stacked %>%
+    mutate(source_id = ifelse((source_id %in% old_aps_id & source == "APS"), 
+                          new_aps_id, source_id))
+  
+  # Replacing in checking subset
+  checking_ <- checking %>%
+    mutate(source_id = ifelse((source_id %in% old_aps_id & source == "APS"), 
+                          new_aps_id, source_id))
+  # Package output
+  
+  out <- list()
+  out$aps_ <- aps_
+  out$id_base_ <- id_base_
+  out$id_stacked_ <- id_stacked
+  out$checking_ <- checking_
+  
+  # Return output
+  
+  out
 }
 ```
 
@@ -345,13 +769,40 @@ extract_subj_ids <- function(stacked_pairs, ids, target_pairs, j=1){
 A convenience function was written for ease of appending large amounts of data incrementally to a data frame that mapped replacement Group IDs.
 
 ```{r}
-add_replacement_rows <- function(df, rows, id) {
-  # Takes list of target rows and an id value, and appends to the data frame
-  # Requires variables have specific names
+add_replacement_rows <- function(map_df, new_id, old_id) {
+  # 
+  # Uses the desired New ID and Source Row to append to a replacement map
+  # in point-fixes that may otherwise require PHI to be in the code
+  #
+  # Inputs:
+  #     map_df:         data frame, current replacement map
+  #                     first column MUST be New IDs, and second MUST be the
+  #                     Source Subject ID
+  #     new_id:         desired new ID, to replace the ID value in the Source
+  #                     Row
+  #     old_id:     The Source Row Number for the associated Source Subject
+  #                     ID - processes with get_subjid_from_row()
+  #
+  # Returns:
+  #     updated_df:     data frame, map_df with new pair appended
+  #
   
-  df <- rbind(df,tibble("ms_epcr_row"=rows,"id"=id))
   
-  df
+  # Generates point fix map, renames columns to match map_df
+  
+  point_fix <- tibble::tibble(
+    a = new_id,
+    b = old_id
+  )
+  colnames(point_fix) <- colnames(map_df)
+  
+  # Appends new rows to map_df
+  
+  updated_df <- rbind(map_df, point_fix)
+  
+  # Return output
+  
+  updated_df
 }
 ```
 
@@ -361,7 +812,8 @@ We established the identifier variables and IDs to be used in manual review.
 
 ```{r}
 identifiers <- medstar %>%
-  select(pt_name_full, pt_dob, pt_age, pt_address_num, pt_address_street, pt_address_unit, pt_address_zip, pt_address_pobox) %>%
+  select(pt_name_full, pt_dob, pt_age, pt_address_num, pt_address_street, 
+         pt_address_unit, pt_address_zip, pt_address_city, pt_address_pobox) %>%
   names()
 
 ms_ids <- medstar %>%
@@ -371,6 +823,10 @@ ms_ids <- medstar %>%
 aps_ids <- aps %>%
   select(aps_row, aps_person_id) %>%
   names()
+
+flag_vars <- id_base %>%
+              select(flag_posterior, flag_aps, flag_ms, flag_both) %>%
+              names()
 ```
 
 We packaged our data for processing with the `get_stacked_pairs()` function
@@ -388,6 +844,14 @@ packed_data$dfA <- medstar %>%
 packed_data$dfB <- aps %>% 
   select(all_of(aps_ids), all_of(identifiers)
          )
+```
+
+The pairs in the original ID set (`id_base`) were stacked to facilitate manual review.
+
+```{r}
+id_stacked <- get_stacked_pairs(id_base, packed_data, identifiers, flag_vars)
+
+checking <- id_stacked
 ```
 
 # Review of Initial ID Assignments
@@ -461,15 +925,6 @@ The 575 potential pairs with posterior probabilities in the manual verification 
 get_unique_value_summary(id_base,c("flag_posterior"))
 ```
 
-## Summary of Flags, Subsetting Flagged Data
-
-These 3,743 pairs were isolated to facilitate manual review.
-
-```{r}
-checking <- id_base %>%
-  filter ( (flag_aps | flag_ms | flag_both | flag_posterior))
-```
-
 # Manual Review of Flags
 
 ## Posteriors without Duplicates
@@ -481,46 +936,1586 @@ checking_cols <- filter(checking,
                         (flag_posterior & !(flag_aps | flag_ms| flag_both))
                         )
 
-nrow(checking_cols)
+nrow(checking_cols)/2
 length(unique(checking_cols$id))
-length(unique(checking_cols$aps_person_id))
-length(unique(checking_cols$ms_id))
+length(unique(checking_cols %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+length(unique(checking_cols %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
 ```
 
-We stacked our paired observations for comparison.
+We examined the search space for each of the 113 Group IDs in this set. The total search space contained a total of 114 Group IDs, indicating that there was overlap in observations with another group outside of the targeted set.
 
 ```{r}
-stacked_pairs <- get_stacked_pairs(checking_cols, packed_data, identifiers)
+target_groups <- unique(checking_cols$id)
+length(target_groups)
+
+all_groups <- get_all_groups_subjids(checking, packed_data, target_groups)$group
+
+length(all_groups)
 ```
 
-We examined each pair's related Unique Subject IDs to increase the robustness of our comparison.
+### Search & Verification
+
+We performed our search.
 
 ```{r}
-for (i in 1:nrow(checking_cols)) {
-  print(pair_comparison(stacked_pairs, packed_data, i))
+search <- search_by_group(checking, packed_data, target_groups, recursive = TRUE)
+```
+
+Our search contained 378 observations, which included 114 Group IDs, 113 MedStar Subject IDs, and 114 APS Subject IDs. There were exactly 114 distinct combinations of Group ID and either MedStar or APS Subject ID - as such, each of these Group IDs represented a match between a MedStar Subject ID and APS Subject ID, with one MedStar Subject ID matched to two different APS Subject IDs (creating two groups).
+
+```{r}
+nrow(search)
+length(unique(search$id))
+length(unique(search$source_id[search$source == "MedStar"]))
+length(unique(search$source_id[search$source == "APS"]))
+
+nrow(distinct(search %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(id, source_id
+                       )
+              )
+     )
+
+
+nrow(distinct(search %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(id, source_id
+                       )
+              )
+     )
+```
+
+Each group was manually inspected to ensure that each Group ID referred to a single individual, and that each group contained exactly one APS Person ID and one MedStar Subject ID. It was determined that Groups 1464 and 1858 were the overlapping groups.
+
+```{r}
+# | eval: false
+# | echo: false
+# | include: false
+
+for (i in 1:length(target_groups)){
+  print(search_by_group(id_stacked, 
+                        packed_data, 
+                        groups = target_groups[i], 
+                        recursive = TRUE)
+        )
 }
 ```
 
-We found 16 mismatched pairs (12.03% Mismatch Rate), which resulted in the generation of an additional 16 new Group ID numbers (values from 2127 - 2143). The majority of observations appeared to be the same individual, but one address was either a facility, less than 0.5 miles away (potential addressing error), or otherwise appeared to reflect a valid move for a single individual.
+### Match Map Assignments
+
+As group 1858 had a unique APS Person ID but a repeat MedStar Subject ID, it was excluded from the MedStar Group-Subject ID Pattern Map. In separating mismatched APS and MedStar Subject IDs, the MedStar Subject ID kept the initial Group ID.
 
 ```{r}
-target_pairs <- c(11, 13, 16, 17, 18, 19, 21, 22, 23, 24, 25, 26, 30, 31, 33, 34)
+ms_pattern <- checking %>%
+  filter( (id %in% all_groups) & (source == "MedStar") 
+          ) %>%
+  select(id, source_id) %>%
+  filter( id != 1858 ) %>%
+  distinct()
 
-replacement_by_ms <- tibble::tibble(
-  ms_id = extract_subj_ids(stacked_pairs, packed_data, target_pairs),
-  id = seq(2127,length(target_groups)+2126, by = 1)
-)
+colnames(ms_pattern)[2] <- "ms_id"
+
+nrow(ms_pattern)
+length(unique(ms_pattern$id))
+length(unique(ms_pattern$ms_id))
 ```
 
-We removed all 113 checked pairs from our checking subset.
+We found 52 groups with mismatches (45.61% Mismatch Rate). This resulted in the generation of 51 new Group IDs (Group IDs 2127 - 2177). The APS Person ID from group 1858 remained unchanged, while the MedStar Map enforced the MedStar Subject ID in group 1464 would not be assigned to 1858 in the final map.
+
+The majority of observations within each Group ID in the search space appeared to be the same individual, but one address was either a facility, less than 0.25 miles away (potential addressing error), an empty field or otherwise invalid location, or otherwise appeared to reflect a valid move for a single individual.
+
+```{r}
+groups <- c(1, 40, 215, 234, 296, 310, 325, 345, 395, 405, 437, 445, 465, 521, 
+            525, 636, 638, 763, 774, 785, 967, 998, 1000, 1004, 1040, 1082, 
+            1147, 1246, 1248, 1316, 1326, 1337, 1388, 1389, 1390, 1404, 1409, 
+            1497, 1595, 1654, 1678, 1712, 1830, 1964, 1968, 1969, 2052, 
+            2053, 2061, 2081, 2087)
+
+
+aps_pattern <- checking %>%
+  filter( (id %in% groups) & (source == "APS") 
+          ) %>%
+  select(source_id) %>%
+  distinct() %>%
+  mutate(id = row_number() + 2126) %>%
+  relocate(id)
+  
+
+colnames(aps_pattern)[2] <- "aps_person_id"
+
+nrow(aps_pattern)
+length(unique(aps_pattern$id))
+length(unique(aps_pattern$aps_person_id))
+```
+
+The remaining 63 Group IDs and their APS Person IDs were then added to the APS Map, reflecting their manually verified pairing with a MedStar Subject ID.
+
+```{r}
+aps_temp <- checking %>%
+  filter( (id %in% setdiff(all_groups,groups)) & (source == "APS") 
+          ) %>%
+  select(id, source_id) %>%
+  distinct()
+
+colnames(aps_temp)[2] <- "aps_person_id"
+
+nrow(aps_temp)
+length(unique(aps_temp$id))
+length(unique(aps_temp$aps_person_id))
+
+aps_pattern <- rbind(aps_pattern, aps_temp)
+
+nrow(aps_pattern)
+length(unique(aps_pattern$id))
+length(unique(aps_pattern$aps_person_id))
+```
+
+We removed all 114 Group IDs and their associated pairs from our checking subset.
 
 ```{r}
 checking <- checking %>%
-  filter(!(id %in% checking_cols$id))
+  filter(!(id %in% all_groups))
 ```
 
-## Duplicated APS Rows
+## Duplicates
 
+### Duplicates for APS Row
+
+There were 3,092 pairs across 797 Group ID values that were flagged for containing a duplicated APS Row Number. This subset contained 799 APS Person ID values and 773 MedStar Subject ID values, with many duplicates.
+
+```{r}
+checking_cols <- filter(checking, 
+                        (flag_aps)
+                        )
+
+nrow(checking_cols)/2
+length(unique(checking_cols$id))
+
+length(unique(checking_cols %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+length(unique(checking_cols %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+```
+
+There were 396 of these pairs, across 211 Group ID values, that also had a posterior probability between 0.45 and 0.93. This subset contained 181 APS Person ID values and 170 MedStar Subject ID values, with many duplicates.
+
+```{r}
+checking_cols <- filter(checking, 
+                        (flag_posterior & flag_aps)
+                        )
+
+nrow(checking_cols)/2
+length(unique(checking_cols$id))
+length(unique(checking_cols %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+length(unique(checking_cols %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+
+within_groups <- unique(checking_cols$id)
+```
+
+There were 2,696 of these pairs, across 774 Group ID values, that did not have a posterior probability between 0.45 and 0.93. This subset contained 770 APS Person ID values and 715 MedStar Subject ID values, with many duplicates.
+
+```{r}
+checking_cols <- filter(checking, 
+                        (!flag_posterior & flag_aps)
+                        )
+
+nrow(checking_cols)/2
+length(unique(checking_cols$id))
+length(unique(checking_cols %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+length(unique(checking_cols %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+
+without_groups <- unique(checking_cols$id)
+```
+
+Unfortunately, the two groups had Group ID assignments in common - some pairs within an Group ID assignment had a posterior probability within the verification range, while others did not. There were only 23 Group IDs which were represented only within the verification range.
+
+```{r}
+sum(!(within_groups %in% without_groups)) == length(within_groups)
+sum(!(within_groups %in% without_groups))
+```
+
+#### Group IDs Assigned Only Within the Verification Range
+
+The 52 pairs that composed the 23 Group ID assignments, which contained duplicated APS Row Numbers and were only assigned within the posterior probability range of 0.45 - 0.93, were further isolated for review. There were 23 APS Person ID values and 24 MedStar Subject ID values within the subset.
+
+```{r}
+checking_cols <- filter(checking, 
+                        (id %in% setdiff(within_groups, without_groups))
+                        )
+
+nrow(checking_cols)/2
+length(unique(checking_cols$id))
+length(unique(checking_cols %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+length(unique(checking_cols %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+```
+
+##### Search & Verification
+
+We examined the search space for each of the 23 Group IDs in this set. The total search space contained a total of 28 Group IDs, which indicated that there was overlap in observations with another group outside of the targeted set.
+
+```{r}
+target_groups <- unique(checking_cols$id)
+length(target_groups)
+
+all_groups <- get_all_groups_subjids(checking, packed_data, target_groups)$group
+
+length(all_groups)
+```
+
+We performed our search, which indicated there were multiple groups with more than one APS Person ID or MedStar Subject ID.
+
+```{r}
+search <- search_by_group(checking, packed_data, target_groups, recursive = TRUE)
+```
+
+Our search contained 322 observations, which included 28 Group IDs, 25 MedStar Subject IDs, and 24 APS Subject IDs. There were exactly 33 unique combinations of Group ID and MedStar Subject ID, and 32 unique combinations of Group ID and APS Subject ID.
+
+```{r}
+nrow(search)
+length(unique(search$id))
+length(unique(search[search$source == "MedStar", 'source_id']))
+length(unique(search[search$source == "APS", 'source_id']))
+
+nrow(distinct(search %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(id, source_id
+                       )
+              )
+     )
+
+
+nrow(distinct(search %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(id, source_id
+                       )
+              )
+     )
+```
+
+Each group was manually inspected to ensure that each Group ID referred to a single individual, and that each group contained exactly one APS Person ID and one MedStar Subject ID. It was found that the Group 484 repeated in groups 485, 1852, and 1853 which referenced multiple APS Person IDs; groups 931 and 932 repeated in groups 1412 and 1413 and referenced multiple MedStar Subject IDs and APS Person IDs. Group 1095 referenced more than one MedStar Subject ID.
+
+```{r}
+for (i in 1:length(target_groups)){
+  print(search_by_group(id_stacked, 
+                        packed_data, 
+                        groups = target_groups[i], 
+                        recursive = TRUE)
+        )
+}
+```
+
+##### Match Map Assignments
+
+Of the 28 Group IDs in our search space, only 9 Group IDs represented pairings that did not require modification after manual verification (67.86% mismatch rate).
+
+The 9 groups which contained multiple APS Person IDs and/or MedStar Subject IDs were resolved with individual assignments of Group ID each Source Subject ID. This resulted in the manual assignment of Group ID to 5 APS Person IDs and 6 MedStar Subject IDs.
+
+    
+-   The two APS Person IDs repeated in groups 484, 485, 1852, and 1853 did not refer to the same individual. Only one of the APS Subject IDs reflected a valid Group ID with the single MedStar Subject ID in the Groups. The MedStar Subject ID and corresponding APS Person ID were separated into group 484. The mismatched APS Subject ID was separated into group 485.
+-   The two APS Person IDs repeated in groups 931, 932, 1412, and 1413 did not refer to the same individual. The three MedStar Subject IDs repeated in these same groups also did not refer to the same individual. Only one MedStar Subject ID and APS Person ID were a valid pairing, and were separated into group 1412. The other APS Subject ID was separated into group 1413. The two remaining MedStar Subject IDs were separated into groups 931 and 932.
+-   The two MedStar Subject IDs in group 1095 did not refer to the same individual. Neither MedStar Subject ID was a true match with the APS Person ID in the group. As such, the APS Subject ID was was separated into group 1852. Tne MedStar Subject IDs were separated into groups 1095 and 1853.
+
+
+```{r}
+point_groups <- c(484, 485, 1852, 1853, 931, 932, 1412, 1413, 1095)
+
+aps_temp <- as_tibble(
+  matrix(data=NA, nrow=0, ncol=2), .name_repair = ~c('id', 'aps_person_id')
+  )
+
+aps_temp <- aps_temp %>%
+  add_replacement_rows(
+    485, 
+    get_subjid_from_row(id_stacked, packed_data, 3215, j=2)
+  ) %>%
+  add_replacement_rows (
+    484,
+    get_subjid_from_row(id_stacked, packed_data, 13537, j=2)
+  ) %>%
+  add_replacement_rows (
+    1412,
+    get_subjid_from_row(id_stacked, packed_data, 12208, j=2)
+  ) %>%
+  add_replacement_rows(
+    1413,
+    get_subjid_from_row(id_stacked, packed_data, 12012, j=2)
+  ) %>%
+  add_replacement_rows(
+    1852,
+    get_subjid_from_row(id_stacked, packed_data, 11424, j=2)
+  )
+
+
+ms_temp <- as_tibble(
+  matrix(data=NA, nrow=0, ncol=2), .name_repair = ~c('id', 'ms_id')
+  )
+
+ms_temp <- ms_temp %>%
+  add_replacement_rows(
+    484,
+    get_subjid_from_row(id_stacked, packed_data, 86, j=1)
+  ) %>%
+  add_replacement_rows(
+    1412,
+    get_subjid_from_row(id_stacked, packed_data, 36246, j=1)
+  ) %>%
+  add_replacement_rows(
+    931,
+    get_subjid_from_row(id_stacked, packed_data, 1194, j=1)
+  ) %>%
+  add_replacement_rows(
+    932,
+    get_subjid_from_row(id_stacked, packed_data, 15949, j=1)
+  ) %>%
+  add_replacement_rows(
+    1095,
+    get_subjid_from_row(id_stacked, packed_data, 3886, j=1)
+  ) %>%
+  add_replacement_rows(
+    1853,
+    get_subjid_from_row(id_stacked, packed_data, 31246, j=1)
+  )
+```
+
+There were an additional 10 groups which contained a single mismatched APS Person ID and MedStar Subject ID. These values were split so that the MedStar Subject ID would retain the first original Group ID, and the APS Person ID would receive a new Group ID. This resulted in the assignment of all 19 remaining MedStar Subject IDs to the remaining Group IDs.
+
+```{r}
+agg_groups <- setdiff(all_groups, point_groups)
+
+ms_temp_group <- checking %>%
+  filter( (id %in% agg_groups) & (source == "MedStar") 
+          ) %>%
+  select(id, source_id) %>%
+  distinct()
+
+colnames(ms_temp_group)[2] <- "ms_id"
+
+ms_temp <- rbind(ms_temp, ms_temp_group)
+```
+
+The separation of 10 APS Subject IDs resulted in the creation of 10 novel Group IDs (Group IDs 2178 - 2189). The final 9 APS Subject IDs which were accurately paired with a single MedStar Subject ID were also added to the replacement map.
+
+```{r}
+groups <- c(28, 94, 207, 271, 448, 875, 981, 1209, 1417, 1485)
+
+aps_temp_group <- checking %>%
+  filter( (id %in% groups) & (source == "APS") 
+          ) %>%
+  select(source_id) %>%
+  distinct() %>%
+  mutate(id = row_number() + 2177) %>%
+  relocate(id)
+  
+colnames(aps_temp_group)[2] <- "aps_person_id"
+
+aps_temp <- rbind(aps_temp, aps_temp_group)
+
+aps_temp_group <- checking %>%
+  filter( (id %in% setdiff(agg_groups,groups)) & (source == "APS") 
+          ) %>%
+  select(id, source_id) %>%
+  distinct()
+
+colnames(aps_temp_group)[2] <- "aps_person_id"
+
+aps_temp <- rbind(aps_temp, aps_temp_group)
+```
+
+We checked to ensure that we had assigned a Group ID to all 24 APS Person IDs and all 25 MedStar Subject IDs in the subset. We had no duplicate values for either APS Person ID or MedStar Subject ID. None of the new map values were already present in the replacement map.
+
+```{r}
+nrow(aps_temp)
+length(unique(aps_temp$id))
+length(unique(aps_temp$aps_person_id))
+sum(aps_temp$id %in% aps_pattern$id)
+sum(aps_temp$aps_person_id %in% aps_pattern$aps_person_id)
+
+nrow(ms_temp)
+length(unique(ms_temp$id))
+length(unique(ms_temp$ms_id))
+sum(ms_temp$id %in% ms_pattern$id)
+sum(ms_temp$ms_id %in% ms_pattern$ms_id)
+```
+
+We added the new values to our replacement maps, and removed the verified Group IDs from the checking subset.
+
+```{r}
+aps_pattern <- rbind(aps_pattern, aps_temp)
+ms_pattern <- rbind(ms_pattern, ms_temp)
+
+checking <- checking %>%
+  filter(!(id %in% all_groups))
+```
+
+#### Group IDs Assigned Within the Verification Range
+
+There were 336 remaining pairs, across 183 Group IDs associated with 157 APS Person IDs and 146 MedStar Subject IDs that were assigned within the posterior probability range of 0.45 - 0.93 and possessed duplicate APS Row Number values. All of these groups were also represented in pairs outside of the posterior probability threshold of 0.45 - 0.93.
+
+```{r}
+checking_cols <- filter(checking, 
+                        (flag_posterior & flag_aps)
+                        )
+
+nrow(checking_cols)/2
+length(unique(checking_cols$id))
+length(unique(checking_cols %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+length(unique(checking_cols %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+
+within_groups <- unique(checking_cols$id)
+sum(!(within_groups %in% without_groups))
+```
+
+##### Search & Verification
+
+We examined the search space for each of the 183 Group IDs in this set. The total search space contained a total of 198 Group IDs, which indicated that there was overlap in observations with another group outside of the targeted set.
+
+```{r}
+target_groups <- unique(checking_cols$id)
+length(target_groups)
+
+all_groups <- get_all_groups_subjids(checking, packed_data, target_groups)$group
+
+length(all_groups)
+```
+
+We performed our search, which indicated there were multiple groups with more than one APS Person ID or MedStar Subject ID.
+
+```{r}
+search <- search_by_group(checking, packed_data, target_groups, recursive = TRUE)
+```
+
+Our search contained 11,985 observations, which included 198 Group IDs, 188 MedStar Subject IDs, and 186 APS Subject IDs. There were exactly 277 distinct combinations of Group ID and MedStar Subject ID, and 274 distinct combinations of Group ID and APS Person ID - as such, each of these Group IDs represented multiple repeated APS Subject IDs and MedStar Subject IDs.
+
+```{r}
+nrow(search)
+length(unique(search$id))
+length(unique(search[search$source == "MedStar", 'source_id']))
+length(unique(search[search$source == "APS", 'source_id']))
+
+nrow(distinct(search %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(id, source_id
+                       )
+              )
+     )
+
+
+nrow(distinct(search %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(id, source_id
+                       )
+              )
+     )
+```
+
+Each group was manually inspected to ensure that each Group ID referred to a single individual, and that each group contained exactly one APS Person ID and one MedStar Subject ID. 
+
+# MATCHES PLACEHOLDER
+
+```{r}
+#for (i in 1:length(target_groups)){
+for (i in 131:140){
+  print(search_by_group(id_stacked, 
+                        packed_data, 
+                        groups = target_groups[i], 
+                        recursive = TRUE)
+        )
+}
+```
+
+```{r}
+test <- search_by_group(id_stacked, packed_data, groups = 1524, recursive = TRUE)
+
+unique(test$id)
+unique(pull(test %>% filter(source == "APS") %>% select(source_id)))
+unique(pull(test %>% filter(source == "MedStar") %>% select(source_id)))
+```
+
+
+##### Match Map Assignments
+
+*Of the 198 Group IDs in our search space, @ Group IDs represented pairings that did not require modification after manual verification (@% mismatch rate).*
+
+###### Revisions of Source ID
+
+*In reviewing the matches between the data sets, there @ groups with values of APS Person ID and MedStar Subject ID which appeared to be failed matches in their source data set. The revision of these failed matches resulted in the reduction of 8 APS Person IDs and 1 MedStar Subject IDs.*
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 90, and repeated in groups 91 and 92. On examination, both MedStar Subject IDs appeared to refer to the same APS Person ID; as such, the MedStar Subject IDs were revised, and all entries were kept in group 90. 
+
+-   There were three APS Person IDs matched with a single MedStar Subject ID in group 132. All three APS Person IDs appeared to refer to the same MedStar Subject ID; as such, the APS Person IDs were revised, and all entries were kept in group 132.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 185. Both APS Person IDs appeared to refer to the same MedStar Subject ID; as such, the APS Person IDs were revised, and all entries were kept in group 185.
+
+-   There were two APS Person IDs matched with two MedStar Subject IDs in group 189. Both APS Person IDs appeared to refer to one MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 189.
+
+-   There were two APS Person IDs matched to one MedStar Subject ID in group 198. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 198.
+
+-   There were three APS Person IDs matched to one MedStar Subject ID in group 239. All three APS Person IDs appeared to refer to the same MedStar Subject ID; as such, the APS Person IDs were revised, and all entries were kept in group 239.
+
+-   There were two APS Person IDs matched to one MedStar Subject ID in group 412, repeated in groups 413 and 414. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 412.
+
+-   There were two APS Person IDs matched to one MedStar Subject ID in group 516, repeated in groups 517 and 667. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 516
+
+-   There were three APS Person IDs matched to one MedStar Subject ID in group 764. All three APS Person IDs appeared to refer to the same MedStar Subject ID; as such, the APS Person IDs were revised, and all entries were kept in group 764.
+
+-   There were two APS Person IDs matched to one MedStar Subject ID in group 801. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 801.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 805, and repeated in groups 806, 807, and 1038. On examination, both MedStar Subject IDs appeared to refer to the same APS Person ID; as such, the MedStar Subject IDs were revised, and all entries were kept in group 805. 
+
+-   There were two APS Person IDs matched to one MedStar Subject ID in group 856. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 856.
+
+-   There were two APS Person IDs matched to one MedStar Subject ID in group 992, and repeated into group 995. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 992.
+
+-   There were two APS Person IDs matched to two MedStar Subject IDs in group 1046, and repeated into groups 1047 and 1333. Both APS Person IDs appeared to refer to one MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 1046.
+
+-   There were two APS Person IDs matched to one MedStar Subject IDs in group 1050, and repeated into groups 1047 and 1333. Both APS Person IDs appeared to refer to the same subject, but neither matched the MedStar Person ID. The APS Person IDs were revised, and the APS Person IDs were kept in group 1050.
+
+-   There were two APS Person IDs matched to one MedStar Subject IDs in group 1056. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 1056.
+
+-   There were two APS Person IDs matched to one MedStar Subject IDs in group 1079. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 1079.
+
+-   There were two Medstar Subject IDs matched to one APS Person ID in group 1329. Both MedStar Subject IDs appeared to refer to the same APS Person ID; as such, the MedStar Subject IDs were revised, and the true-pair was kept in group 1329.
+
+-   There were two Medstar Subject IDs matched to three APS Person IDs in group 1422, repeated in groups 1423, 1424, and 1425. All MedStar Subject IDs and APS Person IDs appeared to refer to the same subject; as such, the APS Person IDs and MedStar Subject IDs were revised, and the true-pair was kept in group 1422.
+
+-   There were two APS Person IDs matched to one MedStar Subject IDs in group 1488. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 1488.
+
+-   There were three APS Person IDs matched to one MedStar Subject IDs in group 1502. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 1502.
+
+-   There were two Medstar Subject IDs matched to one APS Person ID in group 1521. Both MedStar Subject IDs appeared to refer to the same APS Person ID; as such, the MedStar Subject IDs were revised, and the true-pair was kept in group 1521.
+
+```{r}
+# Replacing MedStar Subject ID Values from Group 90
+
+out <- replace_ms_ids(8396, 17784)
+
+medstar <- out$medstar_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing MedStar Subject ID Values from Group 805
+
+out <- replace_ms_ids(11359, 417)
+
+medstar <- out$medstar_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing MedStar Subject ID Values from Group 1329
+
+out <- replace_ms_ids(13306, 12038)
+
+medstar <- out$medstar_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing MedStar Subject ID Values from Group 1422
+
+out <- replace_ms_ids(6063, 18141)
+
+medstar <- out$medstar_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing MedStar Subject ID Values from Group 1521
+
+out <- replace_ms_ids(3362, 31990)
+
+medstar <- out$medstar_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+```
+
+```{r}
+# Replacing APS Person ID Values from Group 132
+
+out <- replace_aps_ids(c(3645,3646), 3643)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 185
+
+out <- replace_aps_ids(4960, 4958)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 189
+
+out <- replace_aps_ids(5033, 5031)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 198
+
+out <- replace_aps_ids(5220, 5219)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 239
+
+out <- replace_aps_ids(c(779,781), 778)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 412
+
+out <- replace_aps_ids(334, 333)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 516
+
+out <- replace_aps_ids(4254, 4252)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 764
+
+out <- replace_aps_ids(c(7604,7605), 7603)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 801
+
+out <- replace_aps_ids(8749, 8746)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 856
+
+out <- replace_aps_ids(11038, 10339)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 992
+
+out <- replace_aps_ids(7657, 7655)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 1046
+
+out <- replace_aps_ids(9244, 9243)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 1050
+
+out <- replace_aps_ids(9321, 9320)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 1056
+
+out <- replace_aps_ids(9500, 9483)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 1079
+
+out <- replace_aps_ids(10499, 10497)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 1422
+
+out <- replace_aps_ids(c(12528,12533,12534), 12527)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 1488
+
+out <- replace_aps_ids(14324, 14325)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+
+# Replacing APS Person ID Values from Group 1502
+
+out <- replace_aps_ids(c(14512, 14520), 14505)
+
+aps <- out$aps_
+id_base <- out$id_base_
+id_stacked <- out$id_stacked_
+checking <- out$checking_
+```
+
+
+###### Individual Assignments
+
+*The @ groups which contained multiple APS Person IDs and/or MedStar Subject IDs were resolved with individual assignments of Group ID each Source Subject ID. This resulted in the manual assignment of Group ID to @ APS Person IDs and @ MedStar Subject IDs.*
+
+-   The two APS Person IDs and two MedStar Subject IDs represented in group 23 were repeated in groups 230, 1626, and 1627. This grouping appeared to be a familial pair that were represented in both data sets. The single MedStar Subject ID and single APS Person ID for each subject were separated into groups 23 and 230. 
+
+-   The two APS Person IDs and two MedStar Subject IDs represented in group 25 were repeated in groups 233,923, and 924. This grouping appeared to be a familial pair that were represented in both data sets. The single MedStar Subject ID and single APS Person ID for each subject were separated into groups 25 and 233.
+
+-   There were three APS Person IDs and two MedStar Subject IDs represented in group 48. There was a true pair between one MedStar Subject ID and one APS Person ID. Neither of the two remaining APS Person IDs did not match the remaining MedStar Subject ID, and the IDs appeared to be valid separations (rather than failed matches). The matching pair were separated into group 48. The remaining APS Person IDs were separated into groups 1626 and 1627. The remaining MedStar Subject ID was separated into group 923.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 57. The true pair was kept in group 57, and the false-match MedStar Subject ID was separated into group 924.
+
+-   There were two MedStar Subject IDs and two APS Person IDs matched in group 101, and repeated in groups 212 and 708. This grouping appeared to be a familial pair that were represented in both data sets. The single MedStar Subject ID and single APS Person ID for each subject were separated into groups 101 and 212.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 121. The true pair was kept in group 121, and the familial-mismatch APS Person ID was separated into group 91.
+
+-   There were three MedStar Subject IDs matched with a single APS Person ID in group 130. The true pair was kept in group 130, and the two mismatched MedStar Subject IDs were separated into groups 92 and 708.
+
+-   There were two APS Person IDs and two MedStar Subject IDs in group 149, repeated in groups 511, 1543, and 1544. This grouping appeared to be a familial pair that were represented in both data sets. The single MedStar Subject ID and single APS Person ID for each subject were separated into groups 149 and 511.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 148. The true pair was kept in group 148, and the mismatched APS Subject ID was separated into group 1543.
+
+-   There were two APS Person IDs and two MedStar Subject IDs in group 177, repeated in groups 178, 179, and 180. This grouping appeared to be two pairs with similar names that were represented in both data sets. The single MedStar Subject ID and single APS Person ID for each subject were separated into groups 177 and 178.
+
+-   There was a mismatched MedStar Person ID in group 189, which was separated into group 179.
+
+-   There were two APS Subject IDs matched with a single MedStar Subject ID in group 293. The true pair was kept in group 293, and the mismatched APS Subject ID was separated into group 180.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 321. The true pair was kept in group 321, and the mismatched MedStar Subject ID was separated into group 1544.
+
+-   The pairings in group 412 were repeated in groups 413 and 414. These were consolidated into group 412.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 336. The mismatched MedStar Subject ID was separated into group 413.
+
+-   There were two APS Person IDs matched with three MedStar Subject IDs in group 507, repeated in groups 508, 1150, and 1151. There appeared to be two true pairs, and a single mismatched MedStar Subject ID. The true pairs were separated into groups 507 and 508, and the mismatched MedStar Subject ID was separated into group 1150.
+
+-   The pairings in group 516 were repeated in groups 517 and 667. These were consolidated into group 517.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 802. The mismatched MedStar Subject ID was separated into group 517.
+
+-   The pairings in group 805 were repeated in groups 806, 807, and 1038. These were consolidated into group 805.
+
+-   There were two APS Person IDs matched with two MedStar Subject IDs in group 814, repeated in groups 815 and 816. These appeared to be two pairs with similar names that appeared in both data sets. The true pairs were separated into groups 814 and 815.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 856. The mismatched MedStar Subject ID was separated into group 667.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 867. The mismatched MedStar Subject ID was separated into group 806.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 901. The mismatched MedStar Subject ID was separated into group 807.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 912. The mismatched MedStar Subject ID was separated into group 816.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 991. The mismatched MedStar Subject ID was separated into group 1038.
+
+-   The pairings in group 992 were repeated in groups 995 and 994. These were consolidated into group 992.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 993. One of these values matched. The mismatched MedStar Subject IDs were separated into groups 994 and 995, and the APS Person ID into group 993.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1046, repeated into groups 1047 and 1333. The true-pair was consolidated into group 1046. The mismatched MedStar Subject ID was separated into group 1047, and the APS Person ID was separated into group 1046.
+
+-   The MedStar Subject ID in group 1050 was not matched, and was separated into group 1151.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1052. The mismatched MedStar Subject ID was separated into group 1333.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1236, and repeated in groups 1237 and 1374. The true-pair was consolidated into group 1236. The mismatched MedStar Subject ID was separated into group 1237.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1108. The mismatched MedStar Subject ID was separated into group 1374.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1111. The mismatched MedStar Subject ID was separated into group 2188.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1133. The mismatched MedStar Subject ID was separated into group 2189.
+
+-   There were three MedStar Subject IDs matched with a single APS Person ID in group 1144. The two mismatched MedStar Subject ID was separated into groups 2190 and 2191.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1249. The mismatched MedStar Subject ID was separated into group 2191.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1320. The mismatched MedStar Subject ID was separated into group 2193.
+
+-   There were two APS Person IDs matched with two MedStar Subject IDs in group 1395, repeated in groups 1681 and 2019. These appeared to be two pairs with similar names that appeared in both data sets. The true pairs were separated into groups 1395 and 1681.
+
+-   The pairings in group 1422 were repeated in groups 1423, 1424, and 1425. These were consolidated into group 1422.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1463. The mismatched MedStar Subject ID was separated into group 1423.
+
+-   The pairings in group 1474 were repeated in groups 1475 and 1476. These were consolidated into group 1474.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1555. The mismatched MedStar Subject ID was separated into group 1424.
+
+```{r}
+point_groups <- c(23, 230, 1626, 1627, 25, 233, 923, 924, 48, 90, 91, 92, 101, 
+                  212, 708, 149, 511, 1543, 1544, 148, 177, 178, 179, 180, 412, 
+                  413, 414, 507, 508, 1150, 1151, 516, 517, 667, 805, 806, 807,
+                  1038, 814, 815, 816, 992, 993, 994, 995, 1046, 1047, 1333,
+                  1050, 1052, 1236, 1237, 1374, 1395, 1681, 2019, 1422, 1423,
+                  1424, 1425, 1474, 1475, 1476)
+
+aps_temp <- as_tibble(
+  matrix(data=NA, nrow=0, ncol=2), .name_repair = ~c('id', 'aps_person_id')
+  )
+
+aps_temp <- aps_temp %>%
+  add_replacement_rows(
+    23, 
+    get_subjid_from_row(id_stacked, packed_data, 17687, j=2)
+  ) %>%
+  add_replacement_rows(
+    230, 
+    get_subjid_from_row(id_stacked, packed_data, 605, j=2)
+  ) %>%
+  add_replacement_rows(
+    25, 
+    get_subjid_from_row(id_stacked, packed_data, 650, j=2)
+  ) %>%
+  add_replacement_rows(
+    233, 
+    get_subjid_from_row(id_stacked, packed_data, 11840, j=2)
+  ) %>%
+  add_replacement_rows(
+    48, 
+    get_subjid_from_row(id_stacked, packed_data, 1470, j=2)
+  ) %>%
+  add_replacement_rows(
+    1626, 
+    get_subjid_from_row(id_stacked, packed_data, 1468, j=2)
+  ) %>%
+  add_replacement_rows(
+    1627, 
+    get_subjid_from_row(id_stacked, packed_data, 1469, j=2)
+  ) %>%
+  add_replacement_rows(
+    90, 
+    get_subjid_from_row(id_stacked, packed_data, 2553, j=2)
+  ) %>%
+  add_replacement_rows(
+    101, 
+    get_subjid_from_row(id_stacked, packed_data, 2751, j=2)
+  ) %>%
+  add_replacement_rows(
+    212, 
+    get_subjid_from_row(id_stacked, packed_data, 6076, j=2)
+  ) %>%
+  add_replacement_rows(
+    91, 
+    get_subjid_from_row(id_stacked, packed_data, 15616, j=2)
+  ) %>%
+  add_replacement_rows(
+    149, 
+    get_subjid_from_row(id_stacked, packed_data, 4141, j=2)
+  ) %>%
+  add_replacement_rows(
+    511, 
+    get_subjid_from_row(id_stacked, packed_data, 15539, j=2)
+  ) %>%
+  add_replacement_rows(
+    1543, 
+    get_subjid_from_row(id_stacked, packed_data, 4124, j=2)
+  ) %>%
+  add_replacement_rows(
+    177, 
+    get_subjid_from_row(id_stacked, packed_data, 4792, j=2)
+  ) %>%
+  add_replacement_rows(
+    178, 
+    get_subjid_from_row(id_stacked, packed_data, 4794, j=2)
+  ) %>%
+  add_replacement_rows(
+    180, 
+    get_subjid_from_row(id_stacked, packed_data, 2761, j=2)
+  ) %>%
+  add_replacement_rows(
+    412, 
+    get_subjid_from_row(id_stacked, packed_data, 333, j=2)
+  ) %>%
+  add_replacement_rows(
+    507, 
+    get_subjid_from_row(id_stacked, packed_data, 4012, j=2)
+  ) %>%
+  add_replacement_rows(
+    508, 
+    get_subjid_from_row(id_stacked, packed_data, 7891, j=2)
+  ) %>%
+  add_replacement_rows(
+    516, 
+    get_subjid_from_row(id_stacked, packed_data, 4252, j=2)
+  ) %>%
+  add_replacement_rows(
+    805, 
+    get_subjid_from_row(id_stacked, packed_data, 8922, j=2)
+  ) %>%
+  add_replacement_rows(
+    814, 
+    get_subjid_from_row(id_stacked, packed_data, 9060, j=2)
+  ) %>%
+  add_replacement_rows(
+    815, 
+    get_subjid_from_row(id_stacked, packed_data, 9061, j=2)
+  ) %>%
+  add_replacement_rows(
+    992, 
+    get_subjid_from_row(id_stacked, packed_data, 7655, j=2)
+  ) %>%
+  add_replacement_rows(
+    1046, 
+    get_subjid_from_row(id_stacked, packed_data, 9243, j=2)
+  ) %>%
+  add_replacement_rows(
+    1236, 
+    get_subjid_from_row(id_stacked, packed_data, 10982, j=2)
+  ) %>%
+  add_replacement_rows(
+    1395, 
+    get_subjid_from_row(id_stacked, packed_data, 11572, j=2)
+  ) %>%
+  add_replacement_rows(
+    1681, 
+    get_subjid_from_row(id_stacked, packed_data, 13814, j=2)
+  ) %>%
+  add_replacement_rows(
+    1422, 
+    get_subjid_from_row(id_stacked, packed_data, 12527, j=2)
+  ) %>%
+  add_replacement_rows(
+    1474, 
+    get_subjid_from_row(id_stacked, packed_data, 14030, j=2)
+  ) 
+
+
+ms_temp <- as_tibble(
+  matrix(data=NA, nrow=0, ncol=2), .name_repair = ~c('id', 'ms_id')
+  )
+
+ms_temp <- ms_temp %>%
+  add_replacement_rows(
+    23,
+    get_subjid_from_row(id_stacked, packed_data, 2356, j=1)
+  ) %>%
+  add_replacement_rows(
+    230,
+    get_subjid_from_row(id_stacked, packed_data, 20322, j=1)
+  ) %>%
+  add_replacement_rows(
+    25, 
+    get_subjid_from_row(id_stacked, packed_data, 7110, j=1)
+  ) %>%
+  add_replacement_rows(
+    233, 
+    get_subjid_from_row(id_stacked, packed_data, 18242, j=1)
+  ) %>%
+  add_replacement_rows(
+    48, 
+    get_subjid_from_row(id_stacked, packed_data, 36024, j=1)
+  ) %>%
+  add_replacement_rows(
+    923, 
+    get_subjid_from_row(id_stacked, packed_data, 34548, j=1)
+  ) %>%
+  add_replacement_rows(
+    924, 
+    get_subjid_from_row(id_stacked, packed_data, 28053, j=1)
+  ) %>%
+  add_replacement_rows(
+    90, 
+    get_subjid_from_row(id_stacked, packed_data, 17784, j=1)
+  ) %>%
+  add_replacement_rows(
+    101, 
+    get_subjid_from_row(id_stacked, packed_data, 7334, j=1)
+  ) %>%
+  add_replacement_rows(
+    212, 
+    get_subjid_from_row(id_stacked, packed_data, 6980, j=1)
+  ) %>%
+  add_replacement_rows(
+    92, 
+    get_subjid_from_row(id_stacked, packed_data, 5159, j=1)
+  ) %>%
+  add_replacement_rows(
+    708, 
+    get_subjid_from_row(id_stacked, packed_data, 154, j=1)
+  ) %>%
+  add_replacement_rows(
+    149, 
+    get_subjid_from_row(id_stacked, packed_data, 4235, j=1)
+  ) %>%
+  add_replacement_rows(
+    511, 
+    get_subjid_from_row(id_stacked, packed_data, 23683, j=1)
+  ) %>%
+  add_replacement_rows(
+    177, 
+    get_subjid_from_row(id_stacked, packed_data, 1292, j=1)
+  ) %>%
+  add_replacement_rows(
+    178, 
+    get_subjid_from_row(id_stacked, packed_data, 3656, j=1)
+  ) %>%
+  add_replacement_rows(
+    179, 
+    get_subjid_from_row(id_stacked, packed_data, 8941, j=1)
+  ) %>%
+  add_replacement_rows(
+    1544, 
+    get_subjid_from_row(id_stacked, packed_data, 33344, j=1)
+  ) %>%
+  add_replacement_rows(
+    412, 
+    get_subjid_from_row(id_stacked, packed_data, 4629, j=1)
+  ) %>%
+  add_replacement_rows(
+    413, 
+    get_subjid_from_row(id_stacked, packed_data, 21393, j=1)
+  ) %>%
+  add_replacement_rows(
+    507, 
+    get_subjid_from_row(id_stacked, packed_data, 2493, j=1)
+  ) %>%
+  add_replacement_rows(
+    508, 
+    get_subjid_from_row(id_stacked, packed_data, 174, j=1)
+  ) %>%
+  add_replacement_rows(
+    1150, 
+    get_subjid_from_row(id_stacked, packed_data, 19100, j=1)
+  ) %>%
+  add_replacement_rows(
+    516, 
+    get_subjid_from_row(id_stacked, packed_data, 3090, j=1)
+  ) %>%
+  add_replacement_rows(
+    517, 
+    get_subjid_from_row(id_stacked, packed_data, 10797, j=1)
+  ) %>%
+  add_replacement_rows(
+    805, 
+    get_subjid_from_row(id_stacked, packed_data, 417, j=1)
+  ) %>%
+  add_replacement_rows(
+    814, 
+    get_subjid_from_row(id_stacked, packed_data, 29755, j=1)
+  ) %>%
+  add_replacement_rows(
+    815, 
+    get_subjid_from_row(id_stacked, packed_data, 35078, j=1)
+  ) %>%
+  add_replacement_rows(
+    667, 
+    get_subjid_from_row(id_stacked, packed_data, 9781, j=1)
+  ) %>%
+  add_replacement_rows(
+    806, 
+    get_subjid_from_row(id_stacked, packed_data, 13723, j=1)
+  ) %>%
+  add_replacement_rows(
+    807, 
+    get_subjid_from_row(id_stacked, packed_data, 31932, j=1)
+  ) %>%
+  add_replacement_rows(
+    816, 
+    get_subjid_from_row(id_stacked, packed_data, 23929, j=1)
+  ) %>%
+  add_replacement_rows(
+    1038, 
+    get_subjid_from_row(id_stacked, packed_data, 12487, j=1)
+  ) %>%
+  add_replacement_rows(
+    992, 
+    get_subjid_from_row(id_stacked, packed_data, 30708, j=1)
+  ) %>%
+  add_replacement_rows(
+    994, 
+    get_subjid_from_row(id_stacked, packed_data, 32399, j=1)
+  ) %>%
+  add_replacement_rows(
+    995, 
+    get_subjid_from_row(id_stacked, packed_data, 14101, j=1)
+  ) %>%
+  add_replacement_rows(
+    1046, 
+    get_subjid_from_row(id_stacked, packed_data, 2422, j=1)
+  ) %>%
+  add_replacement_rows(
+    1047, 
+    get_subjid_from_row(id_stacked, packed_data, 14653, j=1)
+  ) %>%
+  add_replacement_rows(
+    1151, 
+    get_subjid_from_row(id_stacked, packed_data, 21305, j=1)
+  ) %>%
+  add_replacement_rows(
+    1333, 
+    get_subjid_from_row(id_stacked, packed_data, 9136, j=1)
+  ) %>%
+  add_replacement_rows(
+    1236, 
+    get_subjid_from_row(id_stacked, packed_data, 4468, j=1)
+  ) %>%
+  add_replacement_rows(
+    1237, 
+    get_subjid_from_row(id_stacked, packed_data, 12830, j=1)
+  ) %>%
+  add_replacement_rows(
+    1374, 
+    get_subjid_from_row(id_stacked, packed_data, 11056, j=1)
+  ) %>%
+  add_replacement_rows(
+    2188, 
+    get_subjid_from_row(id_stacked, packed_data, 17918, j=1)
+  ) %>%
+  add_replacement_rows(
+    2189, 
+    get_subjid_from_row(id_stacked, packed_data, 4882, j=1)
+  ) %>%
+  add_replacement_rows(
+    2190, 
+    get_subjid_from_row(id_stacked, packed_data, 5225, j=1)
+  ) %>%
+  add_replacement_rows(
+    2191, 
+    get_subjid_from_row(id_stacked, packed_data, 14090, j=1)
+  ) %>%
+  add_replacement_rows(
+    2192, 
+    get_subjid_from_row(id_stacked, packed_data, 22364, j=1)
+  ) %>%
+  add_replacement_rows(
+    2193, 
+    get_subjid_from_row(id_stacked, packed_data, 16370, j=1)
+  ) %>%
+  add_replacement_rows(
+    1395, 
+    get_subjid_from_row(id_stacked, packed_data, 18039, j=1)
+  ) %>%
+  add_replacement_rows(
+    1681, 
+    get_subjid_from_row(id_stacked, packed_data, 14263, j=1)
+  ) %>%
+  add_replacement_rows(
+    1422, 
+    get_subjid_from_row(id_stacked, packed_data, 18141, j=1)
+  ) %>%
+  add_replacement_rows(
+    1423, 
+    get_subjid_from_row(id_stacked, packed_data, 34508, j=1)
+  ) %>%
+  add_replacement_rows(
+    1474, 
+    get_subjid_from_row(id_stacked, packed_data, 4200, j=1)
+  ) %>%
+  add_replacement_rows(
+    1424, 
+    get_subjid_from_row(id_stacked, packed_data, 19737, j=1)
+  ) 
+```
+
+
+```{r}
+aps_t = 14030
+ms_t = 4200
+
+a1 <- aps[aps$aps_row %in% aps_t, ]
+a2 <- medstar[medstar$ms_epcr_row %in% ms_t,]
+
+print(a1)
+print(a2)
+print(a1$aps_person_id)
+print(a2$ms_id)
+```
+
+
+```{r}
+aps_t = 39286767
+ms_t = c(2608,2432)
+
+a1 <- aps[aps$aps_person_id %in% aps_t, ]
+a2 <- medstar[medstar$ms_id %in% ms_t,]
+
+print(a1)
+print(a2)
+```
+
+
+# MS REMAINDER PLACEHOLDER
+
+*There were an additional @ groups which contained a single mismatched APS Person ID and MedStar Subject ID. These values were split so that the MedStar Subject ID would retain the first original Group ID, and the APS Person ID would receive a new Group ID. This resulted in the assignment of all @ remaining MedStar Subject IDs to the remaining Group IDs.*
+
+```{r}
+agg_groups <- setdiff(all_groups, point_groups)
+
+ms_temp_group <- checking %>%
+  filter( (id %in% agg_groups) & (source == "MedStar") 
+          ) %>%
+  select(id, source_id) %>%
+  distinct()
+
+colnames(ms_temp_group)[2] <- "ms_id"
+
+ms_temp <- rbind(ms_temp, ms_temp_group)
+```
+
+# SIMPLE SPLIT PLACEHOLDER
+
+*The separation of @ APS Subject IDs resulted in the creation of @ novel Group IDs (Group IDs 2189 - @). The final @ APS Subject IDs which were accurately paired with a single MedStar Subject ID were also added to the replacement map.*
+
+```{r}
+groups <- c(36,)
+
+aps_temp_group <- checking %>%
+  filter( (id %in% groups) & (source == "APS") 
+          ) %>%
+  select(source_id) %>%
+  distinct() %>%
+  mutate(id = row_number() + 2189) %>%
+  relocate(id)
+  
+colnames(aps_temp_group)[2] <- "aps_person_id"
+
+aps_temp <- rbind(aps_temp, aps_temp_group)
+
+aps_temp_group <- checking %>%
+  filter( (id %in% setdiff(agg_groups,groups)) & (source == "APS") 
+          ) %>%
+  select(id, source_id) %>%
+  distinct()
+
+colnames(aps_temp_group)[2] <- "aps_person_id"
+
+aps_temp <- rbind(aps_temp, aps_temp_group)
+```
+
+# CHECK PLACEHOLDER
+
+We checked to ensure that we had assigned a Group ID to all @ APS Person IDs and all @ MedStar Subject IDs in the subset. We had no duplicate values for either APS Person ID or MedStar Subject ID. None of the new map values were already present in the replacement map.
+
+```{r}
+nrow(aps_temp)
+length(unique(aps_temp$id))
+length(unique(aps_temp$aps_person_id))
+sum(aps_temp$id %in% aps_pattern$id)
+sum(aps_temp$aps_person_id %in% aps_pattern$aps_person_id)
+
+nrow(ms_temp)
+length(unique(ms_temp$id))
+length(unique(ms_temp$ms_id))
+sum(ms_temp$id %in% ms_pattern$id)
+sum(ms_temp$ms_id %in% ms_pattern$ms_id)
+```
+
+We added the new values to our replacement maps, and removed the verified Group IDs from the checking subset.
+
+```{r}
+aps_pattern <- rbind(aps_pattern, aps_temp)
+ms_pattern <- rbind(ms_pattern, ms_temp)
+
+checking <- checking %>%
+  filter(!(id %in% all_groups))
+```
 
 
 # Bottom Placeholder
+
+# TEMPLATE
+
+#### Group IDs Assigned Within the Verification Range
+
+*There were @ remaining pairs, across @ Group IDs associated with @ APS Person IDs and @ MedStar Subject IDs that were assigned within the posterior probability range of 0.45 - 0.93 and possessed duplicate APS Row Number values. All of these groups were also represented in pairs outside of the posterior probability threshold of 0.45 - 0.93.*
+
+```{r}
+checking_cols <- filter(checking, 
+                        (flag_posterior & flag_aps)
+                        )
+
+nrow(checking_cols)/2
+length(unique(checking_cols$id))
+length(unique(checking_cols %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+length(unique(checking_cols %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+
+within_groups <- unique(checking_cols$id)
+sum(!(within_groups %in% without_groups))
+```
+
+##### Search & Verification
+
+*We examined the search space for each of the @ Group IDs in this set. The total search space contained a total of @ Group IDs, which indicated that there was overlap in observations with another group outside of the targeted set.*
+
+```{r}
+target_groups <- unique(checking_cols$id)
+length(target_groups)
+
+all_groups <- get_all_groups_subjids(checking, packed_data, target_groups)$group
+
+length(all_groups)
+```
+
+We performed our search, which indicated there were multiple groups with more than one APS Person ID or MedStar Subject ID.
+
+```{r}
+search <- search_by_group(checking, packed_data, target_groups, recursive = TRUE)
+```
+
+*Our search contained @ observations, which included 198 Group IDs, @ MedStar Subject IDs, and @ APS Subject IDs. There were exactly @ distinct combinations of Group ID and MedStar Subject ID, and @ distinct combinations of Group ID and APS Person ID - as such, each of these Group IDs represented multiple repeated APS Subject IDs and MedStar Subject IDs.*
+
+```{r}
+nrow(search)
+length(unique(search$id))
+length(unique(search[search$source == "MedStar", 'source_id']))
+length(unique(search[search$source == "APS", 'source_id']))
+
+nrow(distinct(search %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(id, source_id
+                       )
+              )
+     )
+
+
+nrow(distinct(search %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(id, source_id
+                       )
+              )
+     )
+```
+
+Each group was manually inspected to ensure that each Group ID referred to a single individual, and that each group contained exactly one APS Person ID and one MedStar Subject ID. 
+
+*It was found that the Group 484 repeated in groups 485, 1852, and 1853 which referenced multiple APS Person IDs; groups 931 and 932 repeated in groups 1412 and 1413 and referenced multiple MedStar Subject IDs and APS Person IDs. Group 1095 referenced more than one MedStar Subject ID.*
+
+```{r}
+#for (i in 1:length(target_groups)){
+for (i in 1:10){
+  print(search_by_group(id_stacked, 
+                        packed_data, 
+                        groups = target_groups[i], 
+                        recursive = TRUE)
+        )
+}
+```
+
+##### Match Map Assignments
+
+*Of the @ Group IDs in our search space, @ Group IDs represented pairings that did not require modification after manual verification (@% mismatch rate).*
+
+*The @ groups which contained multiple APS Person IDs and/or MedStar Subject IDs were resolved with individual assignments of Group ID each Source Subject ID. This resulted in the manual assignment of Group ID to @ APS Person IDs and @ MedStar Subject IDs.*
+    
+*-   The two APS Person IDs repeated in groups 484, 485, 1852, and 1853 did not refer to the same individual. Only one of the APS Subject IDs reflected a valid Group ID with the single MedStar Subject ID in the Groups. The MedStar Subject ID and corresponding APS Person ID were separated into group 484. The mismatched APS Subject ID was separated into group 485.*
+
+```{r}
+point_groups <- c()
+
+aps_temp <- as_tibble(
+  matrix(data=NA, nrow=0, ncol=2), .name_repair = ~c('id', 'aps_person_id')
+  )
+
+aps_temp <- aps_temp %>%
+  add_replacement_rows(
+    485, 
+    get_subjid_from_row(id_stacked, packed_data, 3215, j=2)
+  ) 
+
+
+ms_temp <- as_tibble(
+  matrix(data=NA, nrow=0, ncol=2), .name_repair = ~c('id', 'ms_id')
+  )
+
+ms_temp <- ms_temp %>%
+  add_replacement_rows(
+    484,
+    get_subjid_from_row(id_stacked, packed_data, 86, j=1)
+  )
+```
+
+# MS REMAINDER PLACEHOLDER
+
+*There were an additional @ groups which contained a single mismatched APS Person ID and MedStar Subject ID. These values were split so that the MedStar Subject ID would retain the first original Group ID, and the APS Person ID would receive a new Group ID. This resulted in the assignment of all @ remaining MedStar Subject IDs to the remaining Group IDs.*
+
+```{r}
+agg_groups <- setdiff(all_groups, point_groups)
+
+ms_temp_group <- checking %>%
+  filter( (id %in% agg_groups) & (source == "MedStar") 
+          ) %>%
+  select(id, source_id) %>%
+  distinct()
+
+colnames(ms_temp_group)[2] <- "ms_id"
+
+ms_temp <- rbind(ms_temp, ms_temp_group)
+```
+
+# SIMPLE SPLIT PLACEHOLDER
+
+*The separation of @ APS Subject IDs resulted in the creation of @ novel Group IDs (Group IDs 2189 - @). The final @ APS Subject IDs which were accurately paired with a single MedStar Subject ID were also added to the replacement map.*
+
+```{r}
+groups <- c()
+
+aps_temp_group <- checking %>%
+  filter( (id %in% groups) & (source == "APS") 
+          ) %>%
+  select(source_id) %>%
+  distinct() %>%
+  mutate(id = row_number() + 2189) %>%
+  relocate(id)
+  
+colnames(aps_temp_group)[2] <- "aps_person_id"
+
+aps_temp <- rbind(aps_temp, aps_temp_group)
+
+aps_temp_group <- checking %>%
+  filter( (id %in% setdiff(agg_groups,groups)) & (source == "APS") 
+          ) %>%
+  select(id, source_id) %>%
+  distinct()
+
+colnames(aps_temp_group)[2] <- "aps_person_id"
+
+aps_temp <- rbind(aps_temp, aps_temp_group)
+```
+
+# CHECK PLACEHOLDER
+
+*We checked to ensure that we had assigned a Group ID to all @ APS Person IDs and all @ MedStar Subject IDs in the subset. We had no duplicate values for either APS Person ID or MedStar Subject ID. None of the new map values were already present in the replacement map.*
+
+```{r}
+nrow(aps_temp)
+length(unique(aps_temp$id))
+length(unique(aps_temp$aps_person_id))
+sum(aps_temp$id %in% aps_pattern$id)
+sum(aps_temp$aps_person_id %in% aps_pattern$aps_person_id)
+
+nrow(ms_temp)
+length(unique(ms_temp$id))
+length(unique(ms_temp$ms_id))
+sum(ms_temp$id %in% ms_pattern$id)
+sum(ms_temp$ms_id %in% ms_pattern$ms_id)
+```
+
+We added the new values to our replacement maps, and removed the verified Group IDs from the checking subset.
+
+```{r}
+aps_pattern <- rbind(aps_pattern, aps_temp)
+ms_pattern <- rbind(ms_pattern, ms_temp)
+
+checking <- checking %>%
+  filter(!(id %in% all_groups))
+```
+
