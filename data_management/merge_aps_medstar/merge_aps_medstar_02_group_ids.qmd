@@ -6,13 +6,63 @@ editor: visual
 
 # Summary
 
--   The 144 groups across all Subject IDs associated with the 113 Group IDs assigned from pairs in the 0.45 - 0.93 posterior probability threshold, without duplicate entries, were revised
+## Initial Assignments
 
-    -   Resulted in 51 new Unique Group IDs
+-   2,126 Group IDs were assigned in the original assignments.
 
--   The 28 groups across all Subject IDs associated with the 23 Group IDs assigned from pairs with duplicated APS Row Number values and only assigned in the 0.45 - 0.93 posterior probability range, were revised
+    -   2,101 MedStar Subject IDs were in the original assignments of Group ID.
+        -   14,477 MedStar Subject IDs were not matched.
+        -   140 Group IDs contained one of 71 MedStar Subject IDs which were assigned to more than one Group ID.
+        -   101 Group IDs contained more than one of 138 MedStar Subject ID values.
+    -   2,218 APS Person IDs were in the original assignments of Group ID.
+        -   8,924 APS Person IDs were not matched.
+        -   140 Group IDs contained one of 72 APS Person IDs which were assigned to more than one Group ID.
+        -   361 Group IDs contained more than one of 361 APS Person IDs.
 
-    -   Resulted in 10 new Unique Group IDs
+-   1,034 Group IDs contained a duplicated APS or MedStar ePCR Row Number.
+
+    -   1,043 APS Rows were repeated across 789 groups.
+    -   817 MedStar Subject IDs were repeated across 537 groups.
+
+## Cleaning of Assignments
+
+-   A total of 67 new Group IDs were created for assignment during revision of the original Group ID assignments. 1,148 of the original Group ID assignments were manually reviewed (54.00%).
+
+-   113 Group IDs did not have a duplicated value for MedStar ePCR or APS Row Number. Recursive search identified 114 Groups representing 113 MedStar Subject IDs and 114 APS Person IDs in this subsection.
+
+    -   52 Group IDs (45.61%) were mismatched. 51 new Group IDs were created.
+
+-   There were 797 Group IDs, containing 773 MedStar Subject IDs and 799 APS Person IDs, flagged for containing a duplicated APS Row Number across 3,902 potential pairs. A total of 63 new Group IDs were assigned, and a total of 21 Group IDs were eliminated (net of 42 Group IDs eliminated).
+
+    -   23 remaining Group IDs were only assigned from pairs within the posterior probability 0.45-0.93 manual review range. Recursive search identified 28 Group IDs representing 25 MedStar Subject IDs and 24 APS Person IDs in this subsection. 10 new Group IDs were created
+
+        -   19 Group IDs (67.86%) required modification due to match errors. 9 Group IDs required intervention more complex than a simple split.
+
+    -   183 remaining Group IDs were assigned based on pairs both within the posterior probability 0.45-0.93 manual review range and outside of this range. Recursive search identified 198 Group IDs representing 188 MedStar Subject IDs and 186 APS Person IDs in this subsection. 6 Group IDs were eliminated, and 1 new Group ID was created.
+
+        -   160 Group IDs (80.81%) required modification due to match errors. 45 Group IDs resulted in the reduction of 33 APS Person IDs and 5 MedStar Subject IDs; 109 Group IDs (including 25 of the Group IDs which received Source ID modification) required intervention more complex than a simple split.
+
+    -   571 remaining Group IDs were only assigned from pairs outside of the posterior probability 0.45-0.93 manual review range. Recursive search identified 571 Group IDs representing 560 MedStar Subject IDs and 589 APS Person IDs in this subsection. 15 Group IDs were eliminated, and 1 new Group ID was created.
+
+        -   92 Group IDs (16.11%) required modification due to match errors. 55 Group IDs resulted in the reduction of 43 APS Person IDs and 7 MedStar Subject IDs; 50 Group IDs (including 42 of the Group IDs which received Source ID modification) required intervention more complex than a simple split.
+
+-   There were 236 remaining Group IDs, containing 236 MedStar Subject IDs and 327 APS Person IDs, flagged for containing a duplicated MedStar ePCR Row Number across 534 potential pairs. A total of 4 new Group IDs were assigned, and a total of 21 Group IDs previously eliminated were reclaimed (net of 25 Group IDs).
+
+    -   11 remaining Group IDs were only assigned from pairs within the posterior probability 0.45-0.93 manual review range. Recursive search identified a total of 11 Group IDs representing 11 MedStar Subject IDs and 15 APS Person IDs. 5 Group IDs were reclaimed.
+
+        -   7 Group IDs (63.64%) required modification due to match errors. 3 Group IDs resulted in the reduction of 3 APS Person IDs. 1 Group ID required intervention more complex than a simple split.
+
+    -   39 remaining Group IDs were assigned from pairs within the posterior probability 0.45 - 0.93 manual review range and outside of the range. Recursive search identified a total of 39 Group IDs representing 39 MedStar Subject IDs and 64 APS Person IDs. 15 Group IDs were reclaimed.
+
+        -   25 Groups IDs (64.10%) required modification due to match errors. 11 Group IDs resulted in the reduction of 11 APS Person IDs; 15 Group IDs required intervention more complex than a simple split.
+
+    -   186 remaining Group IDs were only assigned from pairs outside of the posterior probability 0.45-0.93 manual review range. Recursive search identified 187 Group IDs representing 187 MedStar Subject IDs and 248 APS Person IDs.
+
+        -   61 Group IDs (32.62%) required modification due to match errors. 54 Group IDs resulted in the reduction of 56 APS Person IDs; 7 Group IDs (including 1 of the Group IDs which received Source ID modification) required intervention more complex than a simple split.
+
+-   There were 978 remaining Group IDs, each containing only one MedStar Subject ID and one APS Person ID without repetitions, outside of the verification range of 0.45 - 0.93.
+
+-   The remaining 14,477 MedStar Subject IDs 8,924 APS Person IDs that were unmatched were added to the pattern, resulting in the assignment of an additional 23,401 Group IDs. The full pattern contained 25,594 Group IDs, with only 1,967 Group IDs referencing both a MedStar Subject ID and APS Person ID.
 
 ## Assumptions and Considerations
 
@@ -44,7 +94,7 @@ editor: visual
 
         -   Men are both less likely to change their name at all based on name change conventions in the U.S.A, but also [face greater legal barriers in some states to obtaining name change on marriage](https://heinonline.org/HOL/LandingPage?handle=hein.journals/tclj24&div=10&id=&page=)
 
-    -   Two individuals with the First and Last Name at the same Address, but with birth dates greater than 12 years apart may potentially be parent and child using a Junior/Senior naming conventionpe
+    -   Two individuals with the First and Last Name at the same Address, but with birth dates greater than 12 years apart may potentially be parent and child using a Junior/Senior naming convention
 
         -   More likely in Male patients, due to naming conventions
 
@@ -633,6 +683,11 @@ get_subjid_from_row <- function(stacked_pairs, ids, target_row, j=1){
   #     out:            source Subject ID associated with the given Target Row
   #
   
+  if (!(target_row %in% 
+         stacked_pairs[stacked_pairs$source == ids$source[j], 'source_row'])){
+    warning(paste("Row", target_row, "not found in source data frame"))
+  }
+  
   # Extract Source ID
   
   out <- pull(unique(stacked_pairs %>%
@@ -649,120 +704,84 @@ get_subjid_from_row <- function(stacked_pairs, ids, target_row, j=1){
 
 ### Revising Source Group ID Assignments
 
-Two convenience functions were written to facilitate revising the Unique Subject ID assignments made in the original source data frames, and across all data frames used in revising Group ID assignments connecting the two data frames.
+A convenience function was written to facilitate the creation of replacement maps, used in revision of Source Subject ID values in the source data sets.
 
 ```{r}
-replace_ms_ids <- function(old_ms_row, new_ms_row){
+build_source_map <- function(source_map, source, old_id_row, new_id_row){
   #
-  # Replaces MedStar Subject ID values across the data sets used to clean
-  # the Group ID assignments in the APS/MedStar Merge.
+  # Builds Map to facilitate replacement of Subject ID values in the
+  # source data sets in the APS/MedStar Merge
   #
   # Inputs:
-  #     old_ms_row:     integer. A MedStar ePCR Row associated with the
-  #                     MedStar Subject ID to replace
-  #     new_ms_row:     integer. A MedStar ePCR Row associated with the 
-  #                     desired MedStar Subject ID
+  #     source_map:     data frame. Existing or template Subject ID replacement
+  #                     map, which will receive new rows
+  #     source:         string. "APS" or "aps" for the APS data set, "MedStar"
+  #                     or "ms" for the MedStar data set
+  #     old_id_row:     integer. A Source Row Number associated with the Source
+  #                     Subject ID to replace
+  #     new_id_row:     integer. A Source Row Number associated with the desired
+  #                     replacement Source Subject ID
   #
   # Returns:
-  #     out:            $medstar_: revised medstar data frame
-  #                     $id_base_: revised id_base data frame
-  #                     $id_stacked_: revised id_stacked data frame
-  #                     $checking_: revised id_checking data frame
+  #     source_map:     tibble. Updated source-map data frame that includes
+  #                     the new values.
   #
   
-  # Obtaining MedStar Subject ID value(s) to target for replacement
+  # New row generation for MedStar values
   
-  old_ms_id <- pull(unique(medstar[medstar$ms_epcr_row %in% old_ms_row, 'ms_id']))
-  new_ms_id <- pull(unique(medstar[medstar$ms_epcr_row %in% new_ms_row, 'ms_id']))
+  if (source == "ms" | source == "MedStar"){
+    temp_map <- tibble::tibble(
+      'old_id' = pull(unique(medstar[medstar$ms_epcr_row %in% old_id_row, 'ms_id'])),
+      'new_id' = pull(unique(medstar[medstar$ms_epcr_row %in% new_id_row, 'ms_id']))
+    )
+    
+    # Warnings for questionable inputs
+    
+    if (sum(old_id_row %in% medstar$ms_epcr_row) != length(old_id_row)){
+      warning(paste("Warning:", old_id_row, "not found in MedStar data."))
+    }
+    if (!(new_id_row %in% medstar$ms_epcr_row)){
+      warning(paste("Warning:", old_id_row, "not found in MedStar data."))
+    }
+  }
   
-  # Replacing in MedStar data set
-  medstar_ <- medstar %>%
-    mutate(ms_id = ifelse(ms_id %in% old_ms_id, new_ms_id, ms_id))
+  # New row generation for APS values
   
-  # Replacing in id_base
-  id_base_ <- id_base %>%
-    mutate(ms_id = ifelse(ms_id %in% old_ms_id, new_ms_id, ms_id))
+  if (source == "aps" | source == "APS"){
+    temp_map <- tibble::tibble(
+      'old_id' = pull(unique(aps[aps$aps_row %in% old_id_row, 'aps_person_id'])),
+      'new_id' = pull(unique(aps[aps$aps_row %in% new_id_row, 'aps_person_id']))
+    )
+    
+    # Warnings for questionable inputs
+    
+    if (sum(old_id_row %in% aps$aps_row) != length(old_id_row)){
+      warning(paste("Warning:", old_id_row, "not found in APS data."))
+    }
+    if (!(new_id_row %in% aps$aps_row)){
+      warning(paste("Warning:", new_id_row, "not found in APS data."))
+    }
+  }
   
-  # Replacing in id_stacked
-  id_stacked_ <- id_stacked %>%
-    mutate(source_id = ifelse((source_id %in% old_ms_id & source == "MedStar"), 
-                          new_ms_id, source_id))
+  # Add new rows to input map for output
   
-  # Replacing in checking subset
-  checking_ <- checking %>%
-    mutate(source_id = ifelse((source_id %in% old_ms_id & source == "MedStar"), 
-                          new_ms_id, source_id))
-  # Package output
+  source_map <- rbind(source_map, temp_map)
   
-  out<- list()
-  out$medstar_ <- medstar_
-  out$id_base_ <- id_base_
-  out$id_stacked_ <- id_stacked
-  out$checking_ <- checking_
+  # Warnings for questionable outputs
+  
+  if (nrow(source_map) != nrow(source_map %>% distinct())){
+    warning("Duplicate pairs detected in Source Map. Was this already added?")
+  }
+  
+  if (nrow(source_map) != length(unique(source_map$old_id))){
+    warning("Duplicate Old ID values detected - check your targets!")
+  }
   
   # Return output
   
-  out
-}
-
-replace_aps_ids <- function(old_aps_row, new_aps_row){
-  #
-  # Replaces APS Person ID values across the data sets used to clean
-  # the Group ID assignments in the APS/MedStar Merge.
-  #
-  # Inputs:
-  #     old_aps_row:    integer. An APS Row associated with the APS Person ID
-  #                     to replace
-  #     new_aps_row:    integer. An APS Row associated with the desired
-  #                     APS Person ID value
-  #       
-  # Returns:
-  #     out:            $aps_: revised aps data frame
-  #                     $id_base_: revised id_base data frame
-  #                     $id_stacked_: revised id_stacked data frame
-  #                     $checking_: revised id_checking data frame
-  #
-  
-  # Obtaining MedStar Subject ID value(s) to target for replacement
-  
-  old_aps_id <- pull(unique(aps[aps$aps_row %in% old_aps_row, 'aps_person_id']))
-  new_aps_id <- pull(unique(aps[aps$aps_row %in% new_aps_row, 'aps_person_id'])) 
-  
-  # Replacing in APS data set
-  aps_ <- aps %>%
-    mutate(aps_person_id = ifelse(aps_person_id %in% old_aps_id, 
-                                  new_aps_id, 
-                                  aps_person_id))
-  
-  # Replacing in id_base
-  id_base_ <- id_base %>%
-    mutate(aps_person_id = ifelse(aps_person_id %in% old_aps_id, 
-                                  new_aps_id, 
-                                  aps_person_id))
-  
-  # Replacing in id_stacked
-  id_stacked_ <- id_stacked %>%
-    mutate(source_id = ifelse((source_id %in% old_aps_id & source == "APS"), 
-                          new_aps_id, source_id))
-  
-  # Replacing in checking subset
-  checking_ <- checking %>%
-    mutate(source_id = ifelse((source_id %in% old_aps_id & source == "APS"), 
-                          new_aps_id, source_id))
-  # Package output
-  
-  out <- list()
-  out$aps_ <- aps_
-  out$id_base_ <- id_base_
-  out$id_stacked_ <- id_stacked
-  out$checking_ <- checking_
-  
-  # Return output
-  
-  out
+  source_map
 }
 ```
-
 
 ### Appending to Replacement Data Frame
 
@@ -869,6 +888,107 @@ length(unique(id_base$id))
 summary(id_base$id)
 ```
 
+The original Group ID assignments included 2,101 MedStar Subject IDs; 14,477 of the original MedStar Subject IDs were not matched. The original Group ID assignments included 2,218 APS Person IDs; 8,924 of the original APS Person IDs were not matched.
+
+```{r}
+length(unique(id_base$ms_id))
+length(unique(medstar$ms_id)) - length(unique(id_base$ms_id))
+
+
+length(unique(id_base$aps_person_id))
+length(unique(aps$aps_person_id)) - length(unique(id_base$aps_person_id))
+```
+
+There were 948 duplicated MedStar Subject ID values in the base pairs and 967 duplicated APS Person ID values in the base pairs.
+
+```{r}
+length(unique(
+  pull(id_base[(duplicated(id_base$ms_id) | 
+                  duplicated(id_base$ms_id, fromLast=TRUE)),'ms_id'])
+  )
+)
+
+length(unique(
+  pull(id_base[(duplicated(id_base$aps_person_id) | 
+                  duplicated(id_base$aps_person_id, fromLast=TRUE)
+                ),'aps_person_id'])
+  )
+)
+```
+
+There were 2,232 distinct assignments of MedStar Subject ID, which paired 2,126 Group IDs with 2,101 MedStar Subject IDs. There were 140 Group IDs which contained 71 duplicated MedStar Subject ID values. There were 101 groups which contained more than one of 138 MedStar subject ID values.
+
+```{r}
+checking_cols <- id_base %>%
+  select(id, ms_id) %>%
+  distinct()
+
+nrow(checking_cols)
+length(unique(checking_cols$id))
+length(unique(checking_cols$ms_id))
+
+length(unique(
+  pull(checking_cols[ ( duplicated(checking_cols$ms_id)|duplicated(checking_cols$ms_id, fromLast=TRUE) ), 'id'])
+  )
+)
+
+length(unique(
+  pull(checking_cols[ ( duplicated(checking_cols$ms_id)|duplicated(checking_cols$ms_id, fromLast=TRUE) ), 'ms_id'])
+  )
+)
+
+length(unique(
+  pull(checking_cols[ ( duplicated(checking_cols$id)|duplicated(checking_cols$id, fromLast=TRUE) ), 'id'])
+  )
+)
+
+length(unique(
+  pull(checking_cols[ ( duplicated(checking_cols$id)|duplicated(checking_cols$id, fromLast=TRUE) ), 'ms_id'])
+  )
+)
+
+```
+
+There were 2,249 distinct assignments of APS Person ID, which paired 2,126 Group IDs with 2,218 APS Person IDs. There were 140 Group IDs which contained 72 duplicated APS Person ID values. There were 361 Group IDs which contained more than one of 361 APS Person ID values.
+
+```{r}
+checking_cols <- id_base %>%
+  select(id, aps_person_id) %>%
+  distinct()
+
+nrow(checking_cols)
+length(unique(checking_cols$id))
+length(unique(checking_cols$aps_person_id))
+
+length(unique(
+  pull(checking_cols[ ( duplicated(checking_cols$aps_person_id)|
+                          duplicated(checking_cols$aps_person_id, fromLast=TRUE)
+                        ),'id'])
+  )
+)
+
+length(unique(
+  pull(checking_cols[ ( duplicated(checking_cols$aps_person_id)|
+                          duplicated(checking_cols$aps_person_id, fromLast=TRUE)
+                        ), 'aps_person_id'])
+  )
+)
+
+length(unique(
+  pull(checking_cols[ ( duplicated(checking_cols$id)|
+                          duplicated(checking_cols$id, fromLast=TRUE)
+                        ), 'aps_person_id'])
+  )
+)
+
+length(unique(
+  pull(checking_cols[ ( duplicated(checking_cols$id)|
+                          duplicated(checking_cols$id, fromLast=TRUE)
+                        ), 'aps_person_id'])
+  )
+)
+```
+
 ## Duplicated Source Row Numbers
 
 There were 3,630 pairs in 1,034 groups which contained a duplicate value for APS Row, MedStar ePCR Row, or both values. These pairs contained 1,577 APS Row values and 1,989 MedStar ePCR Row values. All pairs with a duplicated APS Row value also had a duplicated MedStar ePCR Row value.
@@ -919,13 +1039,16 @@ get_unique_value_summary(id_base, "flag_ms")
 
 ## Posterior Probability in Manual Verification Range of 0.45 - 0.93
 
-The 575 potential pairs with posterior probabilities in the manual verification range of 0.45 - 0.93 were previously flagged for manual review.
+The 575 potential pairs with posterior probabilities in the manual verification range of 0.45 - 0.93 were previously flagged for manual review. This group represented 374 Group IDs, 333 MedStar Subject IDs, and 349 APS Person IDs.
 
 ```{r}
 get_unique_value_summary(id_base,c("flag_posterior"))
+length(unique(pull(id_base[id_base$flag_posterior,'id'])))
+length(unique(pull(id_base[id_base$flag_posterior,'ms_id'])))
+length(unique(pull(id_base[id_base$flag_posterior,'aps_person_id'])))
 ```
 
-# Manual Review of Flags
+# Manual Review
 
 ## Posteriors without Duplicates
 
@@ -1000,17 +1123,13 @@ nrow(distinct(search %>%
 Each group was manually inspected to ensure that each Group ID referred to a single individual, and that each group contained exactly one APS Person ID and one MedStar Subject ID. It was determined that Groups 1464 and 1858 were the overlapping groups.
 
 ```{r}
-# | eval: false
-# | echo: false
-# | include: false
-
-for (i in 1:length(target_groups)){
-  print(search_by_group(id_stacked, 
-                        packed_data, 
-                        groups = target_groups[i], 
-                        recursive = TRUE)
-        )
-}
+#for (i in 1:length(target_groups)){
+#   print(search_by_group(id_stacked, 
+#                         packed_data, 
+#                         groups = target_groups[i], 
+#                         recursive = TRUE)
+#         )
+# }
 ```
 
 ### Match Map Assignments
@@ -1218,7 +1337,7 @@ We performed our search, which indicated there were multiple groups with more th
 search <- search_by_group(checking, packed_data, target_groups, recursive = TRUE)
 ```
 
-Our search contained 322 observations, which included 28 Group IDs, 25 MedStar Subject IDs, and 24 APS Subject IDs. There were exactly 33 unique combinations of Group ID and MedStar Subject ID, and 32 unique combinations of Group ID and APS Subject ID.
+Our search contained 322 observations, which included 28 Group IDs, 25 MedStar Subject IDs, and 24 APS Person IDs. There were exactly 33 unique combinations of Group ID and MedStar Subject ID, and 32 unique combinations of Group ID and APS Subject ID.
 
 ```{r}
 nrow(search)
@@ -1247,26 +1366,24 @@ nrow(distinct(search %>%
 Each group was manually inspected to ensure that each Group ID referred to a single individual, and that each group contained exactly one APS Person ID and one MedStar Subject ID. It was found that the Group 484 repeated in groups 485, 1852, and 1853 which referenced multiple APS Person IDs; groups 931 and 932 repeated in groups 1412 and 1413 and referenced multiple MedStar Subject IDs and APS Person IDs. Group 1095 referenced more than one MedStar Subject ID.
 
 ```{r}
-for (i in 1:length(target_groups)){
-  print(search_by_group(id_stacked, 
-                        packed_data, 
-                        groups = target_groups[i], 
-                        recursive = TRUE)
-        )
-}
+# for (i in 1:length(target_groups)){
+#   print(search_by_group(id_stacked, 
+#                         packed_data, 
+#                         groups = target_groups[i], 
+#                         recursive = TRUE)
+#         )
+# }
 ```
 
 ##### Match Map Assignments
 
-Of the 28 Group IDs in our search space, only 9 Group IDs represented pairings that did not require modification after manual verification (67.86% mismatch rate).
+Of the 28 Group IDs in our search space, only 9 Group IDs represented pairings that did not require modification after manual verification (67.86% mismatch rate). A net total of 10 new Group IDs were created.
 
 The 9 groups which contained multiple APS Person IDs and/or MedStar Subject IDs were resolved with individual assignments of Group ID each Source Subject ID. This resulted in the manual assignment of Group ID to 5 APS Person IDs and 6 MedStar Subject IDs.
 
-    
 -   The two APS Person IDs repeated in groups 484, 485, 1852, and 1853 did not refer to the same individual. Only one of the APS Subject IDs reflected a valid Group ID with the single MedStar Subject ID in the Groups. The MedStar Subject ID and corresponding APS Person ID were separated into group 484. The mismatched APS Subject ID was separated into group 485.
 -   The two APS Person IDs repeated in groups 931, 932, 1412, and 1413 did not refer to the same individual. The three MedStar Subject IDs repeated in these same groups also did not refer to the same individual. Only one MedStar Subject ID and APS Person ID were a valid pairing, and were separated into group 1412. The other APS Subject ID was separated into group 1413. The two remaining MedStar Subject IDs were separated into groups 931 and 932.
 -   The two MedStar Subject IDs in group 1095 did not refer to the same individual. Neither MedStar Subject ID was a true match with the APS Person ID in the group. As such, the APS Subject ID was was separated into group 1852. Tne MedStar Subject IDs were separated into groups 1095 and 1853.
-
 
 ```{r}
 point_groups <- c(484, 485, 1852, 1853, 931, 932, 1412, 1413, 1095)
@@ -1446,7 +1563,7 @@ We performed our search, which indicated there were multiple groups with more th
 search <- search_by_group(checking, packed_data, target_groups, recursive = TRUE)
 ```
 
-Our search contained 11,985 observations, which included 198 Group IDs, 188 MedStar Subject IDs, and 186 APS Subject IDs. There were exactly 277 distinct combinations of Group ID and MedStar Subject ID, and 274 distinct combinations of Group ID and APS Person ID - as such, each of these Group IDs represented multiple repeated APS Subject IDs and MedStar Subject IDs.
+Our search contained 11,985 observations, which included 198 Group IDs, 188 MedStar Subject IDs, and 186 APS Person IDs. There were exactly 277 distinct combinations of Group ID and MedStar Subject ID, and 274 distinct combinations of Group ID and APS Person ID - as such, each of these Group IDs represented multiple repeated APS Person IDs and MedStar Subject IDs.
 
 ```{r}
 nrow(search)
@@ -1472,39 +1589,27 @@ nrow(distinct(search %>%
      )
 ```
 
-Each group was manually inspected to ensure that each Group ID referred to a single individual, and that each group contained exactly one APS Person ID and one MedStar Subject ID. 
-
-# MATCHES PLACEHOLDER
+Each group was manually inspected to ensure that each Group ID referred to a single individual, and that each group contained exactly one APS Person ID and one MedStar Subject ID.
 
 ```{r}
 #for (i in 1:length(target_groups)){
-for (i in 131:140){
-  print(search_by_group(id_stacked, 
-                        packed_data, 
-                        groups = target_groups[i], 
-                        recursive = TRUE)
-        )
-}
+#   print(search_by_group(id_stacked, 
+#                         packed_data, 
+#                         groups = target_groups[i], 
+#                         recursive = TRUE)
+#         )
+# }
 ```
-
-```{r}
-test <- search_by_group(id_stacked, packed_data, groups = 1524, recursive = TRUE)
-
-unique(test$id)
-unique(pull(test %>% filter(source == "APS") %>% select(source_id)))
-unique(pull(test %>% filter(source == "MedStar") %>% select(source_id)))
-```
-
 
 ##### Match Map Assignments
 
-*Of the 198 Group IDs in our search space, @ Group IDs represented pairings that did not require modification after manual verification (@% mismatch rate).*
+Of the 198 Group IDs in our search space, 38 Group IDs represented pairings that did not require modification after manual verification (80.81% mismatch rate). There were 45 groups which received modification of Source Subject ID values, 109 groups which were resolved with individual assignments of Group ID (including 25 groups that had received Source Subject ID modification), 3 groups which received a simple split between the mismatched APS Person ID and MedStar Subject ID, and 41 that received no modification to Group ID. A total of 6 Group IDs were eliminated, and 1 new Group ID was created (net 5 Group IDs eliminated).
 
 ###### Revisions of Source ID
 
-*In reviewing the matches between the data sets, there @ groups with values of APS Person ID and MedStar Subject ID which appeared to be failed matches in their source data set. The revision of these failed matches resulted in the reduction of 8 APS Person IDs and 1 MedStar Subject IDs.*
+In reviewing the matches between the data sets, there were 45 groups with values of APS Person ID and MedStar Subject ID which appeared to be failed matches in their source data set. The revision of these failed matches resulted in the reduction of 33 APS Person IDs and 5 MedStar Subject IDs, and the reconciliation of the 47 groups into 27 groups.
 
--   There were two MedStar Subject IDs matched with a single APS Person ID in group 90, and repeated in groups 91 and 92. On examination, both MedStar Subject IDs appeared to refer to the same APS Person ID; as such, the MedStar Subject IDs were revised, and all entries were kept in group 90. 
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 90, and repeated in groups 91 and 92. On examination, both MedStar Subject IDs appeared to refer to the same APS Person ID; as such, the MedStar Subject IDs were revised, and all entries were kept in group 90.
 
 -   There were three APS Person IDs matched with a single MedStar Subject ID in group 132. All three APS Person IDs appeared to refer to the same MedStar Subject ID; as such, the APS Person IDs were revised, and all entries were kept in group 132.
 
@@ -1514,7 +1619,7 @@ unique(pull(test %>% filter(source == "MedStar") %>% select(source_id)))
 
 -   There were two APS Person IDs matched to one MedStar Subject ID in group 198. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 198.
 
--   There were three APS Person IDs matched to one MedStar Subject ID in group 239. All three APS Person IDs appeared to refer to the same MedStar Subject ID; as such, the APS Person IDs were revised, and all entries were kept in group 239.
+-   There were three APS Person IDs matched to one MedStar Subject ID in group 239. All three APS Person IDs appeared to refer to the same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 239.
 
 -   There were two APS Person IDs matched to one MedStar Subject ID in group 412, repeated in groups 413 and 414. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 412.
 
@@ -1524,7 +1629,7 @@ unique(pull(test %>% filter(source == "MedStar") %>% select(source_id)))
 
 -   There were two APS Person IDs matched to one MedStar Subject ID in group 801. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 801.
 
--   There were two MedStar Subject IDs matched with a single APS Person ID in group 805, and repeated in groups 806, 807, and 1038. On examination, both MedStar Subject IDs appeared to refer to the same APS Person ID; as such, the MedStar Subject IDs were revised, and all entries were kept in group 805. 
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 805, and repeated in groups 806, 807, and 1038. On examination, both MedStar Subject IDs appeared to refer to the same APS Person ID; as such, the MedStar Subject IDs were revised, and all entries were kept in group 805.
 
 -   There were two APS Person IDs matched to one MedStar Subject ID in group 856. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 856.
 
@@ -1532,241 +1637,256 @@ unique(pull(test %>% filter(source == "MedStar") %>% select(source_id)))
 
 -   There were two APS Person IDs matched to two MedStar Subject IDs in group 1046, and repeated into groups 1047 and 1333. Both APS Person IDs appeared to refer to one MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 1046.
 
--   There were two APS Person IDs matched to one MedStar Subject IDs in group 1050, and repeated into groups 1047 and 1333. Both APS Person IDs appeared to refer to the same subject, but neither matched the MedStar Person ID. The APS Person IDs were revised, and the APS Person IDs were kept in group 1050.
+-   There were two APS Person IDs matched to one MedStar Subject IDs in group 1050. Both APS Person IDs appeared to refer to the same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 1050.
 
 -   There were two APS Person IDs matched to one MedStar Subject IDs in group 1056. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 1056.
 
 -   There were two APS Person IDs matched to one MedStar Subject IDs in group 1079. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 1079.
 
--   There were two Medstar Subject IDs matched to one APS Person ID in group 1329. Both MedStar Subject IDs appeared to refer to the same APS Person ID; as such, the MedStar Subject IDs were revised, and the true-pair was kept in group 1329.
+-   There were two MedStar Subject IDs matched to one APS Person ID in group 1329. Both MedStar Subject IDs appeared to refer to the same APS Person ID; as such, the MedStar Subject IDs were revised, and the true-pair was kept in group 1329.
 
--   There were two Medstar Subject IDs matched to three APS Person IDs in group 1422, repeated in groups 1423, 1424, and 1425. All MedStar Subject IDs and APS Person IDs appeared to refer to the same subject; as such, the APS Person IDs and MedStar Subject IDs were revised, and the true-pair was kept in group 1422.
+-   There were two MedStar Subject IDs matched to three APS Person IDs in group 1422, repeated in groups 1423, 1424, and 1425. All MedStar Subject IDs and APS Person IDs appeared to refer to the same subject; as such, the APS Person IDs and MedStar Subject IDs were revised, and the true-pair was kept in group 1422.
 
 -   There were two APS Person IDs matched to one MedStar Subject IDs in group 1488. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 1488.
 
 -   There were three APS Person IDs matched to one MedStar Subject IDs in group 1502. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 1502.
 
--   There were two Medstar Subject IDs matched to one APS Person ID in group 1521. Both MedStar Subject IDs appeared to refer to the same APS Person ID; as such, the MedStar Subject IDs were revised, and the true-pair was kept in group 1521.
+-   There were two MedStar Subject IDs matched to one APS Person ID in group 1521. Both MedStar Subject IDs appeared to refer to the same APS Person ID; as such, the MedStar Subject IDs were revised, and the true-pair was kept in group 1521.
+
+-   There were two APS Person IDs matched to one MedStar Subject ID in group 1559. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 1559.
+
+-   There were three APS Person IDs matched to one MedStar Subject ID in group 1795. All APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 1795.
+
+-   There were four APS Person IDs and two MedStar Subject IDs matched in group 1854, repeated in groups 1855 and 2013. All APS Person IDs appeared to refer to a single MedStar Subject ID; as such, both APS Person IDs were revised, and the true-pair kept in group 1854.
+
+-   There were two APS Person IDs matched to one MedStar Subject ID in group 1892. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 1892.
+
+-   There were two APS Person IDs matched to one MedStar Subject ID in group 2020. Both APS Person IDs appeared to refer to this same MedStar Subject ID; as such, the APS Person IDs were revised, and the true-pair was kept in group 2020.
+
+-   There were two APS Person IDs matched to two MedStar Subject IDs in group 1320. Both APS Person IDs appeared to refer to one of the MedStar Subject IDs; as such, the APS Person IDs were revised, and the true-pair was kept in group 1320.
 
 ```{r}
+ms_source_map <- tibble::tibble(
+  'old_id' = list(),
+  'new_id' = list()
+)
+
 # Replacing MedStar Subject ID Values from Group 90
 
-out <- replace_ms_ids(8396, 17784)
-
-medstar <- out$medstar_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+ms_source_map <- build_source_map(ms_source_map, "ms", 8396, 17784)
 
 # Replacing MedStar Subject ID Values from Group 805
 
-out <- replace_ms_ids(11359, 417)
-
-medstar <- out$medstar_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+ms_source_map <- build_source_map(ms_source_map, "ms", 11359, 417)
 
 # Replacing MedStar Subject ID Values from Group 1329
 
-out <- replace_ms_ids(13306, 12038)
-
-medstar <- out$medstar_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+ms_source_map <- build_source_map(ms_source_map, "ms", 13306, 12038)
 
 # Replacing MedStar Subject ID Values from Group 1422
 
-out <- replace_ms_ids(6063, 18141)
-
-medstar <- out$medstar_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+ms_source_map <- build_source_map(ms_source_map, "ms", 6063, 18141)
 
 # Replacing MedStar Subject ID Values from Group 1521
 
-out <- replace_ms_ids(3362, 31990)
-
-medstar <- out$medstar_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+ms_source_map <- build_source_map(ms_source_map, "ms", 3362, 31990)
 ```
 
 ```{r}
+aps_source_map <- tibble::tibble(
+  'old_id' = list(),
+  'new_id' = list()
+)
+
+
 # Replacing APS Person ID Values from Group 132
 
-out <- replace_aps_ids(c(3645,3646), 3643)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", c(3645,3646), 3643)
 
 # Replacing APS Person ID Values from Group 185
 
-out <- replace_aps_ids(4960, 4958)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", 4960, 4958)
 
 # Replacing APS Person ID Values from Group 189
 
-out <- replace_aps_ids(5033, 5031)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", 5033, 5031)
 
 # Replacing APS Person ID Values from Group 198
 
-out <- replace_aps_ids(5220, 5219)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", 5220, 5219)
 
 # Replacing APS Person ID Values from Group 239
 
-out <- replace_aps_ids(c(779,781), 778)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", c(779,781), 778)
 
 # Replacing APS Person ID Values from Group 412
 
-out <- replace_aps_ids(334, 333)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", 334, 333)
 
 # Replacing APS Person ID Values from Group 516
 
-out <- replace_aps_ids(4254, 4252)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", 4254, 4252)
 
 # Replacing APS Person ID Values from Group 764
 
-out <- replace_aps_ids(c(7604,7605), 7603)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", c(7604,7605), 7603)
 
 # Replacing APS Person ID Values from Group 801
 
-out <- replace_aps_ids(8749, 8746)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", 8749, 8746)
 
 # Replacing APS Person ID Values from Group 856
 
-out <- replace_aps_ids(11038, 10339)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", 11038, 10339)
 
 # Replacing APS Person ID Values from Group 992
 
-out <- replace_aps_ids(7657, 7655)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", 7657, 7655)
 
 # Replacing APS Person ID Values from Group 1046
 
-out <- replace_aps_ids(9244, 9243)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", 9244, 9243)
 
 # Replacing APS Person ID Values from Group 1050
 
-out <- replace_aps_ids(9321, 9320)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", 9321, 9320)
 
 # Replacing APS Person ID Values from Group 1056
 
-out <- replace_aps_ids(9500, 9483)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", 9500, 9483)
 
 # Replacing APS Person ID Values from Group 1079
 
-out <- replace_aps_ids(10499, 10497)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", 10499, 10497)
 
 # Replacing APS Person ID Values from Group 1422
 
-out <- replace_aps_ids(c(12528,12533,12534), 12527)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", 
+                                   c(12528,12533,12534), 12527)
 
 # Replacing APS Person ID Values from Group 1488
 
-out <- replace_aps_ids(14324, 14325)
-
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+aps_source_map <- build_source_map(aps_source_map, "aps", 14324, 14325)
 
 # Replacing APS Person ID Values from Group 1502
 
-out <- replace_aps_ids(c(14512, 14520), 14505)
+aps_source_map <- build_source_map(aps_source_map, "aps", 
+                                   c(14512, 14520), 14505)
 
-aps <- out$aps_
-id_base <- out$id_base_
-id_stacked <- out$id_stacked_
-checking <- out$checking_
+# Replacing APS Person ID Values from Group 1559
+
+aps_source_map <- build_source_map(aps_source_map, "aps", 15838, 15837)
+
+# Replacing APS Person ID Values from Group 1795
+
+aps_source_map <- build_source_map(aps_source_map, "aps", 
+                                   c(17402, 17404), 17400)
+
+# Replacing APS Person ID Values from Group 1854
+
+aps_source_map <- build_source_map(aps_source_map, "aps", 
+                                   c(13547, 13559, 13563), 13546)
+
+# Replacing APS Person ID Values from Group 1892
+
+aps_source_map <- build_source_map(aps_source_map, "aps", 15049, 15048)
+
+# Replacing APS Person ID Values from Group 2020
+
+aps_source_map <- build_source_map(aps_source_map, "aps", 13829, 13828)
+
+# Replacing APS Person ID Values from Group 1320
+
+aps_source_map <- build_source_map(aps_source_map, "aps", 8755, 8753)
 ```
 
+We verified our source map did not result in any unexpected mapping.
+
+```{r}
+length(unique(aps_source_map$old_id)) == nrow(aps_source_map)
+sum(aps_source_map$old_id %in% aps_source_map$new_id)
+sum(aps_source_map$new_id %in% aps_source_map$old_id)
+
+
+length(unique(ms_source_map$old_id)) == nrow(ms_source_map)
+sum(ms_source_map$old_id %in% ms_source_map$new_id)
+sum(ms_source_map$new_id %in% ms_source_map$old_id)
+```
+
+We applied our revisions across all cleaning data sets.
+
+```{r}
+aps <- aps %>%
+  mutate(aps_person_id = ifelse((aps_person_id %in% aps_source_map$old_id),
+                                 aps_source_map$new_id[
+                                   match(aps_person_id, aps_source_map$old_id)],
+                                 aps_person_id
+                                )
+  )
+
+id_base <- id_base %>%
+  mutate(aps_person_id = ifelse((aps_person_id %in% aps_source_map$old_id),
+                                 aps_source_map$new_id[
+                                   match(aps_person_id, aps_source_map$old_id)],
+                                 aps_person_id
+                                )
+  )
+
+id_stacked <- id_stacked %>%
+  mutate(source_id = ifelse(
+    ((source_id %in% aps_source_map$old_id) & source == "APS"),
+    aps_source_map$new_id[match(source_id, aps_source_map$old_id)],
+    source_id
+    )
+  )
+
+checking <- checking %>%
+  mutate(source_id = ifelse(
+    ((source_id %in% aps_source_map$old_id) & source == "APS"),
+    aps_source_map$new_id[match(source_id, aps_source_map$old_id)],
+    source_id
+    )
+  )
+
+
+medstar <- medstar %>%
+  mutate(ms_id = ifelse((ms_id %in% ms_source_map$old_id),
+                        ms_source_map$new_id[match(ms_id, ms_source_map$old_id)],
+                        ms_id
+                        )
+  )
+
+id_base <- id_base %>%
+  mutate(ms_id = ifelse((ms_id %in% ms_source_map$old_id),
+                        ms_source_map$new_id[match(ms_id, ms_source_map$old_id)],
+                        ms_id
+                        )
+  )
+
+id_stacked <- id_stacked %>%
+  mutate(source_id = ifelse(
+    ((source_id %in% ms_source_map$old_id) & source == "MedStar"),
+    ms_source_map$new_id[match(source_id, ms_source_map$old_id)],
+    source_id
+    )
+  )
+
+checking <- checking %>%
+  mutate(source_id = ifelse(
+    ((source_id %in% ms_source_map$old_id) & source == "MedStar"),
+    ms_source_map$new_id[match(source_id, ms_source_map$old_id)],
+    source_id
+    )
+  )
+```
 
 ###### Individual Assignments
 
-*The @ groups which contained multiple APS Person IDs and/or MedStar Subject IDs were resolved with individual assignments of Group ID each Source Subject ID. This resulted in the manual assignment of Group ID to @ APS Person IDs and @ MedStar Subject IDs.*
+There were 109 groups which contained multiple APS Person IDs and/or MedStar Subject IDs resolved with individual assignments of Group ID each Source Subject ID, including 19 of the groups which received adjustments to APS Person ID or MedStar Subject ID Assignments. This resulted in the manual assignment of 103 Group IDs (net loss of 6 Group ID values), and manual assignment of Group ID to 44 APS Person ID values and 76 MedStar Subject ID values.
 
--   The two APS Person IDs and two MedStar Subject IDs represented in group 23 were repeated in groups 230, 1626, and 1627. This grouping appeared to be a familial pair that were represented in both data sets. The single MedStar Subject ID and single APS Person ID for each subject were separated into groups 23 and 230. 
+-   The two APS Person IDs and two MedStar Subject IDs represented in group 23 were repeated in groups 230, 1626, and 1627. This grouping appeared to be a familial pair that were represented in both data sets. The single MedStar Subject ID and single APS Person ID for each subject were separated into groups 23 and 230.
 
--   The two APS Person IDs and two MedStar Subject IDs represented in group 25 were repeated in groups 233,923, and 924. This grouping appeared to be a familial pair that were represented in both data sets. The single MedStar Subject ID and single APS Person ID for each subject were separated into groups 25 and 233.
+-   The two APS Person IDs and two MedStar Subject IDs represented in group 25 were repeated in groups 233, 923, and 924. This grouping appeared to be a familial pair that were represented in both data sets. The single MedStar Subject ID and single APS Person ID for each subject were separated into groups 25 and 233.
 
 -   There were three APS Person IDs and two MedStar Subject IDs represented in group 48. There was a true pair between one MedStar Subject ID and one APS Person ID. Neither of the two remaining APS Person IDs did not match the remaining MedStar Subject ID, and the IDs appeared to be valid separations (rather than failed matches). The matching pair were separated into group 48. The remaining APS Person IDs were separated into groups 1626 and 1627. The remaining MedStar Subject ID was separated into group 923.
 
@@ -1816,11 +1936,9 @@ checking <- out$checking_
 
 -   The pairings in group 992 were repeated in groups 995 and 994. These were consolidated into group 992.
 
--   There were two MedStar Subject IDs matched with a single APS Person ID in group 993. One of these values matched. The mismatched MedStar Subject IDs were separated into groups 994 and 995, and the APS Person ID into group 993.
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 993. None of these values matched. The mismatched MedStar Subject IDs were separated into groups 994 and 995, and the APS Person ID into group 993.
 
 -   There were two MedStar Subject IDs matched with a single APS Person ID in group 1046, repeated into groups 1047 and 1333. The true-pair was consolidated into group 1046. The mismatched MedStar Subject ID was separated into group 1047, and the APS Person ID was separated into group 1046.
-
--   The MedStar Subject ID in group 1050 was not matched, and was separated into group 1151.
 
 -   There were two MedStar Subject IDs matched with a single APS Person ID in group 1052. The mismatched MedStar Subject ID was separated into group 1333.
 
@@ -1828,15 +1946,15 @@ checking <- out$checking_
 
 -   There were two MedStar Subject IDs matched with a single APS Person ID in group 1108. The mismatched MedStar Subject ID was separated into group 1374.
 
--   There were two MedStar Subject IDs matched with a single APS Person ID in group 1111. The mismatched MedStar Subject ID was separated into group 2188.
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1111. The mismatched MedStar Subject ID was separated into group 1645.
 
--   There were two MedStar Subject IDs matched with a single APS Person ID in group 1133. The mismatched MedStar Subject ID was separated into group 2189.
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1133. The mismatched MedStar Subject ID was separated into group 1773.
 
--   There were three MedStar Subject IDs matched with a single APS Person ID in group 1144. The two mismatched MedStar Subject ID was separated into groups 2190 and 2191.
+-   There were three MedStar Subject IDs matched with a single APS Person ID in group 1144. The two mismatched MedStar Subject IDs were separated into groups 1798 and 1727.
 
--   There were two MedStar Subject IDs matched with a single APS Person ID in group 1249. The mismatched MedStar Subject ID was separated into group 2191.
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1249. The mismatched MedStar Subject ID was separated into group 1728.
 
--   There were two MedStar Subject IDs matched with a single APS Person ID in group 1320. The mismatched MedStar Subject ID was separated into group 2193.
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1320. The mismatched MedStar Subject ID was separated into group 1868.
 
 -   There were two APS Person IDs matched with two MedStar Subject IDs in group 1395, repeated in groups 1681 and 2019. These appeared to be two pairs with similar names that appeared in both data sets. The true pairs were separated into groups 1395 and 1681.
 
@@ -1848,13 +1966,44 @@ checking <- out$checking_
 
 -   There were two MedStar Subject IDs matched with a single APS Person ID in group 1555. The mismatched MedStar Subject ID was separated into group 1424.
 
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1557. The mismatched MedStar Subject ID was separated into group 1425.
+
+-   The pairings in group 1576 was repeated in groups 1577 and 1578. These were consolidated into group 1576.
+
+-   There were two APS Person IDs matched with two MedStar Subject IDs in group 1579, repeated in groups 1587 and 1773. These appeared to be two familial pairs that appeared in both data sets. The true pairs were separated into groups 1587 and 1773.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1617, repeated in groups 1618 and 1798. The true-pair was consolidated into group 1617, and the mismatched MedStar Subject ID was separated into group 1618.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1643, repeated in groups 1644 and 1645. The true-pair was consolidated into group 1643, and the mismatched APS Person ID was separated into group 1644.
+
+-   There were three MedStar Subject IDs matched with a single APS Person ID in group 1647, repeated in groups 1648 and 1973. This appeared to be a true-pair crossed with individuals with near-identical names. The true-pair was consolidated into group 1647, and the two mismatched MedStar Subject IDs were separated into groups 1648 and 1973.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1685. The mismatched MedStar Subject ID was separated into group 1475.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1710. The mismatched MedStar Subject ID was separated into group 1476.
+
+-   The pairings in group 1726 was repeated in groups 1727 and 1728. These were consolidated into group 1726.
+
+-   The pairings in group 1854 were repeated in groups 1855 and 2013, and included a mismatched MedStar Subject ID. The true-pair was consolidated into group 1854, and the mismatched MedStar Subject ID was separated into group 1855.
+
+-   There were two APS Person IDs matched with two MedStar Subject IDs in group 1866, repeated in groups 1867, 1868, 1869, and 1871. These appeared to be two true-pairs with similar names that appeared in both data sets. The true pairs were separated into groups 1866 and 1867.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1889. The mismatched MedStar Subject ID was separated into group 1577.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1934. The mismatched MedStar Subject ID was separated into group 1578.
+
+-   There were two MedStar Subject IDs and two APS Person IDs matched in group 125, repeated in groups 126, 1580, and 1581. These appeared to be two true-pairs with similar names that appeared in both data sets. The true pairs were separated into groups 125 and 126.
+
 ```{r}
 point_groups <- c(23, 230, 1626, 1627, 25, 233, 923, 924, 48, 90, 91, 92, 101, 
-                  212, 708, 149, 511, 1543, 1544, 148, 177, 178, 179, 180, 412, 
+                  212, 708, 149, 511, 1543, 1544, 177, 178, 179, 180, 412, 
                   413, 414, 507, 508, 1150, 1151, 516, 517, 667, 805, 806, 807,
                   1038, 814, 815, 816, 992, 993, 994, 995, 1046, 1047, 1333,
-                  1050, 1052, 1236, 1237, 1374, 1395, 1681, 2019, 1422, 1423,
-                  1424, 1425, 1474, 1475, 1476)
+                  1236, 1237, 1374, 1395, 1681, 2019, 1422, 1423, 1579,
+                  1424, 1425, 1474, 1475, 1476, 1576, 1577, 1578, 1587, 1773,
+                  1617, 1618, 1798, 1643, 1644, 1645, 1647, 1648, 1973, 1726,
+                  1727, 1728, 1854, 1855, 2013, 1866, 1867, 1868, 1869, 1871,
+                  125, 126, 1580, 1581)
 
 aps_temp <- as_tibble(
   matrix(data=NA, nrow=0, ncol=2), .name_repair = ~c('id', 'aps_person_id')
@@ -1871,7 +2020,7 @@ aps_temp <- aps_temp %>%
   ) %>%
   add_replacement_rows(
     25, 
-    get_subjid_from_row(id_stacked, packed_data, 650, j=2)
+    get_subjid_from_row(id_stacked, packed_data, 646, j=2)
   ) %>%
   add_replacement_rows(
     233, 
@@ -1895,7 +2044,7 @@ aps_temp <- aps_temp %>%
   ) %>%
   add_replacement_rows(
     101, 
-    get_subjid_from_row(id_stacked, packed_data, 2751, j=2)
+    get_subjid_from_row(id_stacked, packed_data, 2748, j=2)
   ) %>%
   add_replacement_rows(
     212, 
@@ -1903,7 +2052,7 @@ aps_temp <- aps_temp %>%
   ) %>%
   add_replacement_rows(
     91, 
-    get_subjid_from_row(id_stacked, packed_data, 15616, j=2)
+    get_subjid_from_row(id_stacked, packed_data, 15617, j=2)
   ) %>%
   add_replacement_rows(
     149, 
@@ -1984,8 +2133,63 @@ aps_temp <- aps_temp %>%
   add_replacement_rows(
     1474, 
     get_subjid_from_row(id_stacked, packed_data, 14030, j=2)
-  ) 
-
+  ) %>%
+  add_replacement_rows(
+    1576, 
+    get_subjid_from_row(id_stacked, packed_data, 16360, j=2)
+  ) %>%
+  add_replacement_rows(
+    1579, 
+    get_subjid_from_row(id_stacked, packed_data, 16460, j=2)
+  ) %>%
+  add_replacement_rows(
+    1587, 
+    get_subjid_from_row(id_stacked, packed_data, 16764, j=2)
+  ) %>%
+  add_replacement_rows(
+    1617, 
+    get_subjid_from_row(id_stacked, packed_data, 17491, j=2)
+  ) %>%
+  add_replacement_rows(
+    1643, 
+    get_subjid_from_row(id_stacked, packed_data, 12222, j=2)
+  ) %>%
+  add_replacement_rows(
+    1644, 
+    get_subjid_from_row(id_stacked, packed_data, 12221, j=2)
+  ) %>%
+  add_replacement_rows(
+    1647, 
+    get_subjid_from_row(id_stacked, packed_data, 12329, j=2)
+  ) %>%
+  add_replacement_rows(
+    1726, 
+    get_subjid_from_row(id_stacked, packed_data, 15177, j=2)
+  )%>%
+  add_replacement_rows(
+    1854, 
+    get_subjid_from_row(id_stacked, packed_data, 13546, j=2)
+  ) %>%
+  add_replacement_rows(
+    1866, 
+    get_subjid_from_row(id_stacked, packed_data, 14093, j=2)
+  ) %>%
+  add_replacement_rows(
+    1867, 
+    get_subjid_from_row(id_stacked, packed_data, 14121, j=2)
+  ) %>%
+  add_replacement_rows(
+    125, 
+    get_subjid_from_row(id_stacked, packed_data, 3547, j=2)
+  ) %>%
+  add_replacement_rows(
+    126, 
+    get_subjid_from_row(id_stacked, packed_data, 16619, j=2)
+  ) %>%
+  add_replacement_rows(
+    993, 
+    get_subjid_from_row(id_stacked, packed_data, 7656, j=2)
+  )
 
 ms_temp <- as_tibble(
   matrix(data=NA, nrow=0, ncol=2), .name_repair = ~c('id', 'ms_id')
@@ -1994,7 +2198,7 @@ ms_temp <- as_tibble(
 ms_temp <- ms_temp %>%
   add_replacement_rows(
     23,
-    get_subjid_from_row(id_stacked, packed_data, 2356, j=1)
+    get_subjid_from_row(id_stacked, packed_data, 11097, j=1)
   ) %>%
   add_replacement_rows(
     230,
@@ -2002,7 +2206,7 @@ ms_temp <- ms_temp %>%
   ) %>%
   add_replacement_rows(
     25, 
-    get_subjid_from_row(id_stacked, packed_data, 7110, j=1)
+    get_subjid_from_row(id_stacked, packed_data, 1376, j=1)
   ) %>%
   add_replacement_rows(
     233, 
@@ -2038,7 +2242,7 @@ ms_temp <- ms_temp %>%
   ) %>%
   add_replacement_rows(
     708, 
-    get_subjid_from_row(id_stacked, packed_data, 154, j=1)
+    get_subjid_from_row(id_stacked, packed_data, 9378, j=1)
   ) %>%
   add_replacement_rows(
     149, 
@@ -2054,7 +2258,7 @@ ms_temp <- ms_temp %>%
   ) %>%
   add_replacement_rows(
     178, 
-    get_subjid_from_row(id_stacked, packed_data, 3656, j=1)
+    get_subjid_from_row(id_stacked, packed_data, 26113, j=1)
   ) %>%
   add_replacement_rows(
     179, 
@@ -2145,10 +2349,6 @@ ms_temp <- ms_temp %>%
     get_subjid_from_row(id_stacked, packed_data, 14653, j=1)
   ) %>%
   add_replacement_rows(
-    1151, 
-    get_subjid_from_row(id_stacked, packed_data, 21305, j=1)
-  ) %>%
-  add_replacement_rows(
     1333, 
     get_subjid_from_row(id_stacked, packed_data, 9136, j=1)
   ) %>%
@@ -2162,30 +2362,30 @@ ms_temp <- ms_temp %>%
   ) %>%
   add_replacement_rows(
     1374, 
-    get_subjid_from_row(id_stacked, packed_data, 11056, j=1)
+    get_subjid_from_row(id_stacked, packed_data, 19660, j=1)
   ) %>%
   add_replacement_rows(
-    2188, 
+    1645, 
     get_subjid_from_row(id_stacked, packed_data, 17918, j=1)
   ) %>%
   add_replacement_rows(
-    2189, 
-    get_subjid_from_row(id_stacked, packed_data, 4882, j=1)
+    1773, 
+    get_subjid_from_row(id_stacked, packed_data, 19072, j=1)
   ) %>%
   add_replacement_rows(
-    2190, 
+    1798, 
     get_subjid_from_row(id_stacked, packed_data, 5225, j=1)
   ) %>%
   add_replacement_rows(
-    2191, 
+    1727, 
     get_subjid_from_row(id_stacked, packed_data, 14090, j=1)
   ) %>%
   add_replacement_rows(
-    2192, 
+    1728, 
     get_subjid_from_row(id_stacked, packed_data, 22364, j=1)
   ) %>%
   add_replacement_rows(
-    2193, 
+    1868, 
     get_subjid_from_row(id_stacked, packed_data, 16370, j=1)
   ) %>%
   add_replacement_rows(
@@ -2211,45 +2411,103 @@ ms_temp <- ms_temp %>%
   add_replacement_rows(
     1424, 
     get_subjid_from_row(id_stacked, packed_data, 19737, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1425, 
+    get_subjid_from_row(id_stacked, packed_data, 34290, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1576, 
+    get_subjid_from_row(id_stacked, packed_data, 18266, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1579, 
+    get_subjid_from_row(id_stacked, packed_data, 6048, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1587, 
+    get_subjid_from_row(id_stacked, packed_data, 1443, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1617, 
+    get_subjid_from_row(id_stacked, packed_data, 22555, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1618, 
+    get_subjid_from_row(id_stacked, packed_data, 1914, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1643, 
+    get_subjid_from_row(id_stacked, packed_data, 1762, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1647, 
+    get_subjid_from_row(id_stacked, packed_data, 578, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1648, 
+    get_subjid_from_row(id_stacked, packed_data, 18327, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1973, 
+    get_subjid_from_row(id_stacked, packed_data, 9936, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1475, 
+    get_subjid_from_row(id_stacked, packed_data, 27519, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1476, 
+    get_subjid_from_row(id_stacked, packed_data, 2403, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1726, 
+    get_subjid_from_row(id_stacked, packed_data, 2923, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1854, 
+    get_subjid_from_row(id_stacked, packed_data, 8154, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1855, 
+    get_subjid_from_row(id_stacked, packed_data, 31569, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1866, 
+    get_subjid_from_row(id_stacked, packed_data, 23486, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1867, 
+    get_subjid_from_row(id_stacked, packed_data, 13390, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1577, 
+    get_subjid_from_row(id_stacked, packed_data, 22808, j=1)
+  ) %>%  
+  add_replacement_rows(
+    1578, 
+    get_subjid_from_row(id_stacked, packed_data, 35351, j=1)
+  ) %>%  
+  add_replacement_rows(
+    125, 
+    get_subjid_from_row(id_stacked, packed_data, 17398, j=1)
+  ) %>%  
+  add_replacement_rows(
+    126, 
+    get_subjid_from_row(id_stacked, packed_data, 20856, j=1)
   ) 
 ```
 
+###### Simple Splits & Remaining Groups
 
-```{r}
-aps_t = 14030
-ms_t = 4200
-
-a1 <- aps[aps$aps_row %in% aps_t, ]
-a2 <- medstar[medstar$ms_epcr_row %in% ms_t,]
-
-print(a1)
-print(a2)
-print(a1$aps_person_id)
-print(a2$ms_id)
-```
-
-
-```{r}
-aps_t = 39286767
-ms_t = c(2608,2432)
-
-a1 <- aps[aps$aps_person_id %in% aps_t, ]
-a2 <- medstar[medstar$ms_id %in% ms_t,]
-
-print(a1)
-print(a2)
-```
-
-
-# MS REMAINDER PLACEHOLDER
-
-*There were an additional @ groups which contained a single mismatched APS Person ID and MedStar Subject ID. These values were split so that the MedStar Subject ID would retain the first original Group ID, and the APS Person ID would receive a new Group ID. This resulted in the assignment of all @ remaining MedStar Subject IDs to the remaining Group IDs.*
+There were an additional 3 groups which contained a single mismatched APS Person ID and MedStar Subject ID. These values were split so that the MedStar Subject ID would retain the first original Group ID, and the APS Person ID would receive a new Group ID. As such, the remaining 108 MedStar Subject IDs were added to the Group ID map.
 
 ```{r}
 agg_groups <- setdiff(all_groups, point_groups)
 
 ms_temp_group <- checking %>%
-  filter( (id %in% agg_groups) & (source == "MedStar") 
+  filter( (id %in% agg_groups) & (source == "MedStar") & 
+            !(source_id %in% ms_temp$ms_id)
           ) %>%
   select(id, source_id) %>%
   distinct()
@@ -2259,19 +2517,17 @@ colnames(ms_temp_group)[2] <- "ms_id"
 ms_temp <- rbind(ms_temp, ms_temp_group)
 ```
 
-# SIMPLE SPLIT PLACEHOLDER
-
-*The separation of @ APS Subject IDs resulted in the creation of @ novel Group IDs (Group IDs 2189 - @). The final @ APS Subject IDs which were accurately paired with a single MedStar Subject ID were also added to the replacement map.*
+The three mismatched APS Person IDs were split, resulting in the reclamation of 3 Group ID values (net loss of 3 Group IDs). The final 105 APS Subject IDs which were accurately paired with a single MedStar Subject ID were also added to the Group ID map.
 
 ```{r}
-groups <- c(36,)
+groups <- c(36, 1053, 1670)
 
 aps_temp_group <- checking %>%
   filter( (id %in% groups) & (source == "APS") 
           ) %>%
   select(source_id) %>%
   distinct() %>%
-  mutate(id = row_number() + 2189) %>%
+  mutate(id = c(2194, 1869, 2013)) %>%
   relocate(id)
   
 colnames(aps_temp_group)[2] <- "aps_person_id"
@@ -2279,7 +2535,8 @@ colnames(aps_temp_group)[2] <- "aps_person_id"
 aps_temp <- rbind(aps_temp, aps_temp_group)
 
 aps_temp_group <- checking %>%
-  filter( (id %in% setdiff(agg_groups,groups)) & (source == "APS") 
+  filter( (id %in% setdiff(agg_groups,groups)) & (source == "APS") &
+            !(source_id %in% aps_temp$aps_person_id)
           ) %>%
   select(id, source_id) %>%
   distinct()
@@ -2289,9 +2546,9 @@ colnames(aps_temp_group)[2] <- "aps_person_id"
 aps_temp <- rbind(aps_temp, aps_temp_group)
 ```
 
-# CHECK PLACEHOLDER
+###### Checking Map Assignments
 
-We checked to ensure that we had assigned a Group ID to all @ APS Person IDs and all @ MedStar Subject IDs in the subset. We had no duplicate values for either APS Person ID or MedStar Subject ID. None of the new map values were already present in the replacement map.
+We checked to ensure that we had assigned a Group ID to all 153 APS Person IDs and all 183 MedStar Subject IDs in the subset. We had no duplicate values for either APS Person ID or MedStar Subject ID. None of the new map values were already present in the replacement map.
 
 ```{r}
 nrow(aps_temp)
@@ -2317,18 +2574,13 @@ checking <- checking %>%
   filter(!(id %in% all_groups))
 ```
 
+#### Group IDs Assigned Outside of the Verification Range
 
-# Bottom Placeholder
-
-# TEMPLATE
-
-#### Group IDs Assigned Within the Verification Range
-
-*There were @ remaining pairs, across @ Group IDs associated with @ APS Person IDs and @ MedStar Subject IDs that were assigned within the posterior probability range of 0.45 - 0.93 and possessed duplicate APS Row Number values. All of these groups were also represented in pairs outside of the posterior probability threshold of 0.45 - 0.93.*
+There were 1952 remaining pairs, across 571 Group IDs associated with 589 APS Person IDs and 560 MedStar Subject IDs that were assigned outside of the posterior probability range of 0.45 - 0.93 and possessed duplicate APS Row Number values.
 
 ```{r}
 checking_cols <- filter(checking, 
-                        (flag_posterior & flag_aps)
+                        (!flag_posterior & flag_aps)
                         )
 
 nrow(checking_cols)/2
@@ -2346,13 +2598,12 @@ length(unique(checking_cols %>%
               )$source_id
        )
 
-within_groups <- unique(checking_cols$id)
-sum(!(within_groups %in% without_groups))
+without_groups <- unique(checking_cols$id)
 ```
 
 ##### Search & Verification
 
-*We examined the search space for each of the @ Group IDs in this set. The total search space contained a total of @ Group IDs, which indicated that there was overlap in observations with another group outside of the targeted set.*
+We examined the search space for each of the 571 Group IDs in this set. The total search space contained a total of 571 Group IDs, indicating no further overlap.
 
 ```{r}
 target_groups <- unique(checking_cols$id)
@@ -2369,7 +2620,7 @@ We performed our search, which indicated there were multiple groups with more th
 search <- search_by_group(checking, packed_data, target_groups, recursive = TRUE)
 ```
 
-*Our search contained @ observations, which included 198 Group IDs, @ MedStar Subject IDs, and @ APS Subject IDs. There were exactly @ distinct combinations of Group ID and MedStar Subject ID, and @ distinct combinations of Group ID and APS Person ID - as such, each of these Group IDs represented multiple repeated APS Subject IDs and MedStar Subject IDs.*
+Our search contained 18,983 observations, which included 571 Group IDs, 560 MedStar Subject IDs, and 589 APS Subject IDs. There were exactly 593 distinct combinations of Group ID and MedStar Subject ID, and 623 distinct combinations of Group ID and APS Person ID - as such, each of these Group IDs represented multiple repeated APS Subject IDs and MedStar Subject IDs.
 
 ```{r}
 nrow(search)
@@ -2395,31 +2646,557 @@ nrow(distinct(search %>%
      )
 ```
 
-Each group was manually inspected to ensure that each Group ID referred to a single individual, and that each group contained exactly one APS Person ID and one MedStar Subject ID. 
-
-*It was found that the Group 484 repeated in groups 485, 1852, and 1853 which referenced multiple APS Person IDs; groups 931 and 932 repeated in groups 1412 and 1413 and referenced multiple MedStar Subject IDs and APS Person IDs. Group 1095 referenced more than one MedStar Subject ID.*
+Of these groups, 482 contained only one MedStar Subject ID and one APS Person ID in a single group, 21 were duplicated representations of the same single MedStar Subject ID and single APS Person ID in a single group, 47 groups contained more than one MedStar Subject ID and/or APS Person ID, and 21 contained more than one MedStar Subject ID and/or APS Person ID across multiple groups.
 
 ```{r}
-#for (i in 1:length(target_groups)){
-for (i in 1:10){
-  print(search_by_group(id_stacked, 
-                        packed_data, 
-                        groups = target_groups[i], 
-                        recursive = TRUE)
-        )
+quickcheck_groups <- list()
+repeated_groups <- list()
+multiid_groups <- list()
+complex_groups <-list()
+
+for (i in 1:length(target_groups)){
+  
+  a <- get_all_groups_subjids(id_stacked, packed_data, target_groups[i])
+  
+  if (
+    (length(a$group) == 1) & (length(a$id_a) == 1) & (length(a$id_b) == 1)
+    ){
+    quickcheck_groups <- unique(c(quickcheck_groups, a$group))
+  }
+  
+  if(
+    (length(a$group) != 1) & (length(a$id_a) == 1) & (length(a$id_b) == 1)
+    ){
+    repeated_groups <- unique(c(repeated_groups, a$group))
+  }
+  
+  if(
+    (length(a$group) == 1) & (!(length(a$id_a) == 1) | !(length(a$id_b) == 1)
+                              )
+    ){
+    multiid_groups <- unique(c(multiid_groups, a$group))
+  }
+  
+  if(
+    !(length(a$group) == 1) & (!(length(a$id_a) == 1) | !(length(a$id_b) == 1))
+  ){
+    complex_groups <- unique(c(complex_groups, a$group))
+  }
 }
+
+length(quickcheck_groups)
+
+length(repeated_groups)
+
+length(multiid_groups)
+
+length(complex_groups)
+```
+
+We verified that all groups were mutually exclusive.
+
+```{r}
+sum(quickcheck_groups %in% c(repeated_groups, multiid_groups, complex_groups))
+
+sum(repeated_groups %in% c(quickcheck_groups, multiid_groups, complex_groups))
+
+sum(multiid_groups %in% c(quickcheck_groups, repeated_groups, complex_groups))
+
+sum(complex_groups %in% c(quickcheck_groups, repeated_groups, multiid_groups))
+```
+
+The 482 groups which contained a single MedStar subject ID and single APS Person ID in one group were manually checked. Only three of these groups were mismatched.
+
+```{r}
+# for (i in 1:length(quickcheck_groups)){
+#   print(search_by_group(id_stacked, 
+#                         packed_data, 
+#                         groups = quickcheck_groups[i], 
+#                         recursive = TRUE)
+#         )
+# }
+```
+
+The 21 groups in which a single match was repeated in more than one group were manually checked. This section was found to contain 7 distinct groups of individual true-match pairs, each of which was repeated three times. This resulted in the removal of 14 Group IDs.
+
+```{r}
+# for (i in 1:length(repeated_groups)){
+#   print(search_by_group(id_stacked, 
+#                         packed_data, 
+#                         groups = repeated_groups[i], 
+#                         recursive = TRUE)
+#         )
+# }
+```
+
+The 47 groups with more than one MedStar Subject ID and/or APS Person ID within a single group were manually checked. Of these, 6 groups received a revised MedStar Subject ID, 34 groups received a revised APS Person ID, 2 had a mismatched APS Person ID, and 6 had a mismatched MedStar Subject ID. A total of 39 APS Person IDs and 6 MedStar Subject IDs were reduced. A total of 8 Group IDs were reclaimed.
+
+```{r}
+#for (i in 1:length(multiid_groups)){
+#   print(search_by_group(id_stacked, 
+#                         packed_data, 
+#                         groups = multiid_groups[i], 
+#                         recursive = TRUE)
+#         )
+# }
+```
+
+The 21 groups in which pairs containing more than one APS Person ID and/or MedStar Subject ID that appear in more than one group were manually examined. This subset consisted of 7 groups which were repeated twice; 4 of these groups (12 when counting repetitions) received a revised APS Person ID, 1 group (3 when counting repetitions) received a revised MedStar Subject ID, 2 groups (6 when counting repetitions) had a mismatched MedStar Subject ID, and 1 group (3 when counting repetitions) had two true-pairs. A total of 4 APS Person IDs and 1 MedStar Subject ID were reduced. A total of 11 Group IDs were removed, as these 21 groups were consolidated into 10 Group IDs.
+
+```{r}
+# for (i in 1:length(complex_groups)){
+#   print(search_by_group(id_stacked, 
+#                         packed_data, 
+#                         groups = complex_groups[i], 
+#                         recursive = TRUE)
+#         )
+# }
 ```
 
 ##### Match Map Assignments
 
-*Of the @ Group IDs in our search space, @ Group IDs represented pairings that did not require modification after manual verification (@% mismatch rate).*
+Of the 571 Group IDs in our search space, 479 Group IDs represented pairings that did not require modification after manual verification (16.11% mismatch rate). There were 55 groups which received modification of Source Subject ID values, 50 groups which were resolved with individual assignments of Group ID (including 42 groups that had received Source Subject ID modification), 3 groups which received a simple split between the mismatched APS Person ID and MedStar Subject ID, and 526 that received no modification to Group ID.
 
-*The @ groups which contained multiple APS Person IDs and/or MedStar Subject IDs were resolved with individual assignments of Group ID each Source Subject ID. This resulted in the manual assignment of Group ID to @ APS Person IDs and @ MedStar Subject IDs.*
-    
-*-   The two APS Person IDs repeated in groups 484, 485, 1852, and 1853 did not refer to the same individual. Only one of the APS Subject IDs reflected a valid Group ID with the single MedStar Subject ID in the Groups. The MedStar Subject ID and corresponding APS Person ID were separated into group 484. The mismatched APS Subject ID was separated into group 485.*
+###### Revisions of Source ID
+
+In reviewing the matches between the data sets, there were 55 groups with values of APS Person ID and MedStar Subject ID which appeared to be failed matches in their source data set. The revision of these failed matches resulted in the reduction of 43 APS Person IDs and 7 MedStar Subject IDs, and the reconciliation of the 42 groups into 17 groups.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 11. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 11.
+
+-   There were three APS Person IDs matched with a single MedStar Subject ID in group 16. All APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 16.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 37. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 37.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 38. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 38.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 44. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 44.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 49. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 49.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 83. Both MedStar Subject IDs appeared to reference this individual APS Person ID; as such, the MedStar Subject IDs were revised and the true-pair kept in group 83.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 96. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 96.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 204. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 204.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 214. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 214.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 277. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 277.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 346. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 346.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 452. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 452.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 532. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 532.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 562. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 562.
+
+-   There were four APS Person IDs matched with a single MedStar Subject ID in group 720. All APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 720.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 725. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 725.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 765. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 765.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 834. Both MedStar Subject IDs appeared to reference this individual APS Person ID; as such, the MedStar Subject IDs were revised and the true-pair kept in group 834.
+
+-   There were three APS Person IDs matched with a single MedStar Subject ID in group 863. All APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 863.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 877. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 877.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 891. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 891.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 899. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 899.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1029. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1029.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1062. Both MedStar Subject IDs appeared to reference this individual APS Person ID; as such, the MedStar Subject IDs were revised and the true-pair kept in group 1062.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1109. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1109.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1200. Both MedStar Subject IDs appeared to reference this individual APS Person ID; as such, the MedStar Subject IDs were revised and the true-pair kept in group 1200.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1210. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1210.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1213. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1213.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1386. Both MedStar Subject IDs appeared to reference this individual APS Person ID; as such, the MedStar Subject IDs were revised and the true-pair kept in group 1386.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1408. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1408.
+
+-   There were three APS Person IDs matched with a single MedStar Subject ID in group 1444. All APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1444.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1520. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1520.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1529. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1529.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1583. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1583.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1694. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1694.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1820. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1820.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1835. Both MedStar Subject IDs appeared to reference this individual APS Person ID; as such, the MedStar Subject IDs were revised and the true-pair kept in group 1835.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1938. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1938.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1962. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1962.
+
+-   There were two APS Person IDs matched with a two MedStar Subject IDs in group 157, repeated in groups 164 and 671. Both APS Person IDs and both MedStar Subject IDs appeared to reference the same subject; as such, the APS Person IDs and MedStar Subject IDs were revised, and the true-pair kept in group 157.
+
+-   There were two APS Person IDs matched with two MedStar Subject IDs in group 219, repeated in groups 220 and 221. Both APS Person IDs appeared to reference one MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 219.
+
+-   There were two MedStar Subject IDs matched with one APS Person IDs in group 903, repeated in groups 1392 and 1393. Both MedStar Subject IDs appeared to reference this individual APS Person ID; as such, the MedStar Subject IDs were revised and the true-pair kept in group 903.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 920, repeated in groups 921 and 922. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 920.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1432, repeated in groups 1433 and 1446. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1432.
 
 ```{r}
-point_groups <- c()
+aps_source_map_temp <- tibble::tibble(
+  'old_id' = list(),
+  'new_id' = list()
+)
+
+
+# Replacing APS Person ID Values from Group 11
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 324, 322)
+
+# Replacing APS Person ID Values from Group 16
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, 
+                                   "aps", c(430, 17030), 427)
+
+# Replacing APS Person ID Values from Group 37
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 1081, 1078)
+
+# Replacing APS Person ID Values from Group 38
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 1094, 1101)
+
+# Replacing APS Person ID Values from Group 44
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 1282, 1181)
+
+# Replacing APS Person ID Values from Group 49
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 1473, 1471)
+
+# Replacing APS Person ID Values from Group 96
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 2616, 2614)
+
+# Replacing APS Person ID Values from Group 204
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 5792, 5791)
+
+# Replacing APS Person ID Values from Group 214
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 6108, 6106)
+
+# Replacing APS Person ID Values from Group 277
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 2032, 2029)
+
+# Replacing APS Person ID Values from Group 346
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 4428, 4427)
+
+# Replacing APS Person ID Values from Group 452
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 1844, 1830)
+
+# Replacing APS Person ID Values from Group 532
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 4673, 4670)
+
+# Replacing APS Person ID Values from Group 562
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 5808, 5764)
+
+# Replacing APS Person ID Values from Group 720
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 
+                                        c(6347, 6350, 6349), 8266)
+
+# Replacing APS Person ID Values from Group 725
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 6455, 6452)
+
+# Replacing APS Person ID Values from Group 765
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 7611, 7609)
+
+# Replacing APS Person ID Values from Group 863
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 
+                                        c(10480,10481), 10478)
+
+# Replacing APS Person ID Values from Group 877
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 10882, 10881)
+
+# Replacing APS Person ID Values from Group 891
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 11207, 11204)
+
+# Replacing APS Person ID Values from Group 899
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 11422, 11421)
+
+# Replacing APS Person ID Values from Group 1029
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 8689, 8692)
+
+# Replacing APS Person ID Values from Group 1109
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 11933, 11926)
+
+# Replacing APS Person ID Values from Group 1210
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 10039, 10038)
+
+# Replacing APS Person ID Values from Group 1213
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 10214, 10220)
+
+# Replacing APS Person ID Values from Group 1408
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 12106, 12101)
+
+# Replacing APS Person ID Values from Group 1444
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 
+                                        c(13046, 13043), 13041)
+
+# Replacing APS Person ID Values from Group 1520
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 14977, 14976)
+
+# Replacing APS Person ID Values from Group 1529
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 15219, 15218)
+
+# Replacing APS Person ID Values from Group 1583
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 16676, 16674)
+
+# Replacing APS Person ID Values from Group 1694
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 14226, 14225)
+
+# Replacing APS Person ID Values from Group 1820
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 18036, 18034)
+
+# Replacing APS Person ID Values from Group 1938
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 16809, 16808)
+
+# Replacing APS Person ID Values from Group 1962
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 17917, 17920)
+
+# Replacing APS Person ID Values from Group 157
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 4349, 4564)
+
+# Replacing APS Person ID Values from Group 219
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 195, 196)
+
+# Replacing APS Person ID Values from Group 920
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 11821, 11817)
+
+# Replacing APS Person ID Values from Group 1432
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 13168, 12770)
+```
+
+```{r}
+ms_source_map_temp <- tibble::tibble(
+  'old_id' = list(),
+  'new_id' = list()
+)
+
+# Replacing MedStar Subject ID Values from Group 90
+
+ms_source_map_temp <- build_source_map(ms_source_map_temp, "ms", 14476, 29211)
+
+# Replacing MedStar Subject ID Values from Group 834
+
+ms_source_map_temp <- build_source_map(ms_source_map_temp, "ms", 31042, 21605)
+
+# Replacing MedStar Subject ID Values from Group 1062
+
+ms_source_map_temp <- build_source_map(ms_source_map_temp, "ms", 911, 1400)
+
+# Replacing MedStar Subject ID Values from Group 1200
+
+ms_source_map_temp <- build_source_map(ms_source_map_temp, "ms", 6141, 10644)
+
+# Replacing MedStar Subject ID Values from Group 1386
+
+ms_source_map_temp <- build_source_map(ms_source_map_temp, "ms", 20114, 1861)
+
+# Replacing MedStar Subject ID Values from Group 1835
+
+ms_source_map_temp <- build_source_map(ms_source_map_temp, "ms", 6898, 1360)
+
+# Replacing MedStar Subject ID Values from Group 157
+
+ms_source_map_temp <- build_source_map(ms_source_map_temp, "ms", 33715, 8257)
+
+# Replacing MedStar Subject ID Values from Group 903
+
+ms_source_map_temp <- build_source_map(ms_source_map_temp, "ms", 7127, 2168)
+
+```
+
+We checked our section-wise replacement map against our primary map, to avoid duplicating entries, prior to appending.
+
+```{r}
+length(unique(aps_source_map_temp$old_id)) == nrow(aps_source_map_temp)
+sum(aps_source_map_temp$old_id %in% aps_source_map$old_id)
+sum(aps_source_map_temp$old_id %in% aps_source_map$new_id)
+sum(aps_source_map_temp$new_id %in% aps_source_map$new_id)
+sum(aps_source_map_temp$new_id %in% aps_source_map$old_id)
+sum(aps_source_map_temp$new_id %in% aps_source_map_temp$old_id)
+sum(aps_source_map_temp$old_id %in% aps_source_map_temp$new_id)
+
+aps_source_map <- rbind(aps_source_map, aps_source_map_temp)
+
+length(unique(ms_source_map_temp$old_id)) == nrow(ms_source_map_temp)
+sum(ms_source_map_temp$old_id %in% ms_source_map$old_id)
+sum(ms_source_map_temp$old_id %in% ms_source_map$new_id)
+sum(ms_source_map_temp$new_id %in% ms_source_map$new_id)
+sum(ms_source_map_temp$new_id %in% ms_source_map$old_id)
+sum(ms_source_map_temp$new_id %in% ms_source_map_temp$old_id)
+sum(ms_source_map_temp$old_id %in% ms_source_map_temp$new_id)
+
+ms_source_map <- rbind(ms_source_map, ms_source_map_temp)
+```
+
+We applied our revisions across all cleaning data sets.
+
+```{r}
+aps <- aps %>%
+  mutate(aps_person_id = ifelse((aps_person_id %in% aps_source_map$old_id),
+                                 aps_source_map$new_id[
+                                   match(aps_person_id, aps_source_map$old_id)],
+                                 aps_person_id
+                                )
+  )
+
+id_base <- id_base %>%
+  mutate(aps_person_id = ifelse((aps_person_id %in% aps_source_map$old_id),
+                                 aps_source_map$new_id[
+                                   match(aps_person_id, aps_source_map$old_id)],
+                                 aps_person_id
+                                )
+  )
+
+id_stacked <- id_stacked %>%
+  mutate(source_id = ifelse(
+    ((source_id %in% aps_source_map$old_id) & source == "APS"),
+    aps_source_map$new_id[match(source_id, aps_source_map$old_id)],
+    source_id
+    )
+  )
+
+checking <- checking %>%
+  mutate(source_id = ifelse(
+    ((source_id %in% aps_source_map$old_id) & source == "APS"),
+    aps_source_map$new_id[match(source_id, aps_source_map$old_id)],
+    source_id
+    )
+  )
+
+
+medstar <- medstar %>%
+  mutate(ms_id = ifelse((ms_id %in% ms_source_map$old_id),
+                        ms_source_map$new_id[match(ms_id, ms_source_map$old_id)],
+                        ms_id
+                        )
+  )
+
+id_base <- id_base %>%
+  mutate(ms_id = ifelse((ms_id %in% ms_source_map$old_id),
+                        ms_source_map$new_id[match(ms_id, ms_source_map$old_id)],
+                        ms_id
+                        )
+  )
+
+id_stacked <- id_stacked %>%
+  mutate(source_id = ifelse(
+    ((source_id %in% ms_source_map$old_id) & source == "MedStar"),
+    ms_source_map$new_id[match(source_id, ms_source_map$old_id)],
+    source_id
+    )
+  )
+
+checking <- checking %>%
+  mutate(source_id = ifelse(
+    ((source_id %in% ms_source_map$old_id) & source == "MedStar"),
+    ms_source_map$new_id[match(source_id, ms_source_map$old_id)],
+    source_id
+    )
+  )
+```
+
+###### Individual Assignments
+
+There were 50 groups which contained multiple APS Person IDs and/or MedStar Subject IDs and/or repetitions across multiple groups resolved with individual assignments of Group ID each Source Subject ID, including 42 of the groups which received adjustments to APS Person ID or MedStar Subject ID Assignments. This resulted in the manual assignment of 25 Group IDs (net loss of 17 Group ID values), and manual assignment of Group ID to 17 APS Person ID values and 23 MedStar Subject ID values.
+
+-   The pairing in group 6 was repeated in groups 7 and 8. These were consolidated into group 6.
+
+-   The pairing in group 499 was repeated in groups 505 and 506. These were consolidated into group 499.
+
+-   The pairing in group 534 was repeated in groups 535 and 536. These were consolidated into group 534.
+
+-   The pairing in group 939 was repeated in groups 940 and 941. These were consolidated into group 939.
+
+-   The pairing in group 950 was repeated in groups 951 and 952. These were consolidated into group 950.
+
+-   The pairing in group 1472 was repeated in groups 1473 and 1865. These were consolidated into group 1472.
+
+-   The pairing in group 1738 was repeated in groups 1739 and 1740. These were consolidated into group 1738.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 256; the mismatched MedStar Subject ID was separated into group 7.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 256; the mismatched APS Person ID was separated into group 8.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 298; the mismatched MedStar Subject ID was separated into group 505.
+
+-   There were three MedStar Subject IDs matched with a single APS Person ID in group 713; the mismatched MedStar Subject ID were separated into groups 506 and 535.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1087; the mismatched MedStar Subject ID was separated into group 536.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1099; the mismatched APS Subject ID was separated into group 940.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 1688; the mismatched MedStar Subject ID was separated into group 941.
+
+-   The pairings in group 157 were repeated in groups 164 and 671. These were consolidated into group 157.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 219, repeated in groups 220 and 221; the true-pair was consolidated into group 219, and the mismatched MedStar Subject ID was separated into group 220.
+
+-   There were two MedStar Subject IDs matched with a single APS Person ID in group 322, repeated in groups 323 and 496; the true-pair was consolidated into group 322, and the mismatched MedStar Subject ID was separated into group 323.
+
+-   The pairings in group 903 were repeated in groups 1392 and 1393. These were consolidated into group 903.
+
+-   The pairings in group 920 were repeated in groups 921 and 922. These were consolidated into group 920.
+
+-   There were two MedStar Subject IDs matched with two APS Person IDs in group 965, repeated in groups 1278 and 2122. These appeared to be two true-pairs with similar identifiers; the true-pairs were separated into groups 965 and 1278.
+
+-   The pairings in group 1432 were repeated in groups 1433 and 1446. These were consolidated into group 1432.
+
+```{r}
+point_groups <- c(6, 7, 8, 499, 505, 506, 534, 535, 536, 939, 940, 941, 950, 
+                  951, 952, 1472, 1473, 1865, 1738, 1739, 1740, 157, 164, 671, 
+                  219, 220, 221, 322, 323, 496, 903, 1392, 1393, 920, 921, 922, 
+                  965, 1278, 2122, 1432, 1433, 1446)
 
 aps_temp <- as_tibble(
   matrix(data=NA, nrow=0, ncol=2), .name_repair = ~c('id', 'aps_person_id')
@@ -2427,10 +3204,73 @@ aps_temp <- as_tibble(
 
 aps_temp <- aps_temp %>%
   add_replacement_rows(
-    485, 
-    get_subjid_from_row(id_stacked, packed_data, 3215, j=2)
+    6, 
+    get_subjid_from_row(id_stacked, packed_data, 261, j=2)
+  ) %>%
+  add_replacement_rows(
+    499, 
+    get_subjid_from_row(id_stacked, packed_data, 3785, j=2)
+  ) %>%
+  add_replacement_rows(
+    534, 
+    get_subjid_from_row(id_stacked, packed_data, 4708, j=2)
+  ) %>%
+  add_replacement_rows(
+    939, 
+    get_subjid_from_row(id_stacked, packed_data, 12080, j=2)
+  ) %>%
+  add_replacement_rows(
+    950, 
+    get_subjid_from_row(id_stacked, packed_data, 6400, j=2)
+  ) %>%
+  add_replacement_rows(
+    1472, 
+    get_subjid_from_row(id_stacked, packed_data, 14025, j=2)
+  ) %>%
+  add_replacement_rows(
+    1738, 
+    get_subjid_from_row(id_stacked, packed_data, 15522, j=2)
+  ) %>%
+  add_replacement_rows(
+    8, 
+    get_subjid_from_row(id_stacked, packed_data, 17536, j=2)
+  ) %>%
+  add_replacement_rows(
+    940, 
+    get_subjid_from_row(id_stacked, packed_data, 11545, j=2)
+  ) %>%
+  add_replacement_rows(
+    157, 
+    get_subjid_from_row(id_stacked, packed_data, 4564, j=2)
+  ) %>%
+  add_replacement_rows(
+    219, 
+    get_subjid_from_row(id_stacked, packed_data, 196, j=2)
+  ) %>%
+  add_replacement_rows(
+    322, 
+    get_subjid_from_row(id_stacked, packed_data, 3613, j=2)
+  ) %>%
+  add_replacement_rows(
+    903, 
+    get_subjid_from_row(id_stacked, packed_data, 11497, j=2)
+  ) %>%
+  add_replacement_rows(
+    920, 
+    get_subjid_from_row(id_stacked, packed_data, 11817, j=2)
+  ) %>%
+  add_replacement_rows(
+    965, 
+    get_subjid_from_row(id_stacked, packed_data, 6817, j=2)
+  ) %>%
+  add_replacement_rows(
+    1278, 
+    get_subjid_from_row(id_stacked, packed_data, 17976, j=2)
+  ) %>%
+  add_replacement_rows(
+    1432, 
+    get_subjid_from_row(id_stacked, packed_data, 12770, j=2)
   ) 
-
 
 ms_temp <- as_tibble(
   matrix(data=NA, nrow=0, ncol=2), .name_repair = ~c('id', 'ms_id')
@@ -2438,20 +3278,109 @@ ms_temp <- as_tibble(
 
 ms_temp <- ms_temp %>%
   add_replacement_rows(
-    484,
-    get_subjid_from_row(id_stacked, packed_data, 86, j=1)
+    6,
+    get_subjid_from_row(id_stacked, packed_data, 940, j=1)
+  ) %>%
+  add_replacement_rows(
+    499, 
+    get_subjid_from_row(id_stacked, packed_data, 29947, j=1)
+  ) %>%
+  add_replacement_rows(
+    534, 
+    get_subjid_from_row(id_stacked, packed_data, 10603, j=1)
+  ) %>%
+  add_replacement_rows(
+    939, 
+    get_subjid_from_row(id_stacked, packed_data, 4152, j=1)
+  ) %>%
+  add_replacement_rows(
+    950, 
+    get_subjid_from_row(id_stacked, packed_data, 8795, j=1)
+  ) %>%
+  add_replacement_rows(
+    1472, 
+    get_subjid_from_row(id_stacked, packed_data, 8082, j=1)
+  ) %>%
+  add_replacement_rows(
+    1738, 
+    get_subjid_from_row(id_stacked, packed_data, 8957, j=1)
+  ) %>%
+  add_replacement_rows(
+    7, 
+    get_subjid_from_row(id_stacked, packed_data, 34039, j=1)
+  ) %>%
+  add_replacement_rows(
+    505, 
+    get_subjid_from_row(id_stacked, packed_data, 18730, j=1)
+  ) %>%
+  add_replacement_rows(
+    506, 
+    get_subjid_from_row(id_stacked, packed_data, 1802, j=1)
+  ) %>%
+  add_replacement_rows(
+    535, 
+    get_subjid_from_row(id_stacked, packed_data, 2988, j=1)
+  ) %>%
+  add_replacement_rows(
+    536, 
+    get_subjid_from_row(id_stacked, packed_data, 12084, j=1)
+  ) %>%
+  add_replacement_rows(
+    941, 
+    get_subjid_from_row(id_stacked, packed_data, 12773, j=1)
+  ) %>%
+  add_replacement_rows(
+    157, 
+    get_subjid_from_row(id_stacked, packed_data, 20458, j=1)
+  ) %>%
+  add_replacement_rows(
+    219, 
+    get_subjid_from_row(id_stacked, packed_data, 28553, j=1)
+  ) %>%
+  add_replacement_rows(
+    220, 
+    get_subjid_from_row(id_stacked, packed_data, 6023, j=1)
+  ) %>%
+  add_replacement_rows(
+    322, 
+    get_subjid_from_row(id_stacked, packed_data, 2386, j=1)
+  ) %>%
+  add_replacement_rows(
+    323, 
+    get_subjid_from_row(id_stacked, packed_data, 927, j=1)
+  ) %>%
+  add_replacement_rows(
+    903, 
+    get_subjid_from_row(id_stacked, packed_data, 26356, j=1)
+  ) %>%
+  add_replacement_rows(
+    920, 
+    get_subjid_from_row(id_stacked, packed_data, 4075, j=1)
+  ) %>%
+  add_replacement_rows(
+    965, 
+    get_subjid_from_row(id_stacked, packed_data, 34560, j=1)
+  ) %>%
+  add_replacement_rows(
+    1278, 
+    get_subjid_from_row(id_stacked, packed_data, 9106, j=1)
+  ) %>%
+  add_replacement_rows(
+    1432, 
+    get_subjid_from_row(id_stacked, packed_data, 1408, j=1)
   )
 ```
 
-# MS REMAINDER PLACEHOLDER
+###### Simple Splits & Remaining Groups
 
-*There were an additional @ groups which contained a single mismatched APS Person ID and MedStar Subject ID. These values were split so that the MedStar Subject ID would retain the first original Group ID, and the APS Person ID would receive a new Group ID. This resulted in the assignment of all @ remaining MedStar Subject IDs to the remaining Group IDs.*
+There were an additional 3 groups which contained a single mismatched APS Person ID and MedStar Subject ID. These values were split so that the MedStar Subject ID would retain the first original Group ID, and the APS Person ID would receive a new Group ID. As such, the remaining 529 MedStar Subject IDs were added to the Group ID map.
 
 ```{r}
 agg_groups <- setdiff(all_groups, point_groups)
 
 ms_temp_group <- checking %>%
-  filter( (id %in% agg_groups) & (source == "MedStar") 
+  filter( (id %in% agg_groups) & (source == "MedStar") & 
+            !(source_id %in% ms_temp$ms_id)
           ) %>%
   select(id, source_id) %>%
   distinct()
@@ -2461,19 +3390,17 @@ colnames(ms_temp_group)[2] <- "ms_id"
 ms_temp <- rbind(ms_temp, ms_temp_group)
 ```
 
-# SIMPLE SPLIT PLACEHOLDER
-
-*The separation of @ APS Subject IDs resulted in the creation of @ novel Group IDs (Group IDs 2189 - @). The final @ APS Subject IDs which were accurately paired with a single MedStar Subject ID were also added to the replacement map.*
+The three mismatched APS Person IDs were split, resulting in the reclamation of 3 Group ID values (net loss of 14 Group IDs). The final 526 APS Subject IDs which were accurately paired with a single MedStar Subject ID were also added to the Group ID map.
 
 ```{r}
-groups <- c()
+groups <- c(1212, 1622, 1845)
 
 aps_temp_group <- checking %>%
   filter( (id %in% groups) & (source == "APS") 
           ) %>%
   select(source_id) %>%
   distinct() %>%
-  mutate(id = row_number() + 2189) %>%
+  mutate(id = c(164,2193,221)) %>%
   relocate(id)
   
 colnames(aps_temp_group)[2] <- "aps_person_id"
@@ -2481,7 +3408,8 @@ colnames(aps_temp_group)[2] <- "aps_person_id"
 aps_temp <- rbind(aps_temp, aps_temp_group)
 
 aps_temp_group <- checking %>%
-  filter( (id %in% setdiff(agg_groups,groups)) & (source == "APS") 
+  filter( (id %in% setdiff(agg_groups,groups)) & (source == "APS") &
+            !(source_id %in% aps_temp$aps_person_id)
           ) %>%
   select(id, source_id) %>%
   distinct()
@@ -2491,9 +3419,9 @@ colnames(aps_temp_group)[2] <- "aps_person_id"
 aps_temp <- rbind(aps_temp, aps_temp_group)
 ```
 
-# CHECK PLACEHOLDER
+###### Checking Map Assignments
 
-*We checked to ensure that we had assigned a Group ID to all @ APS Person IDs and all @ MedStar Subject IDs in the subset. We had no duplicate values for either APS Person ID or MedStar Subject ID. None of the new map values were already present in the replacement map.*
+We checked to ensure that we had assigned a Group ID to all 546 APS Person IDs and all 552 MedStar Subject IDs in the subset. We had no duplicate values for either APS Person ID or MedStar Subject ID. None of the new map values were already present in the replacement map.
 
 ```{r}
 nrow(aps_temp)
@@ -2519,3 +3447,1657 @@ checking <- checking %>%
   filter(!(id %in% all_groups))
 ```
 
+#### Checking Remaining Duplicate APS Row Flags
+
+There were no values remaining flagged for duplicate APS Row Numbers.
+
+```{r}
+checking_cols <- filter(checking, 
+                        (flag_aps)
+                        )
+
+nrow(checking_cols)/2
+length(unique(checking_cols$id))
+
+length(unique(checking_cols %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+length(unique(checking_cols %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+```
+
+### Duplicates for MedStar ePCR Row
+
+There were 534 pairs across 236 Group ID values that were flagged for containing a duplicated MedStar ePCR Row Number. This subset contained 327 APS Person ID values and 236 MedStar Subject ID values, with many duplicates.
+
+```{r}
+checking_cols <- filter(checking, 
+                        (flag_ms)
+                        )
+
+nrow(checking_cols)/2
+length(unique(checking_cols$id))
+
+length(unique(checking_cols %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+length(unique(checking_cols %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+```
+
+There were 66 of these pairs, across 50 Group ID values, that also had a posterior probability between 0.45 and 0.93. This subset contained 55 APS Person ID values and 50 MedStar Subject ID values.
+
+```{r}
+checking_cols <- filter(checking, 
+                        (flag_posterior & flag_ms)
+                        )
+
+nrow(checking_cols)/2
+length(unique(checking_cols$id))
+length(unique(checking_cols %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+length(unique(checking_cols %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+
+within_groups <- unique(checking_cols$id)
+```
+
+There were 468 of these pairs, across 225 Group ID values, that did not have a posterior probability between 0.45 and 0.93. This subset contained 288 APS Person ID values and 225 MedStar Subject ID values, with many duplicates.
+
+```{r}
+checking_cols <- filter(checking, 
+                        (!flag_posterior & flag_ms)
+                        )
+
+nrow(checking_cols)/2
+length(unique(checking_cols$id))
+length(unique(checking_cols %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+length(unique(checking_cols %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+
+without_groups <- unique(checking_cols$id)
+```
+
+Unfortunately, the two groups had Group ID assignments in common - some pairs within an Group ID assignment had a posterior probability within the verification range, while others did not. There were only 11 Group IDs which were represented only within the verification range.
+
+```{r}
+sum(!(within_groups %in% without_groups)) == length(within_groups)
+sum(!(within_groups %in% without_groups))
+```
+
+#### Group IDs Assigned Only Within the Verification Range
+
+The 24 pairs that composed the 11 Group ID assignments, which contained duplicated MedStar ePCR Row Numbers and were only assigned within the posterior probability range of 0.45 - 0.93, were further isolated for review. There were 15 APS Person ID values and 11 MedStar Subject ID values within the subset.
+
+```{r}
+checking_cols <- filter(checking, 
+                        (id %in% setdiff(within_groups, without_groups))
+                        )
+
+nrow(checking_cols)/2
+length(unique(checking_cols$id))
+length(unique(checking_cols %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+length(unique(checking_cols %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+```
+
+##### Search & Verification
+
+We examined the search space for each of the 11 Group IDs in this set. The total search space contained a total of 11 Group IDs, which indicated that there was no overlap in observations with another group outside of the targeted set.
+
+```{r}
+target_groups <- unique(checking_cols$id)
+length(target_groups)
+
+all_groups <- get_all_groups_subjids(checking, packed_data, target_groups)$group
+
+length(all_groups)
+```
+
+We performed our search, which indicated there were multiple groups with more than one APS Person ID or MedStar Subject ID.
+
+```{r}
+search <- search_by_group(checking, packed_data, target_groups, recursive = TRUE)
+```
+
+Our search contained 108 observations, which included 11 Group IDs, 11 MedStar Subject IDs, and 15 APS Subject IDs. There were exactly 11 unique combinations of Group ID and MedStar Subject ID, and 15 unique combinations of Group ID and APS Subject ID.
+
+```{r}
+nrow(search)
+length(unique(search$id))
+length(unique(search[search$source == "MedStar", 'source_id']))
+length(unique(search[search$source == "APS", 'source_id']))
+
+nrow(distinct(search %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(id, source_id
+                       )
+              )
+     )
+
+
+nrow(distinct(search %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(id, source_id
+                       )
+              )
+     )
+```
+
+Each group was manually inspected.
+
+```{r}
+#for (i in 1:length(target_groups)){
+#   print(search_by_group(id_stacked, 
+#                         packed_data, 
+#                         groups = target_groups[i], 
+#                         recursive = TRUE)
+#         )
+# }
+```
+
+##### Match Map Assignments
+
+Of the 11 Group IDs in our search space, 4 Group IDs represented pairings that did not require modification after manual verification (63.64% mismatch rate). There were 3 groups which received modification of Source Subject ID values, 1 group which was resolved with individual assignments of Group ID, 4 groups which received a simple split between the mismatched APS Person ID and MedStar Subject ID (including 1 group that had received Source Subject ID modification), and 6 that received no modification to Group ID. A total of 5 Group IDs were reclaimed.
+
+###### Revisions of Source ID
+
+In reviewing the matches between the data sets, there were 3 groups with values of APS Person ID and MedStar Subject ID which appeared to be failed matches in their source data set. The revision of these failed matches resulted in the reduction of 3 APS Person IDs.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1233. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1233.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1247. Both APS Person IDs appeared to reference the same individual, but not the MedStar Subject ID; as such, the APS Person IDs were revised group 1247 received a simple split.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 2065. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 2065.
+
+```{r}
+aps_source_map_temp <- tibble::tibble(
+  'old_id' = list(),
+  'new_id' = list()
+)
+
+
+# Replacing APS Person ID Values from Group 1233
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 10842, 10840)
+
+# Replacing APS Person ID Values from Group 1247
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 11411, 11412)
+
+# Replacing APS Person ID Values from Group 2065
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 15449, 15450)
+```
+
+We checked our section-wise replacement map against our primary map, to avoid duplicating entries, prior to appending.
+
+```{r}
+length(unique(aps_source_map_temp$old_id)) == nrow(aps_source_map_temp)
+sum(aps_source_map_temp$old_id %in% aps_source_map$old_id)
+sum(aps_source_map_temp$old_id %in% aps_source_map$new_id)
+sum(aps_source_map_temp$new_id %in% aps_source_map$new_id)
+sum(aps_source_map_temp$new_id %in% aps_source_map$old_id)
+sum(aps_source_map_temp$new_id %in% aps_source_map_temp$old_id)
+sum(aps_source_map_temp$old_id %in% aps_source_map_temp$new_id)
+
+aps_source_map <- rbind(aps_source_map, aps_source_map_temp)
+```
+
+We applied our revisions across all cleaning data sets.
+
+```{r}
+aps <- aps %>%
+  mutate(aps_person_id = ifelse((aps_person_id %in% aps_source_map$old_id),
+                                 aps_source_map$new_id[
+                                   match(aps_person_id, aps_source_map$old_id)],
+                                 aps_person_id
+                                )
+  )
+
+id_base <- id_base %>%
+  mutate(aps_person_id = ifelse((aps_person_id %in% aps_source_map$old_id),
+                                 aps_source_map$new_id[
+                                   match(aps_person_id, aps_source_map$old_id)],
+                                 aps_person_id
+                                )
+  )
+
+id_stacked <- id_stacked %>%
+  mutate(source_id = ifelse(
+    ((source_id %in% aps_source_map$old_id) & source == "APS"),
+    aps_source_map$new_id[match(source_id, aps_source_map$old_id)],
+    source_id
+    )
+  )
+
+checking <- checking %>%
+  mutate(source_id = ifelse(
+    ((source_id %in% aps_source_map$old_id) & source == "APS"),
+    aps_source_map$new_id[match(source_id, aps_source_map$old_id)],
+    source_id
+    )
+  )
+```
+
+###### Individual Assignments
+
+There was 1 group which contained multiple APS Person IDs resolved with individual assignments of Group ID each Source Subject ID. This resulted in the manual assignment of 1 Group ID to 1 APS Person ID value.
+
+```{r}
+aps_temp <- as_tibble(
+  matrix(data=NA, nrow=0, ncol=2), .name_repair = ~c('id', 'aps_person_id')
+  )
+
+aps_temp <- aps_temp %>%
+  add_replacement_rows(
+    1392, 
+    get_subjid_from_row(id_stacked, packed_data, 16389, j=2)
+  )
+
+ms_temp <- as_tibble(
+  matrix(data=NA, nrow=0, ncol=2), .name_repair = ~c('id', 'ms_id')
+  )
+```
+
+###### Simple Splits & Remaining Groups
+
+There were an additional 4 groups which contained a single mismatched APS Person ID and MedStar Subject ID (including 1 group that received a revised APS Person ID). These values were split so that the MedStar Subject ID would retain the first original Group ID, and the APS Person ID would receive a new Group ID. As such, all 11 MedStar Subject IDs were added to the Group ID map.
+
+```{r}
+ms_temp_group <- checking %>%
+  filter( (id %in% all_groups) & (source == "MedStar") & 
+            !(source_id %in% ms_temp$ms_id)
+          ) %>%
+  select(id, source_id) %>%
+  distinct()
+
+colnames(ms_temp_group)[2] <- "ms_id"
+
+ms_temp <- rbind(ms_temp, ms_temp_group)
+```
+
+The four mismatched APS Person IDs were split, resulting in the reclamation of 4 Group ID values. The final 7 APS Subject IDs which were accurately paired with a single MedStar Subject ID were also added to the Group ID map.
+
+```{r}
+groups <- c(498, 584, 1247, 1315)
+
+aps_temp_group <- checking %>%
+  filter( (id %in% groups) & (source == "APS") 
+          ) %>%
+  select(source_id) %>%
+  distinct() %>%
+  mutate(id = c(1393, 921, 922, 2122)) %>%
+  relocate(id)
+  
+colnames(aps_temp_group)[2] <- "aps_person_id"
+
+aps_temp <- rbind(aps_temp, aps_temp_group)
+
+aps_temp_group <- checking %>%
+  filter( (id %in% setdiff(all_groups,groups)) & (source == "APS") &
+            !(source_id %in% aps_temp$aps_person_id)
+          ) %>%
+  select(id, source_id) %>%
+  distinct()
+
+colnames(aps_temp_group)[2] <- "aps_person_id"
+
+aps_temp <- rbind(aps_temp, aps_temp_group)
+```
+
+###### Checking Map Assignments
+
+We checked to ensure that we had assigned a Group ID to all 12 APS Person IDs and all 11 MedStar Subject IDs in the subset. We had no duplicate values for either APS Person ID or MedStar Subject ID. None of the new map values were already present in the replacement map.
+
+```{r}
+nrow(aps_temp)
+length(unique(aps_temp$id))
+length(unique(aps_temp$aps_person_id))
+sum(aps_temp$id %in% aps_pattern$id)
+sum(aps_temp$aps_person_id %in% aps_pattern$aps_person_id)
+
+nrow(ms_temp)
+length(unique(ms_temp$id))
+length(unique(ms_temp$ms_id))
+sum(ms_temp$id %in% ms_pattern$id)
+sum(ms_temp$ms_id %in% ms_pattern$ms_id)
+```
+
+We added the new values to our replacement maps, and removed the verified Group IDs from the checking subset.
+
+```{r}
+aps_pattern <- rbind(aps_pattern, aps_temp)
+ms_pattern <- rbind(ms_pattern, ms_temp)
+
+checking <- checking %>%
+  filter(!(id %in% all_groups))
+```
+
+#### Group IDs Assigned Within the Verification Range
+
+There were 42 remaining pairs, across 39 Group IDs associated with 40 APS Person IDs and 39 MedStar Subject IDs that were assigned within the posterior probability range of 0.45 - 0.93 and possessed duplicate MedStar ePCR Row Number values. All of these groups were also represented in pairs outside of the posterior probability threshold of 0.45 - 0.93.
+
+```{r}
+checking_cols <- filter(checking, 
+                        (flag_posterior & flag_ms)
+                        )
+
+nrow(checking_cols)/2
+length(unique(checking_cols$id))
+length(unique(checking_cols %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+length(unique(checking_cols %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+
+within_groups <- unique(checking_cols$id)
+sum(!(within_groups %in% without_groups))
+```
+
+##### Search & Verification
+
+We examined the search space for each of the 39 Group IDs in this set. The total search space contained a total of 39 Group IDs, which indicated that there was no overlap in observations with another group outside of the targeted set.
+
+```{r}
+target_groups <- unique(checking_cols$id)
+length(target_groups)
+
+all_groups <- get_all_groups_subjids(checking, packed_data, target_groups)$group
+
+length(all_groups)
+```
+
+We performed our search, which indicated there were multiple groups with more than one APS Person ID or MedStar Subject ID.
+
+```{r}
+search <- search_by_group(checking, packed_data, target_groups, recursive = TRUE)
+```
+
+Our search contained 373 observations, which included 39 Group IDs, 39 MedStar Subject IDs, and 64 APS Subject IDs. There were exactly 39 distinct combinations of Group ID and MedStar Subject ID, and 64 distinct combinations of Group ID and APS Person ID - as such, each of these Group IDs represented multiple repeated APS Subject IDs and MedStar Subject IDs.
+
+```{r}
+nrow(search)
+length(unique(search$id))
+length(unique(search[search$source == "MedStar", 'source_id']))
+length(unique(search[search$source == "APS", 'source_id']))
+
+nrow(distinct(search %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(id, source_id
+                       )
+              )
+     )
+
+
+nrow(distinct(search %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(id, source_id
+                       )
+              )
+     )
+```
+
+Each group was manually inspected.
+
+```{r}
+#for (i in 1:length(target_groups)){
+#   print(search_by_group(id_stacked, 
+#                         packed_data, 
+#                         groups = target_groups[i], 
+#                         recursive = TRUE)
+#         )
+# }
+```
+
+##### Match Map Assignments
+
+Of the 39 Group IDs in our search space, 13 Group IDs represented pairings that did not require modification after manual verification (64.10% mismatch rate). There were 11 groups which received modification of Source Subject ID values, 15 groups which were resolved with individual assignments of Group ID, and 24 that received no modification to Group ID. A total of 15 Group IDs were reclaimed.
+
+###### Revisions of Source ID
+
+In reviewing the matches between the data sets, there were 11 groups with values of APS Person ID and MedStar Subject ID which appeared to be failed matches in their source data set. The revision of these failed matches resulted in the reduction of 11 APS Person IDs.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 77. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 77.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 106. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 106.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 475. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 475.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 578. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 578.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 585. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 585.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1171. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1171.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1346. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1346.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1401. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1401.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1546. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1546.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 2069. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 2069.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 2082. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 2082.
+
+```{r}
+aps_source_map_temp <- tibble::tibble(
+  'old_id' = list(),
+  'new_id' = list()
+)
+
+# Replacing APS Person ID Values from Group 77
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 16768, 2202)
+
+# Replacing APS Person ID Values from Group 106
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 2940, 2937)
+
+# Replacing APS Person ID Values from Group 475
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 2720, 13373)
+
+# Replacing APS Person ID Values from Group 578
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 341, 340)
+
+# Replacing APS Person ID Values from Group 585
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 601, 598)
+
+# Replacing APS Person ID Values from Group 1171
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 8811, 8930)
+
+# Replacing APS Person ID Values from Group 1346
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 9600, 9596)
+
+# Replacing APS Person ID Values from Group 1401
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 11853, 11852)
+
+# Replacing APS Person ID Values from Group 1546
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 15563, 15561)
+
+# Replacing APS Person ID Values from Group 2069
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 15610, 15609)
+
+# Replacing APS Person ID Values from Group 2082
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 16028, 16013)
+```
+
+We checked our section-wise replacement map against our primary map, to avoid duplicating entries, prior to appending.
+
+```{r}
+length(unique(aps_source_map_temp$old_id)) == nrow(aps_source_map_temp)
+sum(aps_source_map_temp$old_id %in% aps_source_map$old_id)
+sum(aps_source_map_temp$old_id %in% aps_source_map$new_id)
+sum(aps_source_map_temp$new_id %in% aps_source_map$new_id)
+sum(aps_source_map_temp$new_id %in% aps_source_map$old_id)
+sum(aps_source_map_temp$new_id %in% aps_source_map_temp$old_id)
+sum(aps_source_map_temp$old_id %in% aps_source_map_temp$new_id)
+
+aps_source_map <- rbind(aps_source_map, aps_source_map_temp)
+```
+
+We applied our revisions across all cleaning data sets.
+
+```{r}
+aps <- aps %>%
+  mutate(aps_person_id = ifelse((aps_person_id %in% aps_source_map$old_id),
+                                 aps_source_map$new_id[
+                                   match(aps_person_id, aps_source_map$old_id)],
+                                 aps_person_id
+                                )
+  )
+
+id_base <- id_base %>%
+  mutate(aps_person_id = ifelse((aps_person_id %in% aps_source_map$old_id),
+                                 aps_source_map$new_id[
+                                   match(aps_person_id, aps_source_map$old_id)],
+                                 aps_person_id
+                                )
+  )
+
+id_stacked <- id_stacked %>%
+  mutate(source_id = ifelse(
+    ((source_id %in% aps_source_map$old_id) & source == "APS"),
+    aps_source_map$new_id[match(source_id, aps_source_map$old_id)],
+    source_id
+    )
+  )
+
+checking <- checking %>%
+  mutate(source_id = ifelse(
+    ((source_id %in% aps_source_map$old_id) & source == "APS"),
+    aps_source_map$new_id[match(source_id, aps_source_map$old_id)],
+    source_id
+    )
+  )
+```
+
+###### Individual Assignments
+
+There were 15 groups which contained multiple APS Person IDs and/or MedStar Subject IDs and/or repetitions across multiple groups resolved with individual assignments of Group ID each Source Subject ID. This resulted in the manual assignment and reclamation of 15 Group IDs, and manual assignment of Group ID to 15 APS Person ID values.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 278. The mismatched APS Person ID was separated into group 1433.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 281. The mismatched APS Person ID was separated into group 1446.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 475. The mismatched APS Person ID was separated into group 2019.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 641. The mismatched APS Person ID was separated into group 414.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 784. The mismatched APS Person ID was separated into group 1871.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 804. The mismatched APS Person ID was separated into group 1151.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 968. The mismatched APS Person ID was separated into group 1580.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 1581. The mismatched APS Person ID was separated into group 1026.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 1179. The mismatched APS Person ID was separated into group 951.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 1183. The mismatched APS Person ID was separated into group 952.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 1399. The mismatched APS Person ID was separated into group 1473.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 1518. The mismatched APS Person ID was separated into group 1865.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 1878. The mismatched APS Person ID was separated into group 1739.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 2011. The mismatched APS Person ID was separated into group 1740.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 2024. The mismatched APS Person ID was separated into group 671.
+
+```{r}
+aps_temp <- as_tibble(
+  matrix(data=NA, nrow=0, ncol=2), .name_repair = ~c('id', 'aps_person_id')
+  )
+
+aps_temp <- aps_temp %>%
+  add_replacement_rows(
+    1433, 
+    get_subjid_from_row(id_stacked, packed_data, 2080, j=2)
+  ) %>%
+  add_replacement_rows(
+    1446, 
+    get_subjid_from_row(id_stacked, packed_data, 9907, j=2)
+  ) %>%
+  add_replacement_rows(
+    2019, 
+    get_subjid_from_row(id_stacked, packed_data, 2720, j=2)
+  ) %>%
+  add_replacement_rows(
+    414, 
+    get_subjid_from_row(id_stacked, packed_data, 3012, j=2)
+  ) %>%
+  add_replacement_rows(
+    1871, 
+    get_subjid_from_row(id_stacked, packed_data, 8207, j=2)
+  ) %>%
+  add_replacement_rows(
+    1151, 
+    get_subjid_from_row(id_stacked, packed_data, 14817, j=2)
+  ) %>%
+  add_replacement_rows(
+    1580, 
+    get_subjid_from_row(id_stacked, packed_data, 6937, j=2)
+  ) %>%
+  add_replacement_rows(
+    1581, 
+    get_subjid_from_row(id_stacked, packed_data, 17652, j=2)
+  ) %>%
+  add_replacement_rows(
+    951, 
+    get_subjid_from_row(id_stacked, packed_data, 9014, j=2)
+  ) %>%
+  add_replacement_rows(
+    952, 
+    get_subjid_from_row(id_stacked, packed_data, 9207, j=2)
+  ) %>%
+  add_replacement_rows(
+    1473, 
+    get_subjid_from_row(id_stacked, packed_data, 11946, j=2)
+  ) %>%
+  add_replacement_rows(
+    1865, 
+    get_subjid_from_row(id_stacked, packed_data, 14928, j=2)
+  ) %>%
+  add_replacement_rows(
+    1739, 
+    get_subjid_from_row(id_stacked, packed_data, 15390, j=2)
+  ) %>%
+  add_replacement_rows(
+    1740, 
+    get_subjid_from_row(id_stacked, packed_data, 13517, j=2)
+  ) %>%
+  add_replacement_rows(
+    671, 
+    get_subjid_from_row(id_stacked, packed_data, 14648, j=2)
+  )
+
+ms_temp <- as_tibble(
+  matrix(data=NA, nrow=0, ncol=2), .name_repair = ~c('id', 'ms_id')
+  )
+```
+
+###### Remaining Groups
+
+There were no groups which contained a single mismatched APS Person ID and MedStar Subject ID. These values were split so that the MedStar Subject ID would retain the first original Group ID, and the APS Person ID would receive a new Group ID. As such, all 39 MedStar Subject IDs were added to the Group ID map.
+
+```{r}
+ms_temp_group <- checking %>%
+  filter( (id %in% all_groups) & (source == "MedStar") & 
+            !(source_id %in% ms_temp$ms_id)
+          ) %>%
+  select(id, source_id) %>%
+  distinct()
+
+colnames(ms_temp_group)[2] <- "ms_id"
+
+ms_temp <- rbind(ms_temp, ms_temp_group)
+```
+
+The final 38 APS Subject IDs which were accurately paired with a single MedStar Subject ID were also added to the Group ID map.
+
+```{r}
+aps_temp_group <- checking %>%
+  filter( (id %in% all_groups) & (source == "APS") &
+            !(source_id %in% aps_temp$aps_person_id)
+          ) %>%
+  select(id, source_id) %>%
+  distinct()
+
+colnames(aps_temp_group)[2] <- "aps_person_id"
+
+aps_temp <- rbind(aps_temp, aps_temp_group)
+```
+
+###### Checking Map Assignments
+
+We checked to ensure that we had assigned a Group ID to all 53 APS Person IDs and all 39 MedStar Subject IDs in the subset. We had no duplicate values for either APS Person ID or MedStar Subject ID. None of the new map values were already present in the replacement map.
+
+```{r}
+nrow(aps_temp)
+length(unique(aps_temp$id))
+length(unique(aps_temp$aps_person_id))
+sum(aps_temp$id %in% aps_pattern$id)
+sum(aps_temp$aps_person_id %in% aps_pattern$aps_person_id)
+
+nrow(ms_temp)
+length(unique(ms_temp$id))
+length(unique(ms_temp$ms_id))
+sum(ms_temp$id %in% ms_pattern$id)
+sum(ms_temp$ms_id %in% ms_pattern$ms_id)
+```
+
+We added the new values to our replacement maps, and removed the verified Group IDs from the checking subset.
+
+```{r}
+aps_pattern <- rbind(aps_pattern, aps_temp)
+ms_pattern <- rbind(ms_pattern, ms_temp)
+
+checking <- checking %>%
+  filter(!(id %in% all_groups))
+```
+
+#### Group IDs Assigned Outside of the Verification Range
+
+There were 423 remaining pairs, across 186 Group IDs associated with 248 APS Person IDs and 186 MedStar Subject IDs that were assigned outside of the posterior probability range of 0.45 - 0.93 and possessed duplicate MedStar ePCR Row Number values.
+
+```{r}
+checking_cols <- filter(checking, 
+                        (!flag_posterior & flag_ms)
+                        )
+
+nrow(checking_cols)/2
+length(unique(checking_cols$id))
+length(unique(checking_cols %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+length(unique(checking_cols %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(source_id)
+              )$source_id
+       )
+
+without_groups <- unique(checking_cols$id)
+```
+
+##### Search & Verification
+
+We examined the search space for each of the 186 Group IDs in this set. The total search space contained a total of 187 Group IDs.
+
+```{r}
+target_groups <- unique(checking_cols$id)
+length(target_groups)
+
+all_groups <- get_all_groups_subjids(checking, packed_data, target_groups)$group
+
+length(all_groups)
+```
+
+We performed our search, which indicated there were multiple groups with more than one APS Person ID or MedStar Subject ID.
+
+```{r}
+search <- search_by_group(checking, packed_data, target_groups, recursive = TRUE)
+```
+
+Our search contained 2,326 observations, which included 187 Group IDs, 187 MedStar Subject IDs, and 248 APS Subject IDs. There were exactly 187 distinct combinations of Group ID and MedStar Subject ID, and 249 distinct combinations of Group ID and APS Person ID - as such, each of these Group IDs represented multiple repeated APS Subject IDs.
+
+```{r}
+nrow(search)
+length(unique(search$id))
+length(unique(search[search$source == "MedStar", 'source_id']))
+length(unique(search[search$source == "APS", 'source_id']))
+
+nrow(distinct(search %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(id, source_id
+                       )
+              )
+     )
+
+
+nrow(distinct(search %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(id, source_id
+                       )
+              )
+     )
+```
+
+Of these groups, 126 contained only one MedStar Subject ID and one APS Person ID in a single group, 0 were duplicated representations of the same single MedStar Subject ID and single APS Person ID in a single group, 59 groups contained more than one MedStar Subject ID and/or APS Person ID, and 2 contained more than one MedStar Subject ID and/or APS Person ID across multiple groups.
+
+```{r}
+quickcheck_groups <- list()
+repeated_groups <- list()
+multiid_groups <- list()
+complex_groups <-list()
+
+for (i in 1:length(target_groups)){
+  
+  a <- get_all_groups_subjids(id_stacked, packed_data, target_groups[i])
+  
+  if (
+    (length(a$group) == 1) & (length(a$id_a) == 1) & (length(a$id_b) == 1)
+    ){
+    quickcheck_groups <- unique(c(quickcheck_groups, a$group))
+  }
+  
+  if(
+    (length(a$group) != 1) & (length(a$id_a) == 1) & (length(a$id_b) == 1)
+    ){
+    repeated_groups <- unique(c(repeated_groups, a$group))
+  }
+  
+  if(
+    (length(a$group) == 1) & (!(length(a$id_a) == 1) | !(length(a$id_b) == 1)
+                              )
+    ){
+    multiid_groups <- unique(c(multiid_groups, a$group))
+  }
+  
+  if(
+    !(length(a$group) == 1) & (!(length(a$id_a) == 1) | !(length(a$id_b) == 1))
+  ){
+    complex_groups <- unique(c(complex_groups, a$group))
+  }
+}
+
+length(quickcheck_groups)
+
+length(repeated_groups)
+
+length(multiid_groups)
+
+length(complex_groups)
+```
+
+We verified that all groups were mutually exclusive.
+
+```{r}
+sum(quickcheck_groups %in% c(repeated_groups, multiid_groups, complex_groups))
+
+sum(repeated_groups %in% c(quickcheck_groups, multiid_groups, complex_groups))
+
+sum(multiid_groups %in% c(quickcheck_groups, repeated_groups, complex_groups))
+
+sum(complex_groups %in% c(quickcheck_groups, repeated_groups, multiid_groups))
+```
+
+The 126 groups which contained a single MedStar subject ID and single APS Person ID in one group were manually checked. None were found to require intervention.
+
+```{r}
+# for (i in 1:length(quickcheck_groups)){
+#   print(search_by_group(id_stacked, 
+#                         packed_data, 
+#                         groups = quickcheck_groups[i], 
+#                         recursive = TRUE)
+#         )
+# }
+```
+
+The 59 groups with more than one MedStar Subject ID and/or APS Person ID within a single group were manually checked. Of these, 54 groups received a revised APS Person ID, and 5 had a mismatched APS Person ID (including 1 group which received a revised APS Person ID). A total of 56 APS Person IDs were reduced. The last removed group was reclaimed, and 4 new Group IDs were assigned (2189-2192).
+
+```{r}
+#for (i in 1:length(multiid_groups)){
+#   print(search_by_group(id_stacked, 
+#                         packed_data, 
+#                         groups = multiid_groups[i], 
+#                         recursive = TRUE)
+#         )
+# }
+```
+
+The 2 groups in which pairs containing more than one APS Person ID and/or MedStar Subject ID that appear in more than one group were manually examined. This was found to be the same two APS Person IDs and MedStar Subject IDs repeated in both groups; there were two true-pairs, which appeared to have been cross matched due to familial similarities.
+
+```{r}
+# for (i in 1:length(complex_groups)){
+#   print(search_by_group(id_stacked, 
+#                         packed_data, 
+#                         groups = complex_groups[i], 
+#                         recursive = TRUE)
+#         )
+# }
+```
+
+##### Match Map Assignments
+
+Of the 187 Group IDs in our search space, 126 Group IDs represented pairings that did not require modification after manual verification (32.62% mismatch rate). There were 54 groups which received modification of Source Subject ID values, 7 groups which were resolved with individual assignments of Group ID (including 1 group that had received Source Subject ID modification), and 180 that received no modification to Group ID.
+
+###### Revisions of Source ID
+
+In reviewing the matches between the data sets, there were 54 groups with values of APS Person ID and MedStar Subject ID which appeared to be failed matches in their source data set. The revision of these failed matches resulted in the reduction of 56 APS Person IDs.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 93. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 93.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 170. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 170.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 176. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 176.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 227. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 227.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 244. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 244.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 311. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 311.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 326. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 326.
+
+-   There were three APS Person IDs matched with a single MedStar Subject ID in group 352. All APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 352.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 393. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 393.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 402. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 402.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 442. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 442.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 522. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 522.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 530. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 530.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 568. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 568.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 588. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 588.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 593. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 593.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 609. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 609.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 628. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 628.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 635. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 635.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 650. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 650.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 654. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 654.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 695. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 695.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 719. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 719.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 728. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 728.
+
+-   There were three APS Person IDs matched with a single MedStar Subject ID in group 754. Two APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 754, and the mismatched APS Person ID was separated into group 2190.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 796. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 796.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 872. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 872.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 874. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 874.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 878. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 878.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 887. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 887.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 935. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 935.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 976. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 976.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1014. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1014.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1153. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1153.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1185. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1185.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1194. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1194.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1227. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1227.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1229. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1229.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1323. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1323.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1325. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1325.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1522. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1522.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1536. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1536.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1653. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1653.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1666. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1666.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1701. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1701.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1764. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1764.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1874. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1874.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1922. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1922.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1977. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1977.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 1987. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 1987.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 2015. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 2015.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 2048. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 2048.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 2060. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 2060.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 2080. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 2080.
+
+-   There were two APS Person IDs matched with a single MedStar Subject ID in group 2101. Both APS Person IDs appeared to reference this individual MedStar Subject ID; as such, the APS Person IDs were revised and the true-pair kept in group 2101.
+
+```{r}
+aps_source_map_temp <- tibble::tibble(
+  'old_id' = list(),
+  'new_id' = list()
+)
+
+# Replacing APS Person ID Values from Group 93
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 2572, 2573)
+
+# Replacing APS Person ID Values from Group 170
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 4585, 4584)
+
+# Replacing APS Person ID Values from Group 176
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 4782, 4783)
+
+# Replacing APS Person ID Values from Group 227
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 491, 490)
+
+# Replacing APS Person ID Values from Group 244
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 866, 865)
+
+# Replacing APS Person ID Values from Group 311
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 3343, 3338)
+
+# Replacing APS Person ID Values from Group 326
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 3771, 3980)
+
+# Replacing APS Person ID Values from Group 352
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 
+                                        c(4629, 4626), 4624)
+
+# Replacing APS Person ID Values from Group 393
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 5749, 5748)
+
+# Replacing APS Person ID Values from Group 402
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 6043, 6041)
+
+# Replacing APS Person ID Values from Group 442
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 1391, 1392)
+
+# Replacing APS Person ID Values from Group 522
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 4411, 4409)
+
+# Replacing APS Person ID Values from Group 530
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 4633, 4634)
+
+# Replacing APS Person ID Values from Group 568
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 5953, 5952)
+
+# Replacing APS Person ID Values from Group 588
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 678, 679)
+
+# Replacing APS Person ID Values from Group 593
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 877, 872)
+
+# Replacing APS Person ID Values from Group 609
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 1509, 1508)
+
+# Replacing APS Person ID Values from Group 628
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 2507, 2506)
+
+# Replacing APS Person ID Values from Group 635
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 2840, 2837)
+
+# Replacing APS Person ID Values from Group 650
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 3508, 3515)
+
+# Replacing APS Person ID Values from Group 654
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 3656, 3658)
+
+# Replacing APS Person ID Values from Group 695
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 5364, 5365)
+
+# Replacing APS Person ID Values from Group 719
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 6334, 6328)
+
+# Replacing APS Person ID Values from Group 728
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 6559, 6509)
+
+# Replacing APS Person ID Values from Group 754
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 7397, 7393)
+
+# Replacing APS Person ID Values from Group 796
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 8515, 8512)
+
+# Replacing APS Person ID Values from Group 872
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 10702, 10701)
+
+# Replacing APS Person ID Values from Group 874
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 10763, 10761)
+
+# Replacing APS Person ID Values from Group 878
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 10898, 10896)
+
+# Replacing APS Person ID Values from Group 887
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 11104, 11105)
+
+# Replacing APS Person ID Values from Group 935
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 12047, 12046)
+
+# Replacing APS Person ID Values from Group 976
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 13065, 7227)
+
+# Replacing APS Person ID Values from Group 1014
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 8308, 8290)
+
+# Replacing APS Person ID Values from Group 1153
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 8052, 8031)
+
+# Replacing APS Person ID Values from Group 1185
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 9215, 9216)
+
+# Replacing APS Person ID Values from Group 1194
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 9434, 9438)
+
+# Replacing APS Person ID Values from Group 1227
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 10642, 10643)
+
+# Replacing APS Person ID Values from Group 1229
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 10726, 10727)
+
+# Replacing APS Person ID Values from Group 1323
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 8907, 8906)
+
+# Replacing APS Person ID Values from Group 1325
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 9003, 9002)
+
+# Replacing APS Person ID Values from Group 1522
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 15014, 15013)
+
+# Replacing APS Person ID Values from Group 1536
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 15329, 15327)
+
+# Replacing APS Person ID Values from Group 1653
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 12654, 12652)
+
+# Replacing APS Person ID Values from Group 1666
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 13289, 13287)
+
+# Replacing APS Person ID Values from Group 1701
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 14412, 14410)
+
+# Replacing APS Person ID Values from Group 1764
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 16231, 16230)
+
+# Replacing APS Person ID Values from Group 1874
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 14280, 14282)
+
+# Replacing APS Person ID Values from Group 1922
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 16337, 16336)
+
+# Replacing APS Person ID Values from Group 1977
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 12431, 12430)
+
+# Replacing APS Person ID Values from Group 1987
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 12882, 12881)
+
+# Replacing APS Person ID Values from Group 2015
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 13630, 13629)
+
+# Replacing APS Person ID Values from Group 2048
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 14916, 14915)
+
+# Replacing APS Person ID Values from Group 2060
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 15287, 15308)
+
+# Replacing APS Person ID Values from Group 2080
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 15982, 15951)
+
+# Replacing APS Person ID Values from Group 2101
+
+aps_source_map_temp <- build_source_map(aps_source_map_temp, "aps", 16956, 16958)
+```
+
+We checked our section-wise replacement map against our primary map, to avoid duplicating entries, prior to appending.
+
+```{r}
+length(unique(aps_source_map_temp$old_id)) == nrow(aps_source_map_temp)
+sum(aps_source_map_temp$old_id %in% aps_source_map$old_id)
+sum(aps_source_map_temp$old_id %in% aps_source_map$new_id)
+sum(aps_source_map_temp$new_id %in% aps_source_map$new_id)
+sum(aps_source_map_temp$new_id %in% aps_source_map$old_id)
+sum(aps_source_map_temp$new_id %in% aps_source_map_temp$old_id)
+sum(aps_source_map_temp$old_id %in% aps_source_map_temp$new_id)
+
+aps_source_map <- rbind(aps_source_map, aps_source_map_temp)
+```
+
+We applied our revisions across all cleaning data sets.
+
+```{r}
+aps <- aps %>%
+  mutate(aps_person_id = ifelse((aps_person_id %in% aps_source_map$old_id),
+                                 aps_source_map$new_id[
+                                   match(aps_person_id, aps_source_map$old_id)],
+                                 aps_person_id
+                                )
+  )
+
+id_base <- id_base %>%
+  mutate(aps_person_id = ifelse((aps_person_id %in% aps_source_map$old_id),
+                                 aps_source_map$new_id[
+                                   match(aps_person_id, aps_source_map$old_id)],
+                                 aps_person_id
+                                )
+  )
+
+id_stacked <- id_stacked %>%
+  mutate(source_id = ifelse(
+    ((source_id %in% aps_source_map$old_id) & source == "APS"),
+    aps_source_map$new_id[match(source_id, aps_source_map$old_id)],
+    source_id
+    )
+  )
+
+checking <- checking %>%
+  mutate(source_id = ifelse(
+    ((source_id %in% aps_source_map$old_id) & source == "APS"),
+    aps_source_map$new_id[match(source_id, aps_source_map$old_id)],
+    source_id
+    )
+  )
+```
+
+###### Individual Assignments
+
+There were 7 groups which contained multiple APS Person IDs resolved with individual assignments of Group ID each Source Subject ID. This resulted in the manual assignment of 7 Group IDs to 7 APS Person ID values and 2 MedStar Subject ID values.
+
+-   There were two APS Person IDs matched with two MedStar Subject ID in group 779, repeated in group 1256. This appeared to be two true-pairs that cross matched due to familial similarities. The true-pairs were separated into groups 779 and 1256. Individual rows were also targeted for revision, as there was crossing of the two groups in the APS data set.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 779. The mismatched APS Person ID was separated into group 496.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 396. The mismatched APS Person ID was separated into group 2189.
+
+-   There were three APS Person IDs matched with one MedStar Subject ID in group 754. The mismatched APS Person ID was separated into group 2190.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 1394. The mismatched APS Person ID was separated into group 2191.
+
+-   There were two APS Person IDs matched with one MedStar Subject ID in group 1682. The mismatched APS Person ID was separated into group 2192.
+
+```{r}
+aps[aps$aps_row == 11902,]$aps_person_id <-  
+  pull(aps[aps$aps_row == 11900, 'aps_person_id'])
+
+id_stacked[id_stacked$source == "APS" & 
+             id_stacked$source_row == 11902,]$source_id <-
+  pull(aps[aps$aps_row == 11900, 'aps_person_id'])
+```
+
+```{r}
+point_groups <- c(779, 1256)
+
+aps_temp <- as_tibble(
+  matrix(data=NA, nrow=0, ncol=2), .name_repair = ~c('id', 'aps_person_id')
+  )
+
+aps_temp <- aps_temp %>%
+  add_replacement_rows(
+    779, 
+    get_subjid_from_row(id_stacked, packed_data, 11900, j=2)
+  ) %>%
+  add_replacement_rows(
+    1256, 
+    get_subjid_from_row(id_stacked, packed_data, 8002, j=2)
+  ) %>%
+  add_replacement_rows(
+    496, 
+    get_subjid_from_row(id_stacked, packed_data, 15271, j=2)
+  ) %>%
+  add_replacement_rows(
+    2189, 
+    get_subjid_from_row(id_stacked, packed_data, 5824, j=2)
+  ) %>%
+  add_replacement_rows(
+    2190, 
+    get_subjid_from_row(id_stacked, packed_data, 12390, j=2)
+  ) %>%
+  add_replacement_rows(
+    2191, 
+    get_subjid_from_row(id_stacked, packed_data, 14596, j=2)
+  ) %>%
+  add_replacement_rows(
+    2192, 
+    get_subjid_from_row(id_stacked, packed_data, 16922, j=2)
+  ) 
+
+
+
+ms_temp <- as_tibble(
+  matrix(data=NA, nrow=0, ncol=2), .name_repair = ~c('id', 'ms_id')
+  )
+
+ms_temp <- ms_temp %>%
+  add_replacement_rows(
+    779, 
+    get_subjid_from_row(id_stacked, packed_data, 4105, j=1)
+  ) %>%
+  add_replacement_rows(
+    1256, 
+    get_subjid_from_row(id_stacked, packed_data, 4106, j=1)
+  ) 
+```
+
+###### Remaining Groups
+
+There were no groups which contained a single mismatched APS Person ID and MedStar Subject ID. These values were split so that the MedStar Subject ID would retain the first original Group ID, and the APS Person ID would receive a new Group ID. As such, the remaining 185 MedStar Subject IDs were added to the Group ID map.
+
+```{r}
+ms_temp_group <- checking %>%
+  filter( (id %in% setdiff(all_groups, point_groups)) & (source == "MedStar") & 
+            !(source_id %in% ms_temp$ms_id)
+          ) %>%
+  select(id, source_id) %>%
+  distinct()
+
+colnames(ms_temp_group)[2] <- "ms_id"
+
+ms_temp <- rbind(ms_temp, ms_temp_group)
+```
+
+The final 185 APS Subject IDs which were accurately paired with a single MedStar Subject ID were also added to the Group ID map.
+
+```{r}
+aps_temp_group <- checking %>%
+  filter( (id %in% setdiff(all_groups, point_groups)) & (source == "APS") &
+            !(source_id %in% aps_temp$aps_person_id)
+          ) %>%
+  select(id, source_id) %>%
+  distinct()
+
+colnames(aps_temp_group)[2] <- "aps_person_id"
+
+aps_temp <- rbind(aps_temp, aps_temp_group)
+```
+
+###### Checking Map Assignments
+
+We checked to ensure that we had assigned a Group ID to all 192 APS Person IDs and all 187 MedStar Subject IDs in the subset. We had no duplicate values for either APS Person ID or MedStar Subject ID. None of the new map values were already present in the replacement map.
+
+```{r}
+nrow(aps_temp)
+length(unique(aps_temp$id))
+length(unique(aps_temp$aps_person_id))
+sum(aps_temp$id %in% aps_pattern$id)
+sum(aps_temp$aps_person_id %in% aps_pattern$aps_person_id)
+
+nrow(ms_temp)
+length(unique(ms_temp$id))
+length(unique(ms_temp$ms_id))
+sum(ms_temp$id %in% ms_pattern$id)
+sum(ms_temp$ms_id %in% ms_pattern$ms_id)
+```
+
+We added the new values to our replacement maps, and removed the verified Group IDs from the checking subset.
+
+```{r}
+aps_pattern <- rbind(aps_pattern, aps_temp)
+ms_pattern <- rbind(ms_pattern, ms_temp)
+
+checking <- checking %>%
+  filter(!(id %in% all_groups))
+```
+
+## Remaining Groups
+
+There were 1,956 remaining pairs, which represented 978 Group IDs each containing exactly one MedStar Subject ID and one APS Person ID. All were outside of the verification range of 0.45 - 0.93.
+
+```{r}
+nrow(checking)
+length(unique(checking$id))
+length(unique(checking[checking$source == "MedStar", 'source_id']))
+length(unique(checking[checking$source == "APS", 'source_id']))
+
+nrow(distinct(checking %>% 
+                filter(source == "MedStar"
+                       ) %>% 
+                select(id, source_id
+                       )
+              )
+     )
+
+
+nrow(distinct(checking %>% 
+                filter(source == "APS"
+                       ) %>% 
+                select(id, source_id
+                       )
+              )
+     )
+```
+
+These remaining 978 MedStar Subject IDs were added to the Group ID map.
+
+```{r}
+ms_temp <- checking %>%
+  filter((source == "MedStar") & !(source_id %in% ms_pattern$ms_id)
+          ) %>%
+  select(id, source_id) %>%
+  distinct()
+
+colnames(ms_temp)[2] <- "ms_id"
+```
+
+The final 978 APS Subject IDs which were accurately paired with a single MedStar Subject ID were also added to the Group ID map.
+
+```{r}
+aps_temp <- checking %>%
+  filter((source == "APS") & !(source_id %in% aps_pattern$aps_person_id)
+          ) %>%
+  select(id, source_id) %>%
+  distinct()
+
+colnames(aps_temp)[2] <- "aps_person_id"
+```
+
+### Checking Map Assignments
+
+We checked to ensure that we had assigned a Group ID to all 978 APS Person IDs and all 978 MedStar Subject IDs in the subset. We had no duplicate values for either APS Person ID or MedStar Subject ID. None of the new map values were already present in the replacement map.
+
+```{r}
+nrow(aps_temp)
+length(unique(aps_temp$id))
+length(unique(aps_temp$aps_person_id))
+sum(aps_temp$id %in% aps_pattern$id)
+sum(aps_temp$aps_person_id %in% aps_pattern$aps_person_id)
+
+nrow(ms_temp)
+length(unique(ms_temp$id))
+length(unique(ms_temp$ms_id))
+sum(ms_temp$id %in% ms_pattern$id)
+sum(ms_temp$ms_id %in% ms_pattern$ms_id)
+```
+
+We added the new values to our replacement maps, and removed the verified Group IDs from the checking subset.
+
+```{r}
+aps_pattern <- rbind(aps_pattern, aps_temp)
+ms_pattern <- rbind(ms_pattern, ms_temp)
+
+checking <- checking %>%
+  filter(!(id %in% c(aps_pattern$id, ms_pattern$id)))
+```
+
+# Finalizing Map
+
+We checked to ensure that our patterns had only unique combinations of Source Subject ID and Group ID.
+
+```{r}
+nrow(aps_pattern)
+nrow(aps_pattern) == length(unique(aps_pattern$id))
+nrow(aps_pattern) == length(
+  unique(aps_pattern$aps_person_id))
+
+nrow(ms_pattern)
+nrow(ms_pattern) == length(unique(ms_pattern$id))
+nrow(ms_pattern) == length(
+    unique(ms_pattern$ms_id))
+
+length(unique(c(aps_pattern$id, ms_pattern$id)))
+```
+
+We checked to ensure all MedStar Subject IDs, and APS Person IDs were accounted for.
+
+```{r}
+length(unique(id_base$aps_person_id)) == length(unique(aps_pattern$aps_person_id))
+
+length(unique(id_base$ms_id)) == length(unique(ms_pattern$ms_id))
+```
+
+We merged our patterns into a single pattern, and checked the merged pattern for completeness.
+
+```{r}
+full_pattern <- full_join(aps_pattern, ms_pattern, by='id')
+
+nrow(full_pattern)
+length(unique(full_pattern$id))
+length(unique(full_pattern$aps_person_id))
+length(unique(full_pattern$ms_id))
+
+sum(!(aps_pattern$aps_person_id %in% full_pattern$aps_person_id))
+sum(!(ms_pattern$ms_id %in% full_pattern$ms_id))
+
+sum(duplicated(full_pattern$id))
+sum(duplicated(full_pattern$aps_person_id)) - sum(is.na(full_pattern$aps_person_id)) + 1
+sum(duplicated(full_pattern$ms_id)) - sum(is.na(full_pattern$ms_id)) + 1
+```
+
+There were 8924 APS Person IDs in the APS source data set that were not matched in the merge. There were 14,477 MedStar Subject IDs in the MedStar source data set that were not matched in the merge.
+
+```{r}
+sum(!(unique(aps$aps_person_id) %in% full_pattern$aps_person_id))
+
+sum(!(unique(medstar$ms_id) %in% full_pattern$ms_id))
+```
+
+These IDs were added to our map, unpaired.
+
+```{r}
+aps_additions <- aps %>%
+  filter( !(aps_person_id %in% full_pattern$aps_person_id)
+          ) %>%
+  select(aps_person_id) %>%
+  distinct() %>%
+  mutate(id = row_number() + max(full_pattern$id),
+         ms_id = NA_integer_) %>%
+  relocate(id)
+
+full_pattern <- rbind(full_pattern, aps_additions)
+
+medstar_additions <- medstar %>%
+  filter( !(ms_id %in% full_pattern$ms_id)
+          ) %>%
+  select(ms_id) %>%
+  distinct() %>%
+  mutate(id = row_number() + max(full_pattern$id),
+         aps_person_id = NA_integer_) %>%
+  relocate(id)
+
+full_pattern <- rbind(full_pattern, medstar_additions)
+```
+
+We determined that there were 1,967 Group IDs with both an APS Person ID and MedStar Subject ID.
+
+```{r}
+nrow(full_pattern %>% 
+  filter(!is.na(ms_id) & !is.na(aps_person_id)))
+```
+
+# Applying Map to Source Data Sets
+
+The matched Group IDs were applied to both source data sets.
+
+```{r}
+medstar <- left_join(medstar, full_pattern, by='ms_id') %>%
+  relocate('id') %>%
+  select(-c('aps_person_id'))
+
+aps <- left_join(aps, full_pattern, by='aps_person_id') %>%
+  relocate('id', 'aps_person_id') %>%
+  select(-c('ms_id'))
+```
+
+# Saving and Exporting Data
+
+We exported our maps, both for revising the source data set Subject IDs but also the map of the merge between the IDs in each data set.
+
+```{r}
+saveRDS(aps_pattern, here("data","DETECT Shared GRAs","merge_aps_medstar",
+                             "aps_id_revision_pattern_01"))
+
+saveRDS(ms_pattern, here("data","DETECT Shared GRAs","merge_aps_medstar",
+                             "medstar_id_revision_pattern_01"))
+
+saveRDS(full_pattern, here("data","DETECT Shared GRAs","merge_aps_medstar",
+                             "aps_medstar_full_map_01"))
+```
+
+We exported our revised source data sets.
+
+```{r}
+saveRDS(medstar, here("data","DETECT Shared GRAs","medstar_02.rds"))
+
+saveRDS(aps, here("data","DETECT Shared GRAs","aps_02.rds"))
+```
