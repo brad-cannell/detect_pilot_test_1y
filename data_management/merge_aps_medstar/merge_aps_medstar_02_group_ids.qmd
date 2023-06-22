@@ -144,7 +144,6 @@ editor: visual
 
 library(tidyverse)
 library(here)
-library(fastLink)
 ```
 
 ## Data Imports
