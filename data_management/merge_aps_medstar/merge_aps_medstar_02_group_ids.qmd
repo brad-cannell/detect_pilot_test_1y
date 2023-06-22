@@ -5084,10 +5084,10 @@ aps <- left_join(aps, full_pattern, by='aps_person_id') %>%
 We exported our maps, both for revising the source data set Subject IDs but also the map of the merge between the IDs in each data set.
 
 ```{r}
-saveRDS(aps_pattern, here("data","DETECT Shared GRAs","merge_aps_medstar",
+saveRDS(aps_source_map, here("data","DETECT Shared GRAs","merge_aps_medstar",
                              "aps_id_revision_pattern_01"))
 
-saveRDS(ms_pattern, here("data","DETECT Shared GRAs","merge_aps_medstar",
+saveRDS(ms_source_map, here("data","DETECT Shared GRAs","merge_aps_medstar",
                              "medstar_id_revision_pattern_01"))
 
 saveRDS(full_pattern, here("data","DETECT Shared GRAs","merge_aps_medstar",
