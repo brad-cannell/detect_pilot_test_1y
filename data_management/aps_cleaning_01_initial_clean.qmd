@@ -124,6 +124,9 @@ There were 985 observations (in 925 APS Subject IDs) which did not have an exclu
             -   115 remaining APS Person ID values in 415 observations with variation in Street Name
 
             -   40 remaining APS Person ID values in 158 observations with variation in Street Number
+            
+    -   Manual verification of 74 APS Person ID values, which were connected to Case Numbers that referred more than one APS Person ID 
+            -   Reconciliation of these 74 APS Person ID values into 37 Person ID Values (37 value reduction)
 
 # Imports
 
@@ -228,6 +231,120 @@ get_unique_value_summary <- function(df,cols){
   unique_summary
   }
 ```
+
+### Case Numbers from Person IDs
+
+A convenience function was written which would collect all APS Case Numbers associated with provided APS Person IDs in the APS data set.
+
+```{r}
+get_cases_from_person <- function(df, person_ids) {
+  #
+  # Takes APS data frame and extracts the Case Numbers associated with given
+  # APS Subject ID value(s)
+  #
+  # Inputs:
+  #     df:             data frame
+  #     person_ids:     list of target values for APS Person ID
+  #
+  # Returns:
+  #     cases:          list of aps_case_num values for given aps_person_id(s)
+  #
+    
+  # Extract Case Numbers 
+  
+  cases <- pull(df %>%
+    filter(aps_person_id %in% c(person_ids)) %>%
+    select(aps_case_num) %>%
+    distinct()
+    )
+
+  # Return output
+  cases
+}
+```
+
+### Person IDs from Case Numbers
+
+A convenience function was written which would collect all APS Subject IDs associated with provided APS Case Numbers in the APS data set.
+
+```{r}
+get_person_from_cases <- function(df, case_nums) {
+  #
+  # Takes APS data frame and extracts the APS Subject ID values associated with 
+  # given Case Numbers
+  #
+  # Inputs:
+  #     df:             data frame
+  #     case_nums:      list of target values for APS Case Number
+  #
+  # Returns:
+  #     persons:          list of aps_person_id values for given aps_case_num(s)
+  #
+    
+  # Extract Case Numbers 
+  
+  persons <- pull(df %>%
+    filter(aps_case_num %in% c(case_nums)) %>%
+    select(aps_person_id) %>%
+    distinct()
+    )
+
+  # Return output
+  persons
+}
+
+```
+
+### Compare All Associated Rows (by Case Number and Person ID)
+
+A convenience function was written which facilitate comparison of all rows that were associated by APS Case Number or APS Person ID.
+
+```{r}
+get_all_cases_persons <- function(df, case_list) {
+  #
+  # Creates a search space by recursively expanding for all APS Subject IDs
+  # associated with given APS Case Number(s), all APS Case Number(s) associated
+  # with those ideas, and so on until the space can no longer be expanded. For
+  # the APS Data Set
+  #
+  # Inputs:
+  #     df:             data frame
+  #     case_list:      list of target values for APS Case Number
+  #
+  # Returns:
+  #     out:            data frame; subset of df which includes all of the
+  #                     APS Case Number(s) and APS Person ID(s) in the search
+  #
+  
+  # Initialize variables
+  
+  cases1 <- c(case_list)
+  cases2 <- c()
+  persons1 <- c()
+  persons2 <- c()
+  
+  # Alternate between (APS Case Number -> APS Person ID) and 
+  # (APS Person ID -> APS Case Number) twice
+  # Continue until Case Number and Person ID sets cannot be expanded further)
+  
+  while( !identical(cases1, cases2) | !identical(persons1, persons2) ) {
+    persons1 <- get_person_from_cases(df, cases1)
+    cases2 <- get_cases_from_person(df, persons1)
+    persons2 <- get_person_from_cases(df, cases2)
+    cases1 <- get_cases_from_person(df, persons2)
+  }
+  
+  # Package output
+  out <- df %>%
+    filter((aps_case_num %in% c(cases1)) | (aps_person_id %in% c(persons2))) %>%
+    relocate(aps_case_num, aps_person_id, aps_row)
+  
+  #Return output
+  out
+  
+}
+```
+
 
 # Initial Data Structure
 
@@ -2105,6 +2222,108 @@ nrow(checking)
 length(unique(checking$aps_person_id))
 ```
 
+## APS Person ID by Case Number
+
+Each Case Number was expected to have a single value for APS Person ID. However, there were 120 rows, representing 37 Case Numbers, which did not have exactly one APS Person ID. 74 APS Person ID values were impacted. All 120 rows were manually inspected. It was determined that each Case Number referred to a single Subject based on high similarity of identifiers, despite multiple APS Person ID Values for each subject.
+
+```{r}
+checking <- aps %>%
+  group_by(aps_case_num) %>%
+  mutate(num_persons = n_distinct(aps_person_id)) %>%
+  filter(num_persons != 1) %>%
+  relocate(aps_case_num) %>%
+  arrange(aps_case_num) %>%
+  ungroup()
+
+nrow(checking)
+length(unique(checking$aps_case_num))
+length(unique(checking$aps_person_id))
+```
+
+However, it was determined that the APS Person IDs associated with these values were also associated with additional Case Numbers, of which the given APS Person ID may have been the only APS Person ID associated. There were 219 rows in our search space, consisting of 114 APS Case Numbers and 74 APS Person IDs.
+
+```{r}
+search <- get_all_cases_persons(aps, unique(checking$aps_case_num))
+
+nrow(search)
+length(unique(search$aps_case_num))
+length(unique(search$aps_person_id))
+```
+
+Each group was evaluated separately. With the exception of one group (group 24), all groups appeared to be entirely valid pairings. 
+
+```{r}
+case_nums <- unique(checking$aps_case_num)
+
+for (i in 1:length(case_nums)){
+  get_all_cases_persons(aps, case_nums[i])
+}
+```
+
+### Reconciling APS Person IDs
+
+Group 24 was found to be the result of a single row with a errant APS Person ID. This was corrected by a point fix, replacing the erroneous APS Person ID with the appropriate value from an otherwise matching row. The group was removed from the list of Case Numbers requiring a fix
+
+```{r}
+aps$aps_person_id[aps$aps_row == 6079] <- aps$aps_person_id[aps$aps_row == 6078]
+case_nums <- case_nums[-24]
+```
+
+For all other observations, a replacement map was created to facilitate corrections in both this data set, and in potential future APS data sets, to ensure consistency throughout the project. The first APS Person ID associated with the group was selected to be kept.  
+
+```{r}
+fix_map <- tibble(
+  "aps_person_id" <- c(),
+  "new_id" <- c()
+)
+
+for (i in 1:length(case_nums)){
+  point_fix <- get_all_cases_persons(aps, case_nums[i]) %>%
+    select(aps_person_id) %>%
+    mutate(new_id = first(aps_person_id)) %>%
+    distinct()
+  
+  fix_map <- distinct(rbind(fix_map, point_fix))
+}
+```
+
+We applied our fix to our original data set.
+
+```{r}
+aps <- aps %>%
+  mutate(aps_person_id = case_when(
+    !(aps_person_id %in% fix_map$aps_person_id) ~ aps_person_id,
+    (aps_person_id %in% fix_map$aps_person_id) ~ 
+      fix_map$new_id[match(aps_person_id, fix_map$aps_person_id)]
+    )
+  )
+```
+
+We manually checked the results.
+
+```{r}
+for (i in 1:length(case_nums)){
+  get_all_cases_persons(aps, case_nums[i])
+}
+```
+
+
+In addition to manually checking the result, checking the full data set for any Case Numbers with more than one APS Person ID value finds that there are no remaining unfixed Case Number groups.
+
+```{r}
+checking <- aps %>%
+  group_by(aps_case_num) %>%
+  mutate(num_persons = n_distinct(aps_person_id)) %>%
+  filter(num_persons != 1) %>%
+  relocate(aps_case_num) %>%
+  arrange(aps_case_num) %>%
+  ungroup()
+
+nrow(checking)
+length(unique(checking$aps_case_num))
+length(unique(checking$aps_person_id))
+```
+
 As all variations between observations of APS Person ID were manually screened, we concluded that APS Person ID was a valid identifier for unique individuals in the data set.
 
 # Dropping Flag Variable
@@ -2185,3 +2404,10 @@ The processed APS data file was saved and exported.
 saveRDS(aps,here("data","DETECT Shared GRAs","aps_cleaning",
                              "aps_01.rds"))
 ```
+
+The map of APS Person ID replacements was saved and exported.
+
+```{r}
+saveRDS(fix_map, here("data", "DETECT Shared GRAs", "aps_cleaning", "aps_id_replacement_map.rds"))
+```
+

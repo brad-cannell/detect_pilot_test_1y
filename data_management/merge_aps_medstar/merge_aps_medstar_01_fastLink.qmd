@@ -420,13 +420,13 @@ length(unique(medstar$ms_id))
 
 ### APS Reduction
 
-There were 11,178 unique APS Person IDs in the APS data set.
+There were 11,142 unique APS Person IDs in the APS data set.
 
 ```{r}
 length(unique(aps$aps_person_id))
 ```
 
-By reducing only to unique combinations of identifiers in each APS Person ID, we were able to reduce our search space to 12,676 observations (30.17% reduction) without the loss of any APS Person ID.
+By reducing only to unique combinations of identifiers in each APS Person ID, we were able to reduce our search space to 12,654 observations (30.29% reduction) without the loss of any APS Person ID.
 
 ```{r}
 reducing_vars <- aps %>%
@@ -1344,7 +1344,7 @@ checking <- filter(checking_ids, (flag_aps | flag_ms | flag_both))
 
 ## Flagging Pairs by Posterior
 
-There were 575 pairs in the posterior range of 0.45 - 0.93, which we identified as benefitting from manual checking
+There were 575 pairs in the posterior range of 0.45 - 0.93, which we identified as benefiting from manual checking
 
 ```{r}
 checking <- checking_ids %>%
@@ -1353,12 +1353,13 @@ checking <- checking_ids %>%
 nrow(checking)
 ```
 
-In order to flag these pairs in the Group ID assignment tibble, we generated a new variable in the subset tibble that contained only pairs in our target posterior range. This variable concatenated the row ID variables from each data set into a single variable that could be compared against. 
+In order to flag these pairs in the Group ID assignment tibble, we generated a new variable in the subset tibble that contained only pairs in our target posterior range. This variable concatenated the row ID variables from each data set into a single variable that could be compared against.
 
 ```{r}
 checking <- checking %>%
   rowwise() %>%
-  mutate (pair_rows = paste(c(ms_epcr_row,aps_row), collapse="_"))
+  mutate (pair_rows = paste(c(ms_epcr_row,aps_row), collapse="_")) %>%
+  ungroup()
 ```
 
 We generated our flag by processing the comparison, which identified the 575 pairs with posterior probabilities between 0.45 - 0.93 for later review.
@@ -1371,7 +1372,8 @@ checking_ids <- checking_ids %>%
     TRUE, 
     FALSE
     )
-  )
+  ) %>%
+  ungroup()
 
 get_unique_value_summary(checking_ids, "flag_posterior")
 ```
