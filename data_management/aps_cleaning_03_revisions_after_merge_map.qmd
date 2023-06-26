@@ -1,0 +1,477 @@
+---
+title: "Revising Post-Merge APS Clean"
+format: html
+editor: visual
+---
+
+# Summary
+
+-   After APS/MedStar Merge, several APS Person ID Values were merged. As such, the "Subject ID Level" Variables required revising to ensure accuracy.
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(here)
+```
+
+## Data Imports
+
+The originally cleaned APS Data set was loaded for processing.
+
+```{r}
+aps <- readRDS(here("data","DETECT Shared GRAs",
+                             "aps_03.rds")) %>%
+  relocate(aps_row)
+```
+
+## Functions
+
+### Unique Value Summaries
+
+A previously written function, written to display counts of each unique observations within a selection of columns, was added for our processing.
+
+```{r}
+get_unique_value_summary <- function(df,cols){
+  
+  # Input: 
+  #     df (data frame) - original source data frame
+  #     cols (list) - list of target column names as strings
+  # Output:
+  #     unique_summary (data frame) - summary counts of each unique value in
+  #           each of the target columns
+  
+  # Get list of unique values in all target columns
+  
+  val <- unique(as.factor(as.vector(as.matrix(df[cols]))))
+  
+  # Initialize output data frame with unique value row
+  
+  unique_summary <- data.frame("value"=val)
+  
+  # Get counts of unique values in original data frame
+  
+  for (i in cols){
+    
+    # utilizes table to get summary count of each column
+    
+    table <- as.data.frame(table(df[i]))
+    
+    # sets column names to "value" and "freq"
+    
+  colnames(table) <- c("value","freq")
+  
+    # adds count of missing values in each column
+  
+  table<- add_row(table, value = NA, freq = sum(is.na(df[i])))
+  
+    # readjusts names of columns to "value" and the name of the target column
+  
+  colnames(table) <- c("value",i)
+  
+    # joins table's summary counts to complete the count values
+  
+    unique_summary <- left_join(unique_summary,table, by="value")
+  }
+  
+  # returns completed, but unordered, data frame
+  
+  unique_summary
+  }
+```
+
+### Redefining APS Determinations
+
+A convenience function was written to facilitate modifying elder mistreatment determinations by category across a variety of groupings. This function was specifically written to facilitate revision after the original binary categorical variables were dropped from the data set.
+
+```{r}
+redefine_determinations_modified <- function(aps_df, target_category, 
+                                        grouping = 'aps_case_num', output_var){
+  #
+  #   Facilitates adjustment of APS Determinations by category, and by groups,
+  #   after the initial variable cleaning (thus binary vars were dropped)
+  #
+  #
+  # Input: 
+  #     aps_df:               data frame. APS data frame
+  #     target_category:      string. The target category as it appears in
+  #                           the variables
+  #     grouping:             string. The variable to group by.
+  #                           Default is Case Number
+  #     output_var:           string. Prefix for the output variable
+  #
+  # Output:
+  #     aps_df:               data frame. The input data frame, with new
+  #                           variable
+  
+
+  # Overall row-wise determinations relating to each type of determination:
+    
+  n_v_ds <- c(
+    'All Allegations Valid',
+    'At Least One Valid Allegation, with Invalid Allegation(s)',
+    'At Least One Valid Allegation, with UTD Allegation(s)', 
+    'At Least One Valid Allegation, with Other Allegation(s)', 
+    'At Least One Valid Allegation, with Invalid and UTD Allegation(s)', 
+    'At Least One Valid Allegation, with Invalid and Other Allegation(s)', 
+    'At Least One Valid Allegation, with UTD and Other Allegation(s)', 
+    'At Least One Valid Allegation, with Invalid, UTD, and Other Allegation(s)')
+  
+  n_i_ds <- c(
+    'At Least One Valid Allegation, with Invalid Allegation(s)',
+    'At Least One Valid Allegation, with Invalid and UTD Allegation(s)',
+    'At Least One Valid Allegation, with Invalid and Other Allegation(s)',
+    'At Least One Valid Allegation, with Invalid, UTD, and Other Allegation(s)', 
+    'All Allegations Invalid', 
+    'No Valid Determinations, All Invalid or UTD', 
+    'No Valid Determinations, All Invalid or Other',
+    'No Valid Determinations, All Invalid, UTD, or Other'
+  )
+  
+  n_u_ds <- c(
+    'All Allegations Unable to Determine',
+    'At Least One Valid Allegation, with UTD Allegation(s)',
+    'At Least One Valid Allegation, with Invalid and UTD Allegation(s)',
+    'At Least One Valid Allegation, with UTD and Other Allegation(s)',
+    'At Least One Valid Allegation, with Invalid, UTD, and Other Allegation(s)',
+    'No Valid Determinations, All Invalid or UTD', 
+    'No Valid Determinations, All Invalid, UTD, or Other',
+    'No Valid Determinations, All UTD or Other'
+              )
+  
+  n_o_ds <- c(
+    'All Allegations Other - Not Investigated',
+    'At Least One Valid Allegation, with Other Allegation(s)', 
+    'At Least One Valid Allegation, with Invalid and Other Allegation(s)',
+    'At Least One Valid Allegation, with UTD and Other Allegation(s)', 
+    'At Least One Valid Allegation, with Invalid, UTD, and Other Allegation(s)',
+    'No Valid Determinations, All Invalid or Other',
+    'No Valid Determinations, All UTD or Other',
+    'No Valid Determinations, All Invalid, UTD, or Other'
+    )
+  
+  
+  # Isolates the row number, grouping variable, and row-wise target variable
+  
+  mod_df <- aps_df %>%
+    select(all_of(
+      c('aps_row', grouping, paste('aps_rows', target_category, sep= "_")))
+           )
+  
+  # Renames the target variable to facilitate mutate
+  
+  colnames(mod_df)[3] <- "target_var"
+  
+  
+  mod_df <- mod_df %>%
+      # Reverts the row-wise determination category into the binary determination
+      # variables for the target variable
+    mutate(n_v = ifelse((target_var %in% n_v_ds), 1, 0),
+           n_i = ifelse((target_var %in% n_i_ds), 1, 0),
+           n_u = ifelse((target_var %in% n_u_ds), 1, 0),
+           n_o = ifelse((target_var %in% n_o_ds), 1, 0)
+    ) %>%
+    
+      # Groups by the grouping variable
+    
+    group_by(pick(all_of(grouping))
+             ) %>%
+    
+    # Calculates the number of valid, invalid, unable to determine, and other
+    # determinations (which are stored in individual variables) in the group
+    
+    mutate(n_v = sum(n_v),
+           n_i = sum(n_i),
+           n_u = sum(n_u),
+           n_o = sum(n_o)
+           ) %>%
+      
+    mutate(out_var = case_when(
+      
+      # Creates the output variable with the overall categorical determination 
+      # for the group as a whole
+      
+      # No allegations
+      (n_v == 0 & n_i == 0 & n_u == 0 & n_o == 0) ~ 
+        "No Allegations with Determinations",
+      
+      # Only one determination
+      (n_v > 0 & n_i == 0 & n_u == 0 & n_o == 0) ~ 
+        "All Allegations Valid",
+      (n_v == 0 & n_i > 0 & n_u == 0 & n_o == 0) ~ 
+        "All Allegations Invalid",
+      (n_v == 0 & n_i == 0 & n_u > 0 & n_o == 0) ~ 
+        "All Allegations Unable to Determine",
+      (n_v == 0 & n_i == 0 & n_u == 0 & n_o > 0) ~ 
+        "All Allegations Other - Not Investigated",
+      
+      # At least one valid determination
+      (n_v > 0 & n_i > 0 & n_u == 0 & n_o == 0) ~
+        "At Least One Valid Allegation, with Invalid Allegation(s)",
+      (n_v > 0 & n_i > 0 & n_u > 0 & n_o == 0) ~
+        "At Least One Valid Allegation, with Invalid and UTD Allegation(s)",
+      (n_v > 0 & n_i > 0 & n_u == 0 & n_o > 0) ~
+        "At Least One Valid Allegation, with Invalid and Other Allegation(s)",
+      (n_v > 0 & n_i > 0 & n_u > 0 & n_o > 0) ~
+        "At Least One Valid Allegation, with Invalid, UTD, and Other Allegation(s)",
+      (n_v > 0 & n_i == 0 & n_u > 0 & n_o == 0) ~
+        "At Least One Valid Allegation, with UTD Allegation(s)",
+      (n_v > 0 & n_i == 0 & n_u > 0 & n_o > 0) ~
+        "At Least One Valid Allegation, with UTD and Other Allegation(s)",
+      (n_v > 0 & n_i == 0 & n_u == 0 & n_o > 0) ~
+        "At Least One Valid Allegation, with Other Allegation(s)",
+      
+      # No valid determinations
+      (n_v == 0 & n_i > 0 & n_u > 0 & n_o == 0) ~
+        "No Valid Determinations, All Invalid or UTD",
+      (n_v == 0 & n_i > 0 & n_u == 0 & n_o > 0) ~
+        "No Valid Determinations, All Invalid or Other",
+      (n_v == 0 & n_i == 0 & n_u > 0 & n_o > 0) ~
+        "No Valid Determinations, All UTD or Other",
+      (n_v == 0 & n_i > 0 & n_u > 0 & n_o > 0) ~
+        "No Valid Determinations, All Invalid, UTD, or Other",
+      )
+    ) %>%
+    
+    # Ungroups the data frame
+  
+    ungroup()
+    
+  # Renames the output variable
+  
+  names(mod_df)[names(mod_df) == 'out_var'] <- paste(output_var, target_category, sep = "_")
+  
+  # Isolates Row Number and the Output Variable
+    
+  mod_df <- mod_df %>% select(aps_row, ncol(mod_df))
+  
+  # Adds the new variable to the aggregate data frame
+  
+  aps_df <- left_join(aps_df, mod_df, by="aps_row")
+  
+  # Returns output
+  
+  aps_df
+}
+```
+
+
+# Dropping Original Variables
+
+We dropped the original Subject-level variables.
+
+```{r}
+aps <- aps %>%
+  select(-c(starts_with('aps_subject_')))
+```
+
+# Cleaning Determination Variables
+
+Each subject in the data set, represented by a unique APS Person ID, potentially had multiple Case Numbers assigned over the data set time period. As such, we generated variables that contained values summarizing all the observations represented in a single APS Person ID and the number of cases represented in a single APS Person ID. 
+
+```{r}
+aps <- aps %>%
+  group_by(aps_person_id) %>%
+  mutate(aps_subject_num_intakes = n_distinct(aps_row),
+         aps_subject_num_cases = n_distinct(aps_case_num)
+         ) %>%
+  ungroup()
+```
+
+We verified that our new variable was created without unexpected values.
+
+```{r}
+get_unique_value_summary(aps,
+                         c('aps_subject_num_intakes','aps_subject_num_cases'))
+```
+
+We then assigned the values for the determinations across every instance of each Case Number.
+
+```{r}
+aps <- aps %>%
+  redefine_determinations_modified('exploitation', grouping = "aps_person_id", 
+                              output_var = 'aps_subject') %>%
+  redefine_determinations_modified('abuse_sexual', grouping = "aps_person_id",
+                              output_var = 'aps_subject') %>%
+  redefine_determinations_modified('abuse_emotional', grouping = "aps_person_id",
+                              output_var = 'aps_subject') %>%
+  redefine_determinations_modified('abuse_physical', grouping = "aps_person_id",
+                              output_var = 'aps_subject') %>%
+  redefine_determinations_modified('neglect_physical', grouping = "aps_person_id",
+                              output_var = 'aps_subject') %>%
+  redefine_determinations_modified('neglect_medical', grouping = "aps_person_id",
+                              output_var = 'aps_subject') %>%
+  redefine_determinations_modified('neglect_mental', grouping = "aps_person_id",
+                              output_var = 'aps_subject')
+```
+
+We assigned each of our 16 determinations an order, with determinations indicating at least one valid allegation listed first.
+
+```{r}
+determination_levels <- c(
+  'All Allegations Valid',
+  'At Least One Valid Allegation, with Invalid Allegation(s)',
+  'At Least One Valid Allegation, with UTD Allegation(s)', 
+  'At Least One Valid Allegation, with Other Allegation(s)', 
+  'At Least One Valid Allegation, with Invalid and UTD Allegation(s)', 
+  'At Least One Valid Allegation, with Invalid and Other Allegation(s)', 
+  'At Least One Valid Allegation, with UTD and Other Allegation(s)', 
+  'At Least One Valid Allegation, with Invalid, UTD, and Other Allegation(s)',
+  'All Allegations Invalid', 'All Allegations Unable to Determine',
+  'All Allegations Other - Not Investigated', 
+  'No Valid Determinations, All Invalid or UTD', 
+  'No Valid Determinations, All Invalid or Other',
+  'No Valid Determinations, All UTD or Other',
+  'No Valid Determinations, All Invalid, UTD, or Other',
+  'No Allegations with Determinations')
+
+
+subject_determination_vars <- c(
+  'aps_subject_abuse_emotional', 'aps_subject_exploitation',
+  'aps_subject_neglect_medical', 'aps_subject_neglect_mental',
+  'aps_subject_abuse_physical', 'aps_subject_neglect_physical',
+  'aps_subject_abuse_sexual')
+
+aps <- aps %>%
+  mutate(across(all_of(subject_determination_vars), 
+                ~factor(.x, ordered = TRUE, levels = determination_levels)
+                  )
+         )
+```
+
+We verified our assignments were complete.
+
+```{r}
+get_unique_value_summary(aps, subject_determination_vars)
+```
+
+# Adding Binary Indicators
+
+## At Least One Valid Allegation of Any Type
+
+The first eight determination values indicated that at least one allegation of elder mistreatment was found to be valid.
+
+```{r}
+determination_levels[1:8]
+```
+
+We flagged the observations in our data set based on if there were any valid allegations in any category of elder mistreatment for each intake/row, Case Number, and Subject ID.
+
+```{r}
+aps <- aps %>%
+  rowwise() %>%
+  mutate(aps_subject_any_valid = if_any(all_of(subject_determination_vars), 
+                            .fns = ~.x %in% determination_levels[1:8])
+         ) %>%
+  ungroup()
+```
+
+Based on our flag, we expected 7,959 observations to indicate at least one valid allegation across the individual observations.
+
+```{r}
+get_unique_value_summary(aps, c('aps_rows_any_valid', 'aps_cases_any_valid',
+                         'aps_subject_any_valid'))
+```
+
+## No Determinations of Any Type
+
+We flagged any observation where all determinations were equal to the final value of the determination levels, "No Allegations with Determinations."
+
+```{r}
+aps <- aps %>%
+  rowwise() %>%
+  mutate(aps_subject_none = if_all(all_of(subject_determination_vars),
+                                .fns = ~.x %in% determination_levels[16]),
+         ) %>%
+  ungroup()
+```
+
+We verified our assignments did not result in any unanticipated values.
+
+```{r}
+get_unique_value_summary(aps,
+                c('aps_rows_none', 'aps_cases_none', 'aps_subject_none'))
+```
+
+## EMS Reporter
+
+The reporter category "Health Care Providers/Staff -- EMS/EMT" was designated to indicate reports by EMS.
+
+```{r}
+get_unique_value_summary(aps, 'aps_reporter')
+```
+
+We added binary variables which would indicate if any observation within a grouping (Row/Intake, Case Number, APS Person ID) had an EMS Reporter.
+
+```{r}
+aps <- aps %>%
+  group_by(aps_person_id) %>%
+  mutate(aps_subject_reporter_ems = case_when(
+    sum(aps_cases_reporter_ems, na.rm = TRUE) > 0 ~ TRUE,
+    (sum(!(aps_cases_reporter_ems), na.rm = TRUE) > 0 & 
+       sum(aps_cases_reporter_ems, na.rm = TRUE) == 0) ~ FALSE,
+    TRUE ~ NA
+    )) %>% 
+  ungroup()
+```
+
+We checked our assignments and found no unexpected results.
+
+```{r}
+get_unique_value_summary(aps,
+                         c('aps_rows_reporter_ems', 'aps_cases_reporter_ems',
+                           'aps_subject_reporter_ems'))
+```
+
+## Healthcare Reporter
+
+The reporter category "Health Care Providers/Staff -- EMS/EMT" was a distinct from "Health Care Providers/Staff", but appeared to be a subset. Anticipating the possibility of an EMS report being mistakenly classified as "Health Care Providers/Staff" instead of "Health Care Providers/Staff -- EMS/EMT", we generated binary variables which would incidate if any observation within a grouping (Row/Intake, Case Number, APS Person ID) had a Healthcare Reporter.
+
+
+```{r}
+aps <- aps %>%
+  group_by(aps_person_id) %>%
+  mutate(aps_subject_reporter_health = case_when(
+    sum(aps_cases_reporter_health, na.rm = TRUE) > 0 ~ TRUE,
+    (sum(!(aps_cases_reporter_health), na.rm = TRUE) > 0 & 
+       sum(aps_cases_reporter_health, na.rm = TRUE) == 0) ~ FALSE,
+    TRUE ~ NA
+    )) %>% 
+  ungroup()
+```
+
+We checked our assignments and found no unexpected results.
+
+```{r}
+get_unique_value_summary(aps, 
+                         c('aps_rows_reporter_health', 
+                           'aps_cases_reporter_health', 
+                           'aps_subject_reporter_health'))
+```
+
+# Flagging Earliest Case Open Date
+
+We created variables to flag the earliest Case Open date, and latest Investigation Close date, for the observations within a grouping (Row/Investigation, Case Number, APS Person ID).
+
+```{r}
+aps <- aps %>%
+  group_by(aps_person_id) %>%
+  mutate(aps_subject_earliest = min(aps_intake_date),
+         aps_subject_latest = max(aps_inv_close_date)
+         ) %>%
+  ungroup()
+```
+
+# Save and Export
+
+We saved and exported the revised APS Data Set.
+
+```{r}
+saveRDS(aps, here("data", "DETECT Shared GRAs", "aps_04.rds"))
+```
+
