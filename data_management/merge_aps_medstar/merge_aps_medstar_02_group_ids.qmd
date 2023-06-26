@@ -167,7 +167,7 @@ The APS data set was loaded for processing.
 
 ```{r}
 aps <- readRDS(here("data","DETECT Shared GRAs","aps_cleaning",
-                             "aps_01.rds")
+                             "aps_02.rds")
                ) %>%
     mutate(pt_dob = as.character(pt_dob)
          )
@@ -5098,5 +5098,5 @@ We exported our revised source data sets.
 ```{r}
 saveRDS(medstar, here("data","DETECT Shared GRAs","medstar_02.rds"))
 
-saveRDS(aps, here("data","DETECT Shared GRAs","aps_02.rds"))
+saveRDS(aps, here("data","DETECT Shared GRAs","aps_03.rds"))
 ```

@@ -85,7 +85,7 @@ The APS data set was loaded for processing.
 
 ```{r}
 aps <- readRDS(here("data","DETECT Shared GRAs","aps_cleaning",
-                             "aps_01.rds"))
+                             "aps_02.rds"))
 ```
 
 ## Functions
