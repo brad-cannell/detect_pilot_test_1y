@@ -173,6 +173,12 @@ aps <- readRDS(here("data","DETECT Shared GRAs","aps_cleaning",
          )
 ```
 
+The original APS Source ID Modification Map was loaded for processing.
+
+```{r}
+aps_source_map_original <- readRDS(here("data","DETECT Shared GRAs", "aps_cleaning","aps_id_replacement_map.rds"))
+```
+
 ## Functions
 
 ### Unique Value Summary
@@ -5076,6 +5082,24 @@ medstar <- left_join(medstar, full_pattern, by='ms_id') %>%
 aps <- left_join(aps, full_pattern, by='aps_person_id') %>%
   relocate('id', 'aps_person_id') %>%
   select(-c('ms_id'))
+```
+
+# Finalizing APS Subject ID Revision Maps
+
+We checked to ensure none of the new APS Person ID revisions were present in the original APS Subject ID revision map.
+
+```{r}
+colnames(aps_source_map_original)[1] <- "old_id"
+
+sum(aps_source_map_original$new_id %in% aps_source_map$old_id)
+sum(aps_source_map_original$old_id %in% aps_source_map$new_id)
+sum(aps_source_map_original$old_id %in% aps_source_map$old_id)
+```
+
+We appended the original APS Source ID revision map to our newly created revision map.
+
+```{r}
+aps_source_map <- rbind(aps_source_map, aps_source_map_original)
 ```
 
 # Saving and Exporting Data
