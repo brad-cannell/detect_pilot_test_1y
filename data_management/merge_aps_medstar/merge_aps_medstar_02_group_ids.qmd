@@ -5120,7 +5120,8 @@ saveRDS(full_pattern, here("data","DETECT Shared GRAs","merge_aps_medstar",
 We exported our revised source data sets.
 
 ```{r}
-saveRDS(medstar, here("data","DETECT Shared GRAs","medstar_02.rds"))
+saveRDS(medstar, here("data","DETECT Shared GRAs", "medstar_cleaning",
+                      "medstar_02.rds"))
 
-saveRDS(aps, here("data","DETECT Shared GRAs","aps_03.rds"))
+saveRDS(aps, here("data","DETECT Shared GRAs", "aps_cleaning", "aps_03.rds"))
 ```

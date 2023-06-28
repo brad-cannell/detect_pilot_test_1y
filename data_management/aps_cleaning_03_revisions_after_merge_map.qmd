@@ -25,9 +25,9 @@ library(here)
 The originally cleaned APS Data set was loaded for processing.
 
 ```{r}
-aps <- readRDS(here("data","DETECT Shared GRAs",
-                             "aps_03.rds")) %>%
-  relocate(aps_row)
+aps <- readRDS(here("data","DETECT Shared GRAs", "aps_cleaning",
+                             "aps_03.rds")
+               ) %>% relocate(aps_row)
 ```
 
 ## Functions
@@ -260,7 +260,6 @@ redefine_determinations_modified <- function(aps_df, target_category,
 }
 ```
 
-
 # Dropping Original Variables
 
 We dropped the original Subject-level variables.
@@ -272,7 +271,7 @@ aps <- aps %>%
 
 # Cleaning Determination Variables
 
-Each subject in the data set, represented by a unique APS Person ID, potentially had multiple Case Numbers assigned over the data set time period. As such, we generated variables that contained values summarizing all the observations represented in a single APS Person ID and the number of cases represented in a single APS Person ID. 
+Each subject in the data set, represented by a unique APS Person ID, potentially had multiple Case Numbers assigned over the data set time period. As such, we generated variables that contained values summarizing all the observations represented in a single APS Person ID and the number of cases represented in a single APS Person ID.
 
 ```{r}
 aps <- aps %>%
@@ -432,7 +431,6 @@ get_unique_value_summary(aps,
 
 The reporter category "Health Care Providers/Staff -- EMS/EMT" was a distinct from "Health Care Providers/Staff", but appeared to be a subset. Anticipating the possibility of an EMS report being mistakenly classified as "Health Care Providers/Staff" instead of "Health Care Providers/Staff -- EMS/EMT", we generated binary variables which would incidate if any observation within a grouping (Row/Intake, Case Number, APS Person ID) had a Healthcare Reporter.
 
-
 ```{r}
 aps <- aps %>%
   group_by(aps_person_id) %>%
@@ -472,6 +470,5 @@ aps <- aps %>%
 We saved and exported the revised APS Data Set.
 
 ```{r}
-saveRDS(aps, here("data", "DETECT Shared GRAs", "aps_04.rds"))
+saveRDS(aps, here("data", "DETECT Shared GRAs", "aps_cleaning", "aps_04.rds"))
 ```
-
