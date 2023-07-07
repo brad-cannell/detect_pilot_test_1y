@@ -2130,7 +2130,42 @@ ms_epcr <- ms_epcr %>%
   )
 ```
 
-The remaining 21 observations were much simpler. The alphanumeric string was isolated with are regular expression and shifted to `num_temp`, while any remaining content was shifted to `detect_report_comment`.
+There were 2 observations remaining which utilized the phrasing "REPORT" or "REFERENCE NUMBER" prior to the actual number. The alphanumeric string was isolated with a regular expression and shifted to `num_temp`, while any remaining content was shifted to `detect_report_comment`.
+
+```{r}
+checking_col <- filter(
+  ms_epcr,
+  (str_detect(ms_epcr$detect_report_num,
+              "^(REPORT|REFERENCE NUMBER)[# ]*?([0-9A-Z]+)[ \\-/]*?(.*)$")
+   )
+  )
+
+sum(!is.na(checking_col$detect_report_num))
+
+ms_epcr <- ms_epcr %>%
+  mutate(num_temp = ifelse(
+    (str_detect(detect_report_num, 
+                "^(REPORT|REFERENCE NUMBER)[# ]*?([0-9A-Z]+)[ \\-/]*?(.*)$")),
+    str_match(detect_report_num,
+              "^(REPORT|REFERENCE NUMBER)[# ]*?([0-9A-Z]+)[ \\-/]*?(.*)$")[,3],
+    num_temp
+    )
+  ) %>%
+  mutate(detect_report_comment = ifelse(
+    (str_detect(detect_report_num, 
+                "^(REPORT|REFERENCE NUMBER)[# ]*?([0-9A-Z]+)[ \\-/]*?(.*)$")),
+    str_match(detect_report_num,
+              "^(REPORT|REFERENCE NUMBER)[# ]*?([0-9A-Z]+)[ \\-/]*?(.*)$")[,4],
+    num_temp
+    )
+  ) %>%
+  mutate(detect_report_num = ifelse(!is.na(num_temp),
+                                    NA,
+                                    detect_report_num)
+  )
+```
+
+The remaining 19 observations were much simpler. The alphanumeric string was isolated with are regular expression and shifted to `num_temp`, while any remaining content was shifted to `detect_report_comment`.
 
 ```{r}
 checking_col <- filter(ms_epcr,
