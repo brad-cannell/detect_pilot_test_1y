@@ -1,0 +1,315 @@
+---
+title: "Merge APS and MedStar"
+format: html
+editor: visual
+---
+
+# Summary
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(here)
+library(lubridate)
+```
+
+## Data Imports
+
+We imported the revised MedStar data set for processing.
+
+```{r}
+medstar <- readRDS(here("data","DETECT Shared GRAs", "medstar_cleaning",
+                        "medstar_03.rds"))
+```
+
+We imported the revised APS data set for processing.
+
+```{r}
+aps <- readRDS(here("data","DETECT Shared GRAs", "aps_cleaning", "aps_05.rds"))
+```
+
+We imported the APS Intake-MedStar Response merge pattern for processing.
+
+```{r}
+row_pattern <- readRDS(here("data","DETECT Shared GRAs","merge_aps_medstar",
+                              "medstar_aps_full_row_map_01.rds"))
+```
+
+# Ordering Columns in Original Data Sets
+
+## APS
+
+We isolated variables from the APS data set into groups. 
+
+```{r}
+universal_id_vars <- aps %>%
+  select(id, aps_person_id, ms_id, aps_case_num, aps_row, 
+         ms_epcr_row, ms_comp_row) %>%
+  names()
+
+aps_pt_vars <- aps %>%
+  select(starts_with("pt_")) %>%
+  names()
+
+aps_event_vars <- aps %>%
+  select(aps_intake_dt, aps_intake_date, aps_intake_time, aps_intake_year, 
+         aps_intake_month, aps_intake_day) %>%
+  names()
+
+aps_inv_vars <- aps %>%
+  select(aps_intake_num, aps_inv_num, aps_inv_close_dt, aps_inv_close_date, aps_inv_close_time,
+         aps_inv_close_year, aps_inv_close_month, aps_inv_close_day) %>%
+  names()
+
+aps_row_vars <- aps %>%
+  select(aps_reporter, aps_inv_close_reason, all_of(starts_with("aps_rows_"))
+         ) %>%
+  names()
+
+aps_case_vars <- aps %>%
+  select(starts_with("aps_cases_")) %>%
+  names()
+
+aps_subj_vars <- aps %>%
+  select(starts_with("aps_subject_")) %>%
+  names()
+```
+
+We ordered the columns of our APS data set to facilitate additional analyses and merges.
+
+```{r}
+aps_cols <- c(universal_id_vars, aps_event_vars, aps_pt_vars, aps_row_vars, 
+              aps_case_vars, aps_subj_vars, aps_inv_vars)
+
+aps <- aps[,aps_cols]
+```
+
+We saved the revised data set for later use.
+
+```{r}
+saveRDS(aps, here("data","DETECT Shared GRAs", "aps_cleaning", "aps_06.rds"))
+```
+
+## MedStar
+
+We isolated variables from the MedStar data set into groups. 
+
+```{r}
+ms_pt_vars <- medstar %>%
+  select(starts_with("pt_")) %>%
+  names()
+
+ms_event_vars <- medstar %>%
+  select(response_dt, response_date, response_time, response_year,
+         response_month, response_day) %>%
+  names()
+
+ms_resp_front_vars <- medstar %>%
+  select(response_complaint, response_dispo) %>%
+  names()
+
+ms_resp_detail_vars <- medstar %>%
+  select(response_num, response_pcr, response_symptoms, 
+         response_ems_epcr_sig) %>%
+  names()
+
+ms_detect_vars <- medstar %>%
+  select(starts_with("detect_")) %>%
+  names()
+
+ms_comp_vars <- medstar %>%
+  select(starts_with("comp_")) %>%
+  names()
+```
+
+We ordered the columns of our MedStar data set to facilitate additional analyses and merges.
+
+```{r}
+ms_cols <- c(universal_id_vars, ms_event_vars, ms_pt_vars, ms_resp_front_vars, 
+              ms_detect_vars, ms_resp_detail_vars, ms_comp_vars)
+
+medstar <- medstar[,ms_cols]
+```
+
+We saved the revised data set for later use.
+
+```{r}
+saveRDS(medstar, here("data","DETECT Shared GRAs", "medstar_cleaning",
+                        "medstar_04.rds"))
+```
+
+# Modification of Patient Identifier Variables
+
+To appropriately merge the data sets, the patient identifier variables were made uniform between the data sets.
+
+```{r}
+pt_vars <- unique(c(ms_pt_vars, aps_pt_vars))
+
+pt_vars
+```
+
+There were three Patient Identifiers present in the MedStar data set that were missing in the APS Data Set: pt_name_middle, pt_race, pt_hispanic, pt_gender, and pt_address_state. These variables were added to the APS data set as missing values, and the data set was reordered.
+
+```{r}
+setdiff(pt_vars, aps_pt_vars)
+
+aps <- aps %>%
+  add_column(pt_name_middle = NA_character_, pt_race = NA_character_, 
+             pt_hispanic = NA, pt_gender = NA_character_, 
+             pt_address_state = NA_character_) %>%
+  relocate(all_of(universal_id_vars), all_of(aps_event_vars), all_of(pt_vars))
+```
+
+The only Patient Identifier present in the APS data set that was missing in the MedStar data set was pt_address_county. This variable was added to the MedStar data set as a missing value, and the data set was reordered.
+
+```{r}
+setdiff(pt_vars, ms_pt_vars)
+
+medstar <- medstar %>%
+  add_column(pt_address_county = NA_character_) %>%
+  relocate(all_of(universal_id_vars), all_of(ms_event_vars), all_of(pt_vars))
+```
+
+# Merges
+
+## Subject-Wise Timeline Merge
+
+A data set which combined all observations of both data sets was created, in order to facilitate the creation of a "timeline" for all observations for each subject across both data sets.
+
+The overall merge variables from each set were selected and ordered.
+
+```{r}
+aps_timeline_merge_cols <- c(aps_row_vars, aps_case_vars, aps_subj_vars, 
+                             aps_inv_vars)
+
+ms_timeline_merge_cols <- c(ms_resp_front_vars, ms_detect_vars, 
+                            ms_resp_detail_vars, ms_comp_vars)
+
+event_vars <- c("event_type", "event_dt", "event_date", "event_time", 
+                "event_year", "event_month", "event_day")
+
+timeline_cols <- c(universal_id_vars, event_vars, pt_vars, ms_resp_front_vars, 
+                   ms_detect_vars, aps_row_vars, aps_case_vars, aps_subj_vars, 
+                   aps_inv_vars, ms_resp_detail_vars, ms_comp_vars)
+```
+
+### APS
+
+The event type variable was added as "APS Intake" for all rows. The MedStar specific variables were added as missing values. MedStar Row numbers were converted to missing values.
+
+```{r}
+aps_modified <- aps %>%
+  add_column(event_type = "APS Intake") %>%
+  mutate(!!!setNames(rep(NA_character_, 
+                         length(ms_timeline_merge_cols)), 
+                         ms_timeline_merge_cols
+                     )
+         ) %>%
+  mutate(ms_epcr_row = NA_integer_,
+         ms_comp_row = NA_integer_) %>%
+  relocate(all_of(universal_id_vars), event_type, 
+           all_of(aps_event_vars), all_of(pt_vars))
+```
+
+We renamed the event variables for these APS Intakes.
+
+```{r}
+aps_modified <- aps_modified %>%
+    rename(event_dt = aps_intake_dt, event_date = aps_intake_date, 
+         event_time = aps_intake_time, event_year = aps_intake_year,
+         event_month = aps_intake_month, event_day = aps_intake_day)
+```
+
+### MedStar
+
+The event type variable was added as "MedStar Response" for all rows. The APS specific variables were added as missing values. APS Row numbers were converted to missing values.
+
+```{r}
+ms_modified <- medstar %>%
+  add_column(event_type = "MedStar Response") %>%
+  mutate(!!!setNames(rep(NA_character_, 
+                         length(aps_timeline_merge_cols)), 
+                         aps_timeline_merge_cols
+                     )
+         ) %>%
+  mutate(aps_row = NA_integer_) %>%
+  relocate(all_of(universal_id_vars), event_type, 
+           all_of(ms_event_vars), all_of(pt_vars))
+```
+
+We renamed the event variables for these MedStar Responses.
+
+```{r}
+ms_modified <- ms_modified %>%
+    rename(event_dt = response_dt, event_date = response_date, 
+         event_time = response_time, event_year = response_year,
+         event_month = response_month, event_day = response_day)
+```
+
+### Merge
+
+We merged the data sets, and arranged both our observations and variables.
+
+```{r}
+merged_set <- rbind(ms_modified, aps_modified) %>%
+  arrange(id, event_dt)
+
+merged_set <- merged_set[,timeline_cols]
+```
+
+We saved and exported this data set.
+
+```{r}
+saveRDS(merged_set, here("data","DETECT Shared GRAs","merge_aps_medstar",
+                              "medstar_aps_merged_01_timeline_all_rows.rds"))
+```
+
+## Row-Intake Merge Set
+
+A data set which added the APS data to any paired MedStar Response was created.
+
+The overall merge variables from each set were selected and ordered.
+
+```{r}
+row_merge_cols <- c(universal_id_vars, ms_event_vars, pt_vars, 
+                    ms_resp_front_vars, ms_detect_vars, aps_row_vars, 
+                    aps_case_vars, aps_subj_vars, aps_inv_vars, aps_event_vars, 
+                    ms_resp_detail_vars, ms_comp_vars)
+```
+
+We modified our MedStar Data set to eliminate the empty "pt_address_county" variable, and the APS Data Set to exclude any other patient identifier variable. We generated a simple key between the two data sets, consisting of both the MedStar Response and APS Intake. 
+
+```{r}
+ms_modified <- medstar %>%
+  mutate(key = paste(ms_epcr_row, aps_row, sep=", ")) %>%
+  select(-c(pt_address_county))
+
+aps_modified <- aps %>%
+  mutate(key = paste(ms_epcr_row, aps_row, sep=", ")
+         ) %>%
+  select(-c(all_of(universal_id_vars), all_of(ms_pt_vars)))
+```
+
+The APS Intakes with a match in the MedStar data set were added to their paired MedStar Responses.
+
+```{r}
+merged_set <- left_join(ms_modified, aps_modified, by="key") %>%
+  select(-c(key))
+
+merged_set <- merged_set[,row_merge_cols]
+```
+
+We saved and exported this data set.
+
+```{r}
+saveRDS(merged_set, here("data","DETECT Shared GRAs","merge_aps_medstar",
+                "medstar_aps_merged_02_response_based_row_pairs.rds"))
+```
+
+# BOTTOM
