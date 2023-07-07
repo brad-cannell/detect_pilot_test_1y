@@ -10,64 +10,69 @@ editor: visual
 
     -   5,490 MedStar Responses
     -   4,188 APS Intakes corresponding to 3,398 Case Numbers
-    
+
 -   The APS Data Set was filtered to reduce search space.
 
     -   Intakes were filtered to only include Intakes that occured between February 1, 2017 and 10 days after February 28, 2018 (March 08, 2018)
         -   This reduced the APS data set to 2,302 Intakes across 1,811 Case Numbers and 1,335 subjects
-     -   Intakes were filtered to only include Intakes that occured after the earliest MedStar Response for a subject.
-        -   This reduced the APS data set to 1,747 Intakes across 1,376 Case Numbers and 1,064 subjects 
+    -   Intakes were filtered to only include Intakes that occured after the earliest MedStar Response for a subject. - This reduced the APS data set to 1,747 Intakes across 1,376 Case Numbers and 1,064 subjects
     -   Intakes were filtered to only include Intakes that had a reporter of "Health Care Providers/Staff", "Health Care Providers/Staff -- EMS/EMT", "Anonymous", "Community Agencies/Organizations", or a missing value
         -   This reduced the APS data set to 1,104 Intakes across 923 Case Numbers and 779 subjects
 
 -   The MedStar Data Set was filtered to only include subjects still present in the filtered APS Data Set
 
-        -   This reduced the MedStar data set to 3,010 Responses across 779 subjects
-        
+    ```         
+    -   This reduced the MedStar data set to 3,010 Responses across 779 subjects
+    ```
+
 -   Initial matches were made from the APS Data Set using a 72 hour window between APS Intake and MedStar Response; this produced 487 pairs, representing 462 APS Case Numbers and 422 Subjects and included the manual verification of entries in both data sets across 172 Subject IDs.
 
-        -   Subjects with a single APS Intake were assessed for pairs; 576 Subjects were assessed
-              -   This produced 269 pairs, across 269 APS Case Numbers and 269 Subjects
-              -   20 Subjects were manually checked, as they were duplicated in the automatic processing
-        -   Remaining APS Case Numbers with a single APS Intake were assessed for pairs; 413 Subjects across 522 APS Case Numbers were assessed
-              -   This produced 93 novel pairs, across 92 novel APS Case Numbers and 66 novel Subjects 
-              -   30 Subjects were manually checked, as they were duplicated in the automatic processing
-        -   Remaining APS Intakes that were missing a reporter type were assessed for pairs; 30 Subjects, each with a single Case Number and Intake, were assesed
-              -   This produced 2 novel pairs, across 2 novel APS Case Numbers and 1 novel Subject
-              -   All 30 Subjects were manually checked
-        -   Remaining APS Intakes with an Anonymous reporter were assessed for pairs; 31 Subjects, across 35 APS Case Numbers and 35 Intakes, were assessed
-              -   This produced 4 novel pairs, across 4 novel APS Case Numbers and 4 novel Subjects 
-              -   All 31 Subjects were manually checked
-        -   Remaining APS Intakes with an explicit EMS/EMT reporter were assessed for pairs; 78 Subjects, across 80 APS Case Numbers and 101 Intakes, were assessed
-              -   This produced 85 novel pairs, across 68 novel APS Case Numbers and 61 novel Subjects 
-              -   22 Subjects were manually checked, as they were duplicated in the automatic processing
-        -   Remaining APS Intakes with a Community Agency/Organization reporter were assessed for pairs; 157 Subjects, across 166 APS Case Numbers and 173 Intakes, were assessed
-              -   This produced 5 novel pairs, across 5 novel APS Case Numbers and 2 novel Subjects 
-              -   The 4 Subjects that were paired in automatic processing were manually checked
-        -   Remaining APS Intakes with a Health Care reporter, but not explicitly EMS/EMT, were assesed for pairs; 210 Subjects, across 225 APS Case Numbers and 247 Intakes, were assessed
-              -   This produced 28 novel pairs, across 22 novel APS Case Numbers and 19 novel Subjects 
-              -   The 22 Subjects that were paired in automatic processing were manually checked
-        -   All Remaining Unmatched APS Intakes with an EMS/EMT reporter were manually assessed for pairs; 13 Subjects were assessed
-              -   This produced 1 novel pair, across 1 novel APS Case Number and 0 novel Subjects 
+    ```         
+    -   Subjects with a single APS Intake were assessed for pairs; 576 Subjects were assessed
+          -   This produced 269 pairs, across 269 APS Case Numbers and 269 Subjects
+          -   20 Subjects were manually checked, as they were duplicated in the automatic processing
+    -   Remaining APS Case Numbers with a single APS Intake were assessed for pairs; 413 Subjects across 522 APS Case Numbers were assessed
+          -   This produced 93 novel pairs, across 92 novel APS Case Numbers and 66 novel Subjects 
+          -   30 Subjects were manually checked, as they were duplicated in the automatic processing
+    -   Remaining APS Intakes that were missing a reporter type were assessed for pairs; 30 Subjects, each with a single Case Number and Intake, were assesed
+          -   This produced 2 novel pairs, across 2 novel APS Case Numbers and 1 novel Subject
+          -   All 30 Subjects were manually checked
+    -   Remaining APS Intakes with an Anonymous reporter were assessed for pairs; 31 Subjects, across 35 APS Case Numbers and 35 Intakes, were assessed
+          -   This produced 4 novel pairs, across 4 novel APS Case Numbers and 4 novel Subjects 
+          -   All 31 Subjects were manually checked
+    -   Remaining APS Intakes with an explicit EMS/EMT reporter were assessed for pairs; 78 Subjects, across 80 APS Case Numbers and 101 Intakes, were assessed
+          -   This produced 85 novel pairs, across 68 novel APS Case Numbers and 61 novel Subjects 
+          -   22 Subjects were manually checked, as they were duplicated in the automatic processing
+    -   Remaining APS Intakes with a Community Agency/Organization reporter were assessed for pairs; 157 Subjects, across 166 APS Case Numbers and 173 Intakes, were assessed
+          -   This produced 5 novel pairs, across 5 novel APS Case Numbers and 2 novel Subjects 
+          -   The 4 Subjects that were paired in automatic processing were manually checked
+    -   Remaining APS Intakes with a Health Care reporter, but not explicitly EMS/EMT, were assesed for pairs; 210 Subjects, across 225 APS Case Numbers and 247 Intakes, were assessed
+          -   This produced 28 novel pairs, across 22 novel APS Case Numbers and 19 novel Subjects 
+          -   The 22 Subjects that were paired in automatic processing were manually checked
+    -   All Remaining Unmatched APS Intakes with an EMS/EMT reporter were manually assessed for pairs; 13 Subjects were assessed
+          -   This produced 1 novel pair, across 1 novel APS Case Number and 0 novel Subjects 
+    ```
 
 -   Further matches were made from the MedStar data set.
 
-        -   Remaining MedStar Responses that indicated an APS Report had been made were assessed for pairs; 11 Subjects across 10 Responses were assessed
-              -   All 11 Subjects were manually checked
-              -   This produced 1 novel pair, without an additional APS Case Number or Subject
-        -   Remaining Subjects with a single unmatched or unchecked MedStar Response were assessed for pairs; 117 Subjects across 117 Responses were assessed
-              -   All 117 Subjects were manually checked
-              -   This produced no pairs
-        -   Remaining MedStar Responses that were missing an indication of if an APS Report had been made or not were assessed for pairs; 121 Subjects across 236 Responses were assessed
-              -   The 3 Subjects that were paired in automatic processing were manually checked
-              -   This produced 4 novel pairs, without an additional APS Case Number or Subject
-              
+    ```         
+    -   Remaining MedStar Responses that indicated an APS Report had been made were assessed for pairs; 11 Subjects across 10 Responses were assessed
+          -   All 11 Subjects were manually checked
+          -   This produced 1 novel pair, without an additional APS Case Number or Subject
+    -   Remaining Subjects with a single unmatched or unchecked MedStar Response were assessed for pairs; 117 Subjects across 117 Responses were assessed
+          -   All 117 Subjects were manually checked
+          -   This produced no pairs
+    -   Remaining MedStar Responses that were missing an indication of if an APS Report had been made or not were assessed for pairs; 121 Subjects across 236 Responses were assessed
+          -   The 3 Subjects that were paired in automatic processing were manually checked
+          -   This produced 4 novel pairs, without an additional APS Case Number or Subject
+    ```
+
 -   The remaining 11 unpaired MedStar Responses across 10 Subjects which indicated an APS Report had been made were manually rechecked; this produced no pairs
 
 -   The remaining 29 APS Intakes across 28 APS Case Numbers and Subjects which indicated an EMS/EMT reporter were manually rechecked; this produced 2 corrections, and the loss of 1 APS Case Number
 
 -   The final map contained 492 pairs, representing 461 APS Case Numbers and 422 Subjects
-         
+
 # Imports
 
 ## Library Imports
@@ -190,7 +195,6 @@ point_map_aps <- function(t_id, t_aps, t_ms){
 }
 ```
 
-
 # Initiation of Data Maps
 
 We initiated several of the data frames we would use to collect the results of our processing.
@@ -256,7 +260,7 @@ There were only 305 observations in the MedStar data set with a DETECT tool resp
 get_unique_value_summary(medstar, 'detect_report_made')
 ```
 
-There were no observations missing data indicating that an APS report was made that also contained an APS Report Number. There were two observations, each representing a single MedStar Subject ID and Group ID, which indicated an APS report was *not* made, but provided an APS Report Number. 
+There were no observations missing data indicating that an APS report was made that also contained an APS Report Number. There were two observations, each representing a single MedStar Subject ID and Group ID, which indicated an APS report was *not* made, but provided an APS Report Number.
 
 ```{r}
 checking <- medstar %>%
@@ -312,7 +316,7 @@ medstar_missing <- unique(checking$id)
 
 Of the 269 Group IDs with at least one MedStar record indicating an APS report was made, 176 Group IDs (65.43%) contained additional observations which indicated that *no* APS report was made and 61 Group IDs (22.68%) contained additional observations with missing data regarding an APS report. There were 54 Group IDs (20.07%) with observations indicating an APS report was made, indicating *no* APS report was made, and missing data regarding an APS report being made.
 
-Of the 1767 Group IDs with at least one MedStar record indicating that *no* APS report was made, 359 Group IDs (20.32%) also referenced observations missing data indicating if an APS report was made. 
+Of the 1767 Group IDs with at least one MedStar record indicating that *no* APS report was made, 359 Group IDs (20.32%) also referenced observations missing data indicating if an APS report was made.
 
 ```{r}
 sum(medstar_yes %in% medstar_no)
@@ -383,7 +387,7 @@ nrow(ms_earliest)
 length(unique(ms_earliest$id))
 ```
 
-We excluded any Intakes that occurred prior to the earliest MedStar Response for each subject. This reduced our APS data set to 1,747 Intakes across 1,376 APS Case Numbers and 1,064 APS Person IDs. 
+We excluded any Intakes that occurred prior to the earliest MedStar Response for each subject. This reduced our APS data set to 1,747 Intakes across 1,376 APS Case Numbers and 1,064 APS Person IDs.
 
 ```{r}
 aps <- aps %>%
@@ -591,7 +595,6 @@ dup_ids <- dup_ids %>%
   select(-c(ms_epcr_row))
 ```
 
-
 We appended the results of this processing to our processing data frames.
 
 ```{r}
@@ -750,7 +753,7 @@ sum(point_map$ms_epcr_row %in% intake_response_pairs$ms_epcr_row)
 temp_map <- rbind(temp_map, point_map)
 ```
 
-We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Case Number or APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Person ID, APS Case Number, or APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records. 
+We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Case Number or APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Person ID, APS Case Number, or APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records.
 
 ```{r}
 sum(temp_map$aps_case_num %in% dup_ids$aps_case_num)
@@ -873,7 +876,7 @@ for (i in 1:length(checking_ids)){
 }
 ```
 
-Of the 30 APS Person ID Values checked, 27 APS Person IDs appeared to lack a potentially valid match in the MedStar data set (90.00% failure rate). None of the 3 potential pairs identified in the initial matching appeared to be valid. There were 3 APS Intakes, representing 3 APS Case Numbers and 3 APS Person IDs, which had manual matches made. 
+Of the 30 APS Person ID Values checked, 27 APS Person IDs appeared to lack a potentially valid match in the MedStar data set (90.00% failure rate). None of the 3 potential pairs identified in the initial matching appeared to be valid. There were 3 APS Intakes, representing 3 APS Case Numbers and 3 APS Person IDs, which had manual matches made.
 
 ```{r}
 temp_map <- tibble("id" = c(), "aps_case_num" = c(), 
@@ -909,7 +912,7 @@ point_map <- point_map %>%
 temp_map <- rbind(temp_map, point_map)
 ```
 
-We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Case Number or APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Case Number or APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records. 
+We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Case Number or APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Case Number or APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records.
 
 ```{r}
 sum(temp_map$aps_case_num %in% dup_ids$aps_case_num)
@@ -1029,7 +1032,7 @@ point_map <- rbind(point_map, point_map_aps(945, 6205, 26841))
 point_map <- rbind(point_map, point_map_aps(1513, 14788, 5299))
 ```
 
-We verified that these particular APS Case Numbers and Intakes were not otherwise represented in either our section-wise temporary map our overall MedStar Response-APS Intake pair map. 
+We verified that these particular APS Case Numbers and Intakes were not otherwise represented in either our section-wise temporary map our overall MedStar Response-APS Intake pair map.
 
 ```{r}
 sum(point_map$id %in% temp_map$id)
@@ -1051,7 +1054,7 @@ dup_ids <- dup_ids %>%
   filter(!(id %in% temp_map$id))
 ```
 
-We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Case Number or APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Case Number or APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records. 
+We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Case Number or APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Case Number or APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records.
 
 ```{r}
 sum(temp_map$aps_case_num %in% dup_ids$aps_case_num)
@@ -1188,7 +1191,7 @@ for (i in 1:length(checking_ids)){
 }
 ```
 
-Of the 22 APS Person ID values checked, all appeared to have at least one valid match within the MedStar data set. Where multiple responses appeared to be temporally appropriate, the DETECT variables were examined. If there was no indication in the DETECT Variables, the most complete and temporally related record was selected if it did not appear otherwise inappropriate. We excluded the mismatched MedStar Responses, and isolated the APS Person IDs, Case Numbers, and Rows which were confirmed to have no apparent valid matches in the MedStar data set. 
+Of the 22 APS Person ID values checked, all appeared to have at least one valid match within the MedStar data set. Where multiple responses appeared to be temporally appropriate, the DETECT variables were examined. If there was no indication in the DETECT Variables, the most complete and temporally related record was selected if it did not appear otherwise inappropriate. We excluded the mismatched MedStar Responses, and isolated the APS Person IDs, Case Numbers, and Rows which were confirmed to have no apparent valid matches in the MedStar data set.
 
 Of note, there were 2 APS Person IDs that required the removal then manual addition of an MedStar-APS pair, as both the APS Intake and MedStar Response had both a true-match and false-match in the section-wise map. There were also 7 APS Person IDs where there were multiple APS Intakes matched to a single MedStar Response; on inspection, it appeared that these intakes may have represented two EMS personnel (possibly both EMS partners) making separate reports relating to the same call. For these intakes, only the first matching intake was kept.
 
@@ -1234,7 +1237,7 @@ point_map <- rbind(point_map, point_map_aps(1555, 15796, 29665))
 point_map <- rbind(point_map, point_map_aps(1589, 16878, 31176))
 ```
 
-We verified that these particular APS Intakes were not otherwise represented in either our section-wise temporary map our overall MedStar Response-APS Intake pair map. 
+We verified that these particular APS Intakes were not otherwise represented in either our section-wise temporary map our overall MedStar Response-APS Intake pair map.
 
 ```{r}
 sum(point_map$id %in% temp_map$id)
@@ -1257,7 +1260,7 @@ dup_ids <- dup_ids %>%
   filter(!(id %in% temp_map$id))
 ```
 
-We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Case Number or APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Case Number or APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records. 
+We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Case Number or APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Case Number or APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records.
 
 ```{r}
 sum(temp_map$aps_case_num %in% dup_ids$aps_case_num)
@@ -1417,7 +1420,7 @@ point_map <- rbind(point_map, point_map_aps(1634, 17968, 27507))
 point_map <- rbind(point_map, point_map_aps(1634, 17969, 31024))
 ```
 
-We verified that these particular APS Intakes were not otherwise represented in either our section-wise temporary map our overall MedStar Response-APS Intake pair map. 
+We verified that these particular APS Intakes were not otherwise represented in either our section-wise temporary map our overall MedStar Response-APS Intake pair map.
 
 ```{r}
 sum(point_map$id %in% intake_response_pairs$id)
@@ -1432,7 +1435,7 @@ We appended our manually identified pairs to our section-wise map.
 temp_map <- rbind(temp_map, point_map)
 ```
 
-We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records. 
+We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records.
 
 ```{r}
 sum(temp_map$aps_case_num %in% dup_ids$aps_case_num)
@@ -1603,7 +1606,7 @@ point_map <- rbind(point_map, point_map_aps(1128, 7017, 7411))
 point_map <- rbind(point_map, point_map_aps(1962, 17918, 7107))
 ```
 
-We verified that these particular APS Intakes were not otherwise represented in either our section-wise temporary map our overall MedStar Response-APS Intake pair map. 
+We verified that these particular APS Intakes were not otherwise represented in either our section-wise temporary map our overall MedStar Response-APS Intake pair map.
 
 ```{r}
 sum(point_map$id %in% intake_response_pairs$id)
@@ -1623,7 +1626,7 @@ dup_ids <- dup_ids %>%
     )
 ```
 
-We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records. 
+We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records.
 
 ```{r}
 sum(temp_map$aps_case_num %in% dup_ids$aps_case_num)
@@ -1702,7 +1705,7 @@ point_map <- tibble("id" = c(), "aps_case_num" = c(),
 point_map <- rbind(point_map, point_map_aps(770, 7684, 15246))
 ```
 
-We verified that this particular APS Intake was not otherwise represented in our overall MedStar Response-APS Intake pair map. 
+We verified that this particular APS Intake was not otherwise represented in our overall MedStar Response-APS Intake pair map.
 
 ```{r}
 sum(point_map$id %in% intake_response_pairs$id)
@@ -1716,7 +1719,6 @@ We appended the results of this processing to our processing data frames.
 ```{r}
 intake_response_pairs <- rbind(intake_response_pairs, point_map)
 ```
-
 
 ### Updates from Manually Checked ID List
 
@@ -1733,7 +1735,6 @@ manual_aps <- aps %>%
 unmatched_aps_intakes <- rbind(unmatched_aps_intakes, manual_aps) %>%
   distinct()
 ```
-
 
 ## MedStar
 
@@ -1797,7 +1798,7 @@ point_map <- rbind(point_map, point_map_aps(824, 9482, 19998))
 manually_verified_ids <- unique(c(manually_verified_ids, checking_ids))
 ```
 
-We verified that these particular MedStar Responses were not otherwise represented in either our section-wise temporary map our overall MedStar Response-APS Intake pair map. 
+We verified that these particular MedStar Responses were not otherwise represented in either our section-wise temporary map our overall MedStar Response-APS Intake pair map.
 
 ```{r}
 sum(point_map$id %in% intake_response_pairs$id)
@@ -1809,7 +1810,6 @@ sum(point_map$ms_epcr_row %in% intake_response_pairs$ms_epcr_row)
 ```{r}
 intake_response_pairs <- rbind(intake_response_pairs, point_map)
 ```
-
 
 ### Subjects With a Single Remaining Response
 
@@ -1852,7 +1852,6 @@ manually_verified_ids <- unique(c(manually_verified_ids, checking_ids))
 
 unmatched_ms_responses <- rbind(unmatched_ms_responses, dup_ids)
 ```
-
 
 ### Responses Missing an Indication of a Report Being Made
 
@@ -1916,7 +1915,7 @@ length(unique(temp_map$aps_row))
 length(unique(temp_map$ms_epcr_row))
 ```
 
-These 3 MedStar Subject IDs were manually verified. 
+These 3 MedStar Subject IDs were manually verified.
 
 ```{r}
 checking_ids <- unique(temp_map$id)
@@ -1930,7 +1929,7 @@ for (i in 1:length(checking_ids)){
 }
 ```
 
-There was a single mismatched APS Intake, which was adjusted to reference a more potentially valid MedStar Response. The remaining pairs appeared potentially valid, without additional potential pairs identified. 
+There was a single mismatched APS Intake, which was adjusted to reference a more potentially valid MedStar Response. The remaining pairs appeared potentially valid, without additional potential pairs identified.
 
 ```{r}
 temp_map <- rbind(temp_map[temp_map$aps_row != 11603,], 
@@ -1938,8 +1937,6 @@ temp_map <- rbind(temp_map[temp_map$aps_row != 11603,],
 
 manually_verified_ids <- unique(c(manually_verified_ids, checking_ids))
 ```
-
-
 
 ```{r}
 checking_ids <- setdiff(unique(checking$id), checking_ids)
@@ -2050,7 +2047,6 @@ intake_response_pairs <- rbind(
 )
 ```
 
-
 # Map Verification and Application
 
 ## Verification
@@ -2134,7 +2130,10 @@ medstar <- medstar %>%
   add_column(aps_person_id = NA_integer_, aps_case_num = NA_integer_, 
              aps_row = NA_integer_)
 
-medstar <- rows_update(medstar, intake_response_pairs, by = "ms_epcr_row") %>%
+medstar <- rows_update(medstar, intake_response_pairs, by = "ms_epcr_row") 
+medstar <- rows_update(medstar, merge_pattern %>%
+                         select(id, aps_person_id) %>%
+                         distinct(), by = "id", unmatched = "ignore") %>%
   relocate(id, ms_id, aps_person_id, aps_case_num, aps_row, ms_epcr_row, 
            ms_comp_row)
 
@@ -2142,7 +2141,10 @@ aps <- aps %>%
   add_column(ms_id = NA_integer_, ms_epcr_row = NA_integer_, 
              ms_comp_row = NA_integer_)
 
-aps <- rows_update(aps, intake_response_pairs, by = "aps_row") %>%
+aps <- rows_update(aps, intake_response_pairs, by = "aps_row") 
+aps <- rows_update(aps, merge_pattern %>%
+                     select(id, ms_id) %>%
+                     distinct(), by = "id", unmatched = "ignore") %>%
     relocate(id, ms_id, aps_person_id, aps_case_num, aps_row, ms_epcr_row, 
            ms_comp_row)
 ```
