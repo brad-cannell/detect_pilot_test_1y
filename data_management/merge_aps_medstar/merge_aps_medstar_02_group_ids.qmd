@@ -5108,13 +5108,13 @@ We exported our maps, both for revising the source data set Subject IDs but also
 
 ```{r}
 saveRDS(aps_source_map, here("data","DETECT Shared GRAs","merge_aps_medstar",
-                             "aps_id_revision_pattern_01"))
+                             "aps_id_revision_pattern_01.rds"))
 
 saveRDS(ms_source_map, here("data","DETECT Shared GRAs","merge_aps_medstar",
-                             "medstar_id_revision_pattern_01"))
+                             "medstar_id_revision_pattern_01.rds"))
 
 saveRDS(full_pattern, here("data","DETECT Shared GRAs","merge_aps_medstar",
-                             "aps_medstar_full_map_01"))
+                             "aps_medstar_full_subjid_map_01.rds"))
 ```
 
 We exported our revised source data sets.

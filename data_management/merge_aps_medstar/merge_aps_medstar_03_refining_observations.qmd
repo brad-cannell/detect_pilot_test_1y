@@ -2092,6 +2092,6 @@ We saved and exported our map for later use.
 ```{r}
 saveRDS(intake_response_pairs, 
         here("data","DETECT Shared GRAs", "merge_aps_medstar", 
-             "medstar_aps_row_pair_map_01.rds"))
+             "medstar_aps_full_row_map_01.rds"))
 ```
 
