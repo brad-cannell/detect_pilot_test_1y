@@ -100,7 +100,7 @@ We imported the Group ID merge pattern for processing.
 
 ```{r}
 merge_pattern <- readRDS(here("data","DETECT Shared GRAs","merge_aps_medstar",
-                              "aps_medstar_full_map_01"))
+                              "aps_medstar_full_subjid_map_01.rds"))
 ```
 
 ## Functions
@@ -2051,7 +2051,9 @@ intake_response_pairs <- rbind(
 ```
 
 
-# Checking Map
+# Map Verification and Application
+
+## Verification
 
 The map of MedStar Response-APS Intake pairs contained 492 pairs, representing 461 APS Case Numbers and 422 Subjects
 
@@ -2060,7 +2062,6 @@ nrow(intake_response_pairs)
 length(unique(intake_response_pairs$aps_case_num))
 length(unique(intake_response_pairs$id))
 ```
-
 
 We verified that there were no instances where any APS Intake or MedStar Response was paired more than once. Similarly, we checked to ensure no typo errors caused the inclusion of an APS Intake or MedStar Response that did not exist in the source data sets.
 
@@ -2085,6 +2086,67 @@ nrow(intake_response_pairs %>%
 )
 ```
 
+## Addition of Within-Set ID Values
+
+We added values for within-set Subject IDs and MedStar Compliance Row to our map.
+
+```{r}
+intake_response_pairs <- intake_response_pairs %>%
+  add_column(aps_person_id = NA_integer_, ms_id = NA_integer_, 
+             ms_comp_row = NA_integer_)
+```
+
+We added these values to our map from our trimmed source data sets.
+
+```{r}
+aps <- aps %>%
+  select(id, aps_person_id, aps_case_num, aps_row)
+
+intake_response_pairs <- rows_update(intake_response_pairs, aps, 
+                                      by = "aps_row", unmatched = "ignore")
+
+medstar <- medstar %>%
+  select(id, ms_id, ms_epcr_row, ms_comp_row)
+
+intake_response_pairs <- rows_update(intake_response_pairs, medstar, 
+                                      by = "ms_epcr_row", unmatched = "ignore")
+```
+
+## Applying Map to Source Data Sets
+
+We re-imported the revised MedStar data set, without any filtering or trimming, for processing.
+
+```{r}
+medstar <- readRDS(here("data","DETECT Shared GRAs", "medstar_cleaning",
+                        "medstar_02.rds"))
+```
+
+We re-imported the revised APS data set, without any filtering or trimming, for processing.
+
+```{r}
+aps <- readRDS(here("data","DETECT Shared GRAs", "aps_cleaning", "aps_04.rds"))
+```
+
+We added values for all within-set identifiers to both data sets.
+
+```{r}
+medstar <- medstar %>%
+  add_column(aps_person_id = NA_integer_, aps_case_num = NA_integer_, 
+             aps_row = NA_integer_)
+
+medstar <- rows_update(medstar, intake_response_pairs, by = "ms_epcr_row") %>%
+  relocate(id, ms_id, aps_person_id, aps_case_num, aps_row, ms_epcr_row, 
+           ms_comp_row)
+
+aps <- aps %>%
+  add_column(ms_id = NA_integer_, ms_epcr_row = NA_integer_, 
+             ms_comp_row = NA_integer_)
+
+aps <- rows_update(aps, intake_response_pairs, by = "aps_row") %>%
+    relocate(id, ms_id, aps_person_id, aps_case_num, aps_row, ms_epcr_row, 
+           ms_comp_row)
+```
+
 # Save and Export
 
 We saved and exported our map for later use.
@@ -2095,3 +2157,15 @@ saveRDS(intake_response_pairs,
              "medstar_aps_full_row_map_01.rds"))
 ```
 
+We saved the updated MedStar data set for later use.
+
+```{r}
+saveRDS(medstar, here("data","DETECT Shared GRAs", "medstar_cleaning",
+                        "medstar_03.rds"))
+```
+
+We saved the updated APS data set for later use.
+
+```{r}
+saveRDS(aps, here("data","DETECT Shared GRAs", "aps_cleaning", "aps_05.rds"))
+```
