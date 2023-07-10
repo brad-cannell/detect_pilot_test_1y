@@ -6,6 +6,22 @@ editor: visual
 
 # Summary
 
+-   Patient identifiers were present in both data sets
+
+    -   Patient Address County was the only variable kept from the APS data set when collapsing to a single row
+    
+-   A merged data set containing all rows from both data sets was created
+
+    -   This was created to facilitate creating a "Timeline" of all data points from each subject
+    
+    -   APS Rows were given the Event Type of "APS Intake"; MedStar Rows were given the Event Type of "MedStar Response"
+    
+    -   The APS Intake Date/Time was selected as the event from the APS data; The Response Date/Time was selected as the event from the MedStar data
+
+-   A merged data set containing all rows from the MedStar data set, with any paired APS row data appended in the same row was created
+
+    -   This was created to facilitate analysis of a single MedStar Response and its associated APS Intake
+
 # Imports
 
 ## Library Imports
