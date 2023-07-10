@@ -1,5 +1,5 @@
 ---
-title: "Analysis"
+title: "MedStar Response-APS Intake Pairs"
 format: html
 editor: visual
 ---
@@ -13,59 +13,83 @@ editor: visual
 
 -   The APS Data Set was filtered to reduce search space.
 
-    -   Intakes were filtered to only include Intakes that occured between February 1, 2017 and 10 days after February 28, 2018 (March 08, 2018)
+    -   Intakes were filtered to only include Intakes that occurred between February 1, 2017 and 10 days after February 28, 2018 (March 08, 2018)
         -   This reduced the APS data set to 2,302 Intakes across 1,811 Case Numbers and 1,335 subjects
-    -   Intakes were filtered to only include Intakes that occured after the earliest MedStar Response for a subject. - This reduced the APS data set to 1,747 Intakes across 1,376 Case Numbers and 1,064 subjects
+    -   Intakes were filtered to only include Intakes that occurred after the earliest MedStar Response for a subject. - This reduced the APS data set to 1,747 Intakes across 1,376 Case Numbers and 1,064 subjects
     -   Intakes were filtered to only include Intakes that had a reporter of "Health Care Providers/Staff", "Health Care Providers/Staff -- EMS/EMT", "Anonymous", "Community Agencies/Organizations", or a missing value
         -   This reduced the APS data set to 1,104 Intakes across 923 Case Numbers and 779 subjects
 
 -   The MedStar Data Set was filtered to only include subjects still present in the filtered APS Data Set
 
-    ```         
     -   This reduced the MedStar data set to 3,010 Responses across 779 subjects
-    ```
 
 -   Initial matches were made from the APS Data Set using a 72 hour window between APS Intake and MedStar Response; this produced 487 pairs, representing 462 APS Case Numbers and 422 Subjects and included the manual verification of entries in both data sets across 172 Subject IDs.
 
-    ```         
-    -   Subjects with a single APS Intake were assessed for pairs; 576 Subjects were assessed
-          -   This produced 269 pairs, across 269 APS Case Numbers and 269 Subjects
-          -   20 Subjects were manually checked, as they were duplicated in the automatic processing
-    -   Remaining APS Case Numbers with a single APS Intake were assessed for pairs; 413 Subjects across 522 APS Case Numbers were assessed
-          -   This produced 93 novel pairs, across 92 novel APS Case Numbers and 66 novel Subjects 
-          -   30 Subjects were manually checked, as they were duplicated in the automatic processing
-    -   Remaining APS Intakes that were missing a reporter type were assessed for pairs; 30 Subjects, each with a single Case Number and Intake, were assesed
-          -   This produced 2 novel pairs, across 2 novel APS Case Numbers and 1 novel Subject
-          -   All 30 Subjects were manually checked
-    -   Remaining APS Intakes with an Anonymous reporter were assessed for pairs; 31 Subjects, across 35 APS Case Numbers and 35 Intakes, were assessed
-          -   This produced 4 novel pairs, across 4 novel APS Case Numbers and 4 novel Subjects 
-          -   All 31 Subjects were manually checked
-    -   Remaining APS Intakes with an explicit EMS/EMT reporter were assessed for pairs; 78 Subjects, across 80 APS Case Numbers and 101 Intakes, were assessed
-          -   This produced 85 novel pairs, across 68 novel APS Case Numbers and 61 novel Subjects 
-          -   22 Subjects were manually checked, as they were duplicated in the automatic processing
-    -   Remaining APS Intakes with a Community Agency/Organization reporter were assessed for pairs; 157 Subjects, across 166 APS Case Numbers and 173 Intakes, were assessed
-          -   This produced 5 novel pairs, across 5 novel APS Case Numbers and 2 novel Subjects 
-          -   The 4 Subjects that were paired in automatic processing were manually checked
-    -   Remaining APS Intakes with a Health Care reporter, but not explicitly EMS/EMT, were assesed for pairs; 210 Subjects, across 225 APS Case Numbers and 247 Intakes, were assessed
-          -   This produced 28 novel pairs, across 22 novel APS Case Numbers and 19 novel Subjects 
-          -   The 22 Subjects that were paired in automatic processing were manually checked
-    -   All Remaining Unmatched APS Intakes with an EMS/EMT reporter were manually assessed for pairs; 13 Subjects were assessed
-          -   This produced 1 novel pair, across 1 novel APS Case Number and 0 novel Subjects 
-    ```
+-   Subjects with a single APS Intake were assessed for pairs; 576 Subjects were assessed
+
+    -   This produced 269 pairs, across 269 APS Case Numbers and 269 Subjects
+
+    -   20 Subjects were manually checked, as they were duplicated in the automatic processing
+
+-   Remaining APS Case Numbers with a single APS Intake were assessed for pairs; 413 Subjects across 522 APS Case Numbers were assessed
+
+    -   This produced 93 novel pairs, across 92 novel APS Case Numbers and 66 novel Subjects
+
+    -   30 Subjects were manually checked, as they were duplicated in the automatic processing
+
+-   Remaining APS Intakes that were missing a reporter type were assessed for pairs; 30 Subjects, each with a single Case Number and Intake, were assessed
+
+    -   This produced 2 novel pairs, across 2 novel APS Case Numbers and 1 novel Subject
+
+    -   All 30 Subjects were manually checked
+
+-   Remaining APS Intakes with an Anonymous reporter were assessed for pairs; 31 Subjects, across 35 APS Case Numbers and 35 Intakes, were assessed
+
+    -   This produced 4 novel pairs, across 4 novel APS Case Numbers and 4 novel Subjects
+
+    -   All 31 Subjects were manually checked
+
+-   Remaining APS Intakes with an explicit EMS/EMT reporter were assessed for pairs; 78 Subjects, across 80 APS Case Numbers and 101 Intakes, were assessed
+
+    -   This produced 85 novel pairs, across 68 novel APS Case Numbers and 61 novel Subjects
+
+    -   22 Subjects were manually checked, as they were duplicated in the automatic processing
+
+-   Remaining APS Intakes with a Community Agency/Organization reporter were assessed for pairs; 157 Subjects, across 166 APS Case Numbers and 173 Intakes, were assessed
+
+    -   This produced 5 novel pairs, across 5 novel APS Case Numbers and 2 novel Subjects
+
+    -   The 4 Subjects that were paired in automatic processing were manually checked
+
+-   Remaining APS Intakes with a Health Care reporter, but not explicitly EMS/EMT, were assessed for pairs; 210 Subjects, across 225 APS Case Numbers and 247 Intakes, were assessed
+
+    -   This produced 28 novel pairs, across 22 novel APS Case Numbers and 19 novel Subjects
+
+    -   The 22 Subjects that were paired in automatic processing were manually checked
+
+-   All Remaining Unmatched APS Intakes with an EMS/EMT reporter were manually assessed for pairs; 13 Subjects were assessed
+
+    -   This produced 1 novel pair, across 1 novel APS Case Number and 0 novel Subjects
 
 -   Further matches were made from the MedStar data set.
 
-    ```         
     -   Remaining MedStar Responses that indicated an APS Report had been made were assessed for pairs; 11 Subjects across 10 Responses were assessed
-          -   All 11 Subjects were manually checked
-          -   This produced 1 novel pair, without an additional APS Case Number or Subject
+
+        -   All 11 Subjects were manually checked
+
+        -   This produced 1 novel pair, without an additional APS Case Number or Subject
+
     -   Remaining Subjects with a single unmatched or unchecked MedStar Response were assessed for pairs; 117 Subjects across 117 Responses were assessed
-          -   All 117 Subjects were manually checked
-          -   This produced no pairs
+
+        -   All 117 Subjects were manually checked
+
+        -   This produced no pairs
+
     -   Remaining MedStar Responses that were missing an indication of if an APS Report had been made or not were assessed for pairs; 121 Subjects across 236 Responses were assessed
-          -   The 3 Subjects that were paired in automatic processing were manually checked
-          -   This produced 4 novel pairs, without an additional APS Case Number or Subject
-    ```
+
+        -   The 3 Subjects that were paired in automatic processing were manually checked
+
+        -   This produced 4 novel pairs, without an additional APS Case Number or Subject
 
 -   The remaining 11 unpaired MedStar Responses across 10 Subjects which indicated an APS Report had been made were manually rechecked; this produced no pairs
 
