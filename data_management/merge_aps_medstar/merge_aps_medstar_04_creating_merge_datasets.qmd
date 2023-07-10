@@ -6,6 +6,11 @@ editor: visual
 
 # Summary
 
+-   Both data sets were slightly modified and exported
+
+    -   The APS data set was reordered
+    -   The MedStar data set recieved two new variables (total number of Responses and APS Case Numbers associated with the Responses for each subject), and was reordered
+
 -   Patient identifiers were present in both data sets
 
     -   Patient Address County was the only variable kept from the APS data set when collapsing to a single row
@@ -21,6 +26,8 @@ editor: visual
 -   A merged data set containing all rows from the MedStar data set, with any paired APS row data appended in the same row was created
 
     -   This was created to facilitate analysis of a single MedStar Response and its associated APS Intake
+    
+-   A merged data set containing a single row per subject, containing only subject-wide aggregate data for each subject in the MedStar data set (and associated subject-wide data from the APS data set, if present) was created
 
 # Imports
 
@@ -114,6 +121,20 @@ saveRDS(aps, here("data","DETECT Shared GRAs", "aps_cleaning", "aps_06.rds"))
 
 ## MedStar
 
+We added variables to the MedStar data set to total the number of Responses and APS Case Numbers associated with each Subject in the MedStar data set.
+
+```{r}
+medstar <- medstar %>%
+  group_by(id) %>%
+  mutate(ms_subj_num_responses = n_distinct(response_pcr),
+         ms_subj_num_paired_intakes = n_distinct(aps_row, na.rm=TRUE),
+         ms_subj_num_paired_cases = n_distinct(aps_case_num, na.rm=TRUE),
+         ms_subj_earliest = min(response_dt),
+         ms_subj_latest = max(response_dt)
+         ) %>%
+  ungroup()
+```
+
 We isolated variables from the MedStar data set into groups. 
 
 ```{r}
@@ -131,8 +152,8 @@ ms_resp_front_vars <- medstar %>%
   names()
 
 ms_resp_detail_vars <- medstar %>%
-  select(response_num, response_pcr, response_symptoms, 
-         response_ems_epcr_sig) %>%
+  select(all_of(starts_with("ms_subj")), response_num, response_pcr,
+         response_symptoms, response_ems_epcr_sig) %>%
   names()
 
 ms_detect_vars <- medstar %>%
@@ -194,7 +215,7 @@ medstar <- medstar %>%
 
 # Merges
 
-## Subject-Wise Timeline Merge
+## 1. Subject-Wise Timeline Merge
 
 A data set which combined all observations of both data sets was created, in order to facilitate the creation of a "timeline" for all observations for each subject across both data sets.
 
@@ -286,7 +307,7 @@ saveRDS(merged_set, here("data","DETECT Shared GRAs","merge_aps_medstar",
                               "medstar_aps_merged_01_timeline_all_rows.rds"))
 ```
 
-## Row-Intake Merge Set
+## 2. All Responses, Adding Paired Intake Data
 
 A data set which added the APS data to any paired MedStar Response was created.
 
@@ -328,4 +349,113 @@ saveRDS(merged_set, here("data","DETECT Shared GRAs","merge_aps_medstar",
                 "medstar_aps_merged_02_response_based_row_pairs.rds"))
 ```
 
-# BOTTOM
+## 3. Subjects in Aggregate, Single Row per Subject
+
+We isolated the APS Intakes associated with a Subject present in both data sets. We similarly isolated the variables which represented the aggregate total of all data associated with the subject across all associated MedStar Responses. We reduced the data set to a single row per Subject, and excluded the unnecessary Row and Case identifiers.  
+
+```{r}
+aps_subj_vars <- aps %>%
+  select(starts_with("aps_subject")
+         ) %>%
+  names()
+
+aps_modified <- aps %>%
+  select(all_of(universal_id_vars), all_of(aps_subj_vars)
+         ) %>%
+  filter(!is.na(ms_id)) %>%
+  group_by(id) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  select(-c(aps_case_num, aps_row, ms_epcr_row, ms_comp_row))
+```
+
+We identified the DETECT specific variables in the MedStar data set, which would require additional processing to present as an aggregate per subject.
+
+```{r}
+detect_comment_vars <- medstar %>%
+  select(detect_report_comment, detect_report_aps_unable, 
+         detect_report_aps_onscene, detect_report_aps_existing, 
+         detect_facility, detect_other_reporter, detect_uta
+         ) %>%
+  names()
+
+detect_questions <- medstar %>%
+  select(starts_with("detect_")
+         ) %>%
+  select(-all_of(c(detect_comment_vars))
+         ) %>%
+  names()
+
+detect_cols <- c(ms_detect_vars[!(ms_detect_vars %in% 
+                                    c('detect_report_num', 
+                                      'detect_report_comment', 
+                                      'detect_report_made'))], 
+                 'detect_report_made')
+
+
+```
+
+In the MedStar data set, we converted any "Unable to Assess" DETECT item to a missing value, which allowed us to sum the total of "YES" responses for each detect item across all encounters for a subject. We also summed the number of missing DETECT variables to determine the number of screens performed on each subject. We reduced the data set to a single row per Subject, and excluded the unnecessary Row and Case Identifiers, as well as any other variables which were specific to individual Responses. 
+
+```{r}
+ms_modified <- medstar
+ms_modified$na_count <- rowSums(is.na(ms_modified[,detect_questions]))
+
+ms_modified <- ms_modified %>%
+  mutate(across(detect_cols,
+         ~ case_when(.x == "YES" ~ TRUE,
+                     .x == "NO" ~ FALSE,
+                     .x == "UNABLE TO ASSESS" ~ NA)
+                )
+         ) %>%
+  mutate(detect_screen = if_else(na_count < length(detect_questions), TRUE, 
+                                 FALSE)
+         ) %>%
+  group_by(id) %>%
+  mutate(across(detect_cols,
+                ~ sum(.x, na.rm=TRUE)
+                )
+         ) %>%
+  mutate(ms_subj_screen_count = sum(detect_screen)
+  ) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  select(id, ms_id, aps_person_id, all_of(detect_cols), 
+         all_of(starts_with("ms_subj")))
+```
+
+We identified and ordered our desired variables.
+
+```{r}
+subj_merged_cols_ids <- ms_modified %>%
+  select(id, ms_id, aps_person_id) %>%
+  names()
+
+ms_subj_detail_cols <- ms_modified %>%
+  select(starts_with("ms_subj")) %>%
+  names()
+
+aps_subj_detail_cols <- aps_modified %>%
+  select(aps_subject_any_valid, aps_subject_none, aps_subject_reporter_ems, 
+         aps_subject_reporter_health, aps_subject_num_intakes, 
+         aps_subject_num_cases, aps_subject_earliest, aps_subject_latest) %>%
+  names()
+
+subj_merged_cols <- c(subj_merged_cols_ids, detect_cols, aps_subj_detail_cols, 
+                      ms_subj_detail_cols)
+```
+
+We merged the APS and MedStar data sets, and applied our desired column order.
+
+```{r}
+merged_set <- full_join(ms_modified, aps_modified, by=c('id','ms_id','aps_person_id'))
+merged_set <- merged_set[,subj_merged_cols]
+```
+
+We saved and exported this data set.
+
+```{r}
+saveRDS(merged_set, here("data","DETECT Shared GRAs","merge_aps_medstar",
+                         "medstar_aps_merged_03_single_subject_per_row.rds"))
+```
+
