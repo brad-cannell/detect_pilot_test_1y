@@ -1,0 +1,2197 @@
+---
+title: "MedStar Response-APS Intake Pairs"
+format: html
+editor: visual
+---
+
+# Summary
+
+-   There were 1,967 Subjects present in both the APS and MedStar data set.
+
+    -   5,490 MedStar Responses
+    -   4,188 APS Intakes corresponding to 3,398 Case Numbers
+
+-   The APS Data Set was filtered to reduce search space.
+
+    -   Intakes were filtered to only include Intakes that occurred between February 1, 2017 and 10 days after February 28, 2018 (March 08, 2018)
+        -   This reduced the APS data set to 2,302 Intakes across 1,811 Case Numbers and 1,335 subjects
+    -   Intakes were filtered to only include Intakes that occurred after the earliest MedStar Response for a subject. - This reduced the APS data set to 1,747 Intakes across 1,376 Case Numbers and 1,064 subjects
+    -   Intakes were filtered to only include Intakes that had a reporter of "Health Care Providers/Staff", "Health Care Providers/Staff -- EMS/EMT", "Anonymous", "Community Agencies/Organizations", or a missing value
+        -   This reduced the APS data set to 1,104 Intakes across 923 Case Numbers and 779 subjects
+
+-   The MedStar Data Set was filtered to only include subjects still present in the filtered APS Data Set
+
+    -   This reduced the MedStar data set to 3,010 Responses across 779 subjects
+
+-   Initial matches were made from the APS Data Set using a 72 hour window between APS Intake and MedStar Response; this produced 487 pairs, representing 462 APS Case Numbers and 422 Subjects and included the manual verification of entries in both data sets across 172 Subject IDs.
+
+-   Subjects with a single APS Intake were assessed for pairs; 576 Subjects were assessed
+
+    -   This produced 269 pairs, across 269 APS Case Numbers and 269 Subjects
+
+    -   20 Subjects were manually checked, as they were duplicated in the automatic processing
+
+-   Remaining APS Case Numbers with a single APS Intake were assessed for pairs; 413 Subjects across 522 APS Case Numbers were assessed
+
+    -   This produced 93 novel pairs, across 92 novel APS Case Numbers and 66 novel Subjects
+
+    -   30 Subjects were manually checked, as they were duplicated in the automatic processing
+
+-   Remaining APS Intakes that were missing a reporter type were assessed for pairs; 30 Subjects, each with a single Case Number and Intake, were assessed
+
+    -   This produced 2 novel pairs, across 2 novel APS Case Numbers and 1 novel Subject
+
+    -   All 30 Subjects were manually checked
+
+-   Remaining APS Intakes with an Anonymous reporter were assessed for pairs; 31 Subjects, across 35 APS Case Numbers and 35 Intakes, were assessed
+
+    -   This produced 4 novel pairs, across 4 novel APS Case Numbers and 4 novel Subjects
+
+    -   All 31 Subjects were manually checked
+
+-   Remaining APS Intakes with an explicit EMS/EMT reporter were assessed for pairs; 78 Subjects, across 80 APS Case Numbers and 101 Intakes, were assessed
+
+    -   This produced 85 novel pairs, across 68 novel APS Case Numbers and 61 novel Subjects
+
+    -   22 Subjects were manually checked, as they were duplicated in the automatic processing
+
+-   Remaining APS Intakes with a Community Agency/Organization reporter were assessed for pairs; 157 Subjects, across 166 APS Case Numbers and 173 Intakes, were assessed
+
+    -   This produced 5 novel pairs, across 5 novel APS Case Numbers and 2 novel Subjects
+
+    -   The 4 Subjects that were paired in automatic processing were manually checked
+
+-   Remaining APS Intakes with a Health Care reporter, but not explicitly EMS/EMT, were assessed for pairs; 210 Subjects, across 225 APS Case Numbers and 247 Intakes, were assessed
+
+    -   This produced 28 novel pairs, across 22 novel APS Case Numbers and 19 novel Subjects
+
+    -   The 22 Subjects that were paired in automatic processing were manually checked
+
+-   All Remaining Unmatched APS Intakes with an EMS/EMT reporter were manually assessed for pairs; 13 Subjects were assessed
+
+    -   This produced 1 novel pair, across 1 novel APS Case Number and 0 novel Subjects
+
+-   Further matches were made from the MedStar data set.
+
+    -   Remaining MedStar Responses that indicated an APS Report had been made were assessed for pairs; 11 Subjects across 10 Responses were assessed
+
+        -   All 11 Subjects were manually checked
+
+        -   This produced 1 novel pair, without an additional APS Case Number or Subject
+
+    -   Remaining Subjects with a single unmatched or unchecked MedStar Response were assessed for pairs; 117 Subjects across 117 Responses were assessed
+
+        -   All 117 Subjects were manually checked
+
+        -   This produced no pairs
+
+    -   Remaining MedStar Responses that were missing an indication of if an APS Report had been made or not were assessed for pairs; 121 Subjects across 236 Responses were assessed
+
+        -   The 3 Subjects that were paired in automatic processing were manually checked
+
+        -   This produced 4 novel pairs, without an additional APS Case Number or Subject
+
+-   The remaining 11 unpaired MedStar Responses across 10 Subjects which indicated an APS Report had been made were manually rechecked; this produced no pairs
+
+-   The remaining 29 APS Intakes across 28 APS Case Numbers and Subjects which indicated an EMS/EMT reporter were manually rechecked; this produced 2 corrections, and the loss of 1 APS Case Number
+
+-   The final map contained 492 pairs, representing 461 APS Case Numbers and 422 Subjects
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(here)
+library(lubridate)
+```
+
+## Data Imports
+
+We imported the revised MedStar data set for processing.
+
+```{r}
+medstar <- readRDS(here("data","DETECT Shared GRAs", "medstar_cleaning",
+                        "medstar_02.rds"))
+```
+
+We imported the revised APS data set for processing.
+
+```{r}
+aps <- readRDS(here("data","DETECT Shared GRAs", "aps_cleaning", "aps_04.rds"))
+```
+
+We imported the Group ID merge pattern for processing.
+
+```{r}
+merge_pattern <- readRDS(here("data","DETECT Shared GRAs","merge_aps_medstar",
+                              "aps_medstar_full_subjid_map_01.rds"))
+```
+
+## Functions
+
+### Unique Value Summary
+
+A function written in a previous cleaning document was imported. It was written to display counts of each unique observations within a selection of columns.
+
+```{r}
+get_unique_value_summary <- function(df,cols){
+  
+  # Input: 
+  #     df (data frame) - original source data frame
+  #     cols (list) - list of target column names as strings
+  # Output:
+  #     unique_summary (data frame) - summary counts of each unique value in
+  #           each of the target columns
+  
+  # Get list of unique values in all target columns
+  
+  val <- unique(as.factor(as.vector(as.matrix(df[cols]))))
+  
+  # Initialize output data frame with unique value row
+  
+  unique_summary <- data.frame("value"=val)
+  
+  # Get counts of unique values in original data frame
+  
+  for (i in cols){
+    
+    # utilizes table to get summary count of each column
+    
+    table <- as.data.frame(table(df[i]))
+    
+    # sets column names to "value" and "freq"
+    
+  colnames(table) <- c("value","freq")
+  
+    # adds count of missing values in each column
+  
+  table<- add_row(table, value = NA, freq = sum(is.na(df[i])))
+  
+    # readjusts names of columns to "value" and the name of the target column
+  
+  colnames(table) <- c("value",i)
+  
+    # joins table's summary counts to complete the count values
+  
+    unique_summary <- left_join(unique_summary,table, by="value")
+  }
+  
+  # returns completed, but unordered, data frame
+  
+  unique_summary
+  }
+```
+
+### Point-Map Additions
+
+A convenience function was written to facilitate point-fix additions to the APS Intake - MedStar Response pairing map, using Group ID and row numbers.
+
+```{r}
+point_map_aps <- function(t_id, t_aps, t_ms){
+  #
+  # Generates a tibble for point-fix additions to the map connecting
+  # APS Intakes to MedStar Responses
+  #
+  # Input: 
+  #     t_id:             numeric. Group ID number of the pairing
+  #     t_aps:            numeric. APS Row Number associated with the APS
+  #                       intake of the pairing
+  #     t_ms:             numeric. MedStar ePCR Row Number associated with the
+  #                       MedStar EMS Response of the pairing
+  # Output:
+  #     temp_tibble:      tibble. Single row tibble in the format of the
+  #                       APS Intake - MedStar Response pairing map
+  
+  temp_tibble <- tibble('id' = t_id,
+                          # Pulls case number from the row
+                        'aps_case_num' = pull(
+                                aps[aps$aps_row == t_aps, 'aps_case_num']),
+                        'aps_row' = t_aps,
+                        'ms_epcr_row' = t_ms
+  )
+  
+  temp_tibble
+}
+```
+
+# Initiation of Data Maps
+
+We initiated several of the data frames we would use to collect the results of our processing.
+
+```{r}
+intake_response_pairs <- tibble(!!!c('id', 'aps_case_num', 
+                                     'aps_row', 'ms_epcr_row'), .rows = 0,
+                                .name_repair = ~ c('id', 'aps_case_num', 
+                                     'aps_row', 'ms_epcr_row')
+                                )
+  
+unmatched_aps_intakes <- tibble(!!!c('id', 'aps_case_num', 
+                                     'aps_row'), .rows = 0,
+                                .name_repair = ~ c('id', 'aps_case_num', 
+                                     'aps_row')
+                                )
+  
+unmatched_ms_responses <- tibble(!!!c('id', 'ms_epcr_row'), .rows = 0,
+                                .name_repair = ~ c('id', 'ms_epcr_row')
+                                )
+  
+manually_verified_ids <- c()
+```
+
+# Extracting Merge IDs
+
+We identified our target observations as those belonging to any Group ID which connected an APS Person ID and MedStar Subject ID, indicating that there were corresponding records matched across the data sets. We identified 1,967 such Group ID values.
+
+```{r}
+target_ids <- pull(merge_pattern %>% 
+  filter(!is.na(ms_id) & !(is.na(aps_person_id))) %>% 
+  select(id))
+```
+
+We reduced our source data sets to these observations. This reduced our MedStar data set to 5,490 observations corresponding 1,967 MedStar Subject IDs and Group IDs.
+
+```{r}
+medstar <- medstar %>%
+  filter(id %in% target_ids)
+
+nrow(medstar)
+length(unique(medstar$ms_id))
+length(unique(medstar$id))
+```
+
+This reduced our APS data set to 4,188 observations corresponding to 1,967 APS Person IDs and Group IDs, and 3,398 APS Case Numbers.
+
+```{r}
+aps <- aps %>%
+  filter(id %in% target_ids)
+
+nrow(aps)
+length(unique(aps$aps_person_id))
+length(unique(aps$aps_case_num))
+length(unique(aps$id))
+```
+
+## Observations Indicating an APS Report
+
+There were only 305 observations in the MedStar data set with a DETECT tool response indicating an APS report was made. There were an additional 4,262 observations that stated no report was made, and 797 observations missing data.
+
+```{r}
+get_unique_value_summary(medstar, 'detect_report_made')
+```
+
+There were no observations missing data indicating that an APS report was made that also contained an APS Report Number. There were two observations, each representing a single MedStar Subject ID and Group ID, which indicated an APS report was *not* made, but provided an APS Report Number.
+
+```{r}
+checking <- medstar %>%
+  filter(is.na(detect_report_made) & !is.na(detect_report_num))
+
+nrow(checking)
+
+checking <- medstar %>%
+  filter(detect_report_made != "YES" & !is.na(detect_report_num))
+
+nrow(checking)
+length(unique(checking$id))
+```
+
+The 305 observations that indicated an APS Report was made corresponded to 269 MedStar Subject IDs and Group IDs.
+
+```{r}
+checking <- medstar %>%
+  filter(detect_report_made == "YES")
+
+nrow(checking)
+length(unique(checking$ms_id))
+length(unique(checking$id))
+
+medstar_yes <- unique(checking$id)
+```
+
+The 4262 observations that indicated an APS Report was *not* made corresponded to 1767 MedStar Subject IDs and Group IDs.
+
+```{r}
+checking <- medstar %>%
+  filter(detect_report_made == "NO")
+
+nrow(checking)
+length(unique(checking$ms_id))
+length(unique(checking$id))
+
+medstar_no <- unique(checking$id)
+```
+
+The 797 observations missing data indicating if an APS Report was made corresponded to 366 MedStar Subject IDs and Group IDs.
+
+```{r}
+checking <- medstar %>%
+  filter(is.na(detect_report_made))
+
+nrow(checking)
+length(unique(checking$ms_id))
+length(unique(checking$id))
+
+medstar_missing <- unique(checking$id)
+```
+
+Of the 269 Group IDs with at least one MedStar record indicating an APS report was made, 176 Group IDs (65.43%) contained additional observations which indicated that *no* APS report was made and 61 Group IDs (22.68%) contained additional observations with missing data regarding an APS report. There were 54 Group IDs (20.07%) with observations indicating an APS report was made, indicating *no* APS report was made, and missing data regarding an APS report being made.
+
+Of the 1767 Group IDs with at least one MedStar record indicating that *no* APS report was made, 359 Group IDs (20.32%) also referenced observations missing data indicating if an APS report was made.
+
+```{r}
+sum(medstar_yes %in% medstar_no)
+sum(medstar_yes %in% medstar_missing)
+sum(medstar_yes[medstar_yes %in% medstar_no] %in% medstar_missing)
+sum(medstar_no %in% medstar_missing)
+```
+
+# APS Filtering
+
+## Filtering by Dates
+
+As the MedStar Data was collected between February 2017 and February 2018, we were not interested in APS Case Numbers closed prior to this period, or Intakes made after this period.
+
+We utilized the lubridate package and tidyverse to define our study period interval. We tested to ensure that dates were interpreted appropriately. We similarly defined a range of values for individual APS Intakes to include any intakes that occurred during the study period, or 10 days after its conclusion.
+
+```{r}
+start_date <- date("2017-02-01")
+end_date <- date("2018-02-28")
+
+study_period <- interval(start = start_date, end = end_date)
+study_intake_range <- interval(start = start_date, 
+                                       end = end_date + ddays(x = 10))
+
+date("2017-01-31") %within% study_period
+date("2017-02-01") %within% study_period
+date("2018-02-28") %within% study_period
+date("2018-03-01") %within% study_period
+```
+
+There were 1,886 APS Intakes/Rows, associated with 1,605 APS Case Numbers and 1,015 APS Person IDs, which were outside of the Study's Intake Range.
+
+```{r}
+checking <- aps %>%
+  filter (!(aps_intake_dt %within% study_intake_range))
+
+nrow(checking)
+length(unique(checking$aps_case_num))
+length(unique(checking$id))
+```
+
+We excluded the observations outside of the Study Intake Range. There were 2,302 APS Intakes remaining, associated with 1,811 APS Case Numbers and 1335 APS Person IDs.
+
+```{r}
+checking <- aps %>%
+  filter (aps_intake_dt %within% study_intake_range)
+
+nrow(checking)
+length(unique(checking$aps_case_num))
+length(unique(checking$id))
+
+aps <- checking
+```
+
+## APS Intakes *After* Any Potential MedStar Response
+
+For an APS Intake to have a valid MedStar Response, the MedStar Response must precede the APS Intake. In order to filter by this metric, we isolated the single earliest MedStar Response for each subject within the MedStar data set.
+
+```{r}
+nrow(medstar)
+length(unique(medstar$id))
+
+ms_earliest <- medstar %>%
+  group_by(id) %>%
+  slice_min(order_by = response_dt, with_ties = FALSE) 
+
+nrow(ms_earliest)
+length(unique(ms_earliest$id))
+```
+
+We excluded any Intakes that occurred prior to the earliest MedStar Response for each subject. This reduced our APS data set to 1,747 Intakes across 1,376 APS Case Numbers and 1,064 APS Person IDs.
+
+```{r}
+aps <- aps %>%
+  rowwise() %>% 
+  filter(aps_intake_dt > ms_earliest[ms_earliest$id==id,]$response_dt) %>%
+  ungroup()
+
+nrow(aps)
+length(unique(aps$aps_case_num))
+length(unique(aps$id))
+```
+
+## Observations Indicating a Health Care Reporter
+
+The APS data set contained flags indicating if there was an EMS/EMT or Healthcare reporter listed for the individual Intake Rows, for any intake in a Case Number, or for any intake for a single Subject. We identified five potential reporter types which may refer to EMS personnel: "Health Care Providers/Staff", "Health Care Providers/Staff -- EMS/EMT", "Anonymous", "Community Agencies/Organizations", or intakes missing a value for reporter type. Other reporter types, such as Law Enforcement, were likely to exclude EMS. There were 1,026 APS Intakes with one of these reporter types.
+
+```{r}
+potential_reporter_types <- c("Health Care Providers/Staff", 
+                              "Health Care Providers/Staff -- EMS/EMT", 
+                              "Anonymous", "Community Agencies/Organizations",
+                              NA_character_)
+```
+
+There were 643 remaining APS Intakes/Rows which did not include one of our identified Potential Reporter Types, associated with 561 APS Case Numbers and 460 APS Person IDs. These were most commonly associated with "Family Members and Relatives" (174 Intakes) and "Law Enforcement" (102 Intakes).
+
+```{r}
+checking <- aps %>%
+  filter(!(aps_reporter %in% potential_reporter_types))
+
+nrow(checking)
+length(unique(checking$aps_case_num))
+length(unique(checking$id))
+
+get_unique_value_summary(checking, 'aps_reporter') %>% 
+  arrange(aps_reporter)
+```
+
+We excluded the observations with a reporter type which was not likely to reference EMS. There were 1,104 Intakes/Rows which included one of our identified Potential Reporter Types, associated with 923 APS Case Numbers and 779 APS Person IDs. These were most commonly associated with "Health Care Providers/Staff" (466 Intakes) and "Health Care Providers/Staff -- EMS/EMT" (205 Intakes), followed by "Community Agencies/Organizations" (250 Intakes).
+
+```{r}
+checking <- aps %>%
+  filter(aps_reporter %in% potential_reporter_types)
+
+nrow(checking)
+length(unique(checking$aps_case_num))
+length(unique(checking$id))
+
+get_unique_value_summary(checking, 'aps_reporter') %>% 
+  arrange(aps_reporter)
+
+aps <- checking
+```
+
+# Determining Merge Matches
+
+After broad filtering, there were 779 Group IDs represented in the APS data set and 1,967 Group IDs represented in the MedStar data set. Of these, there were 779 Group IDs which continued to be represented in both data sets.
+
+```{r}
+aps_ids <- unique(aps$id)
+medstar_ids <- unique(medstar$id)
+final_ids <- aps_ids[aps_ids %in% medstar_ids]
+
+length(aps_ids)
+length(medstar_ids)
+length(final_ids)
+```
+
+These Group IDs represented 779 MedStar Subject IDs across 3,010 Responses/Rows in the MedStar data set, and 779 APS Person IDs across 923 Case Numbers and 1,104 Intakes/Rows in the APS data set.
+
+```{r}
+medstar <- medstar %>%
+  filter(id %in% final_ids)
+
+nrow(medstar)
+length(unique(medstar$id))
+
+aps <- aps %>%
+  filter(id %in% final_ids)
+
+nrow(aps)
+length(unique(aps$id))
+length(unique(aps$aps_case_num))
+```
+
+## APS
+
+### APS Person IDs with a Single Potential Intake
+
+There were 576 APS Person IDs which were represented with only one APS Case Number and Intake across the filtered APS data set.
+
+```{r}
+checking <- aps %>%
+  filter(!(duplicated(id)|duplicated(id, fromLast=TRUE)))
+
+nrow(checking)
+length(unique(checking$id))
+length(unique(checking$aps_case_num))
+```
+
+We assessed for potential matches in the MedStar data set. A 72 hour window from MedStar Response to APS Intake was selected for temporal proximity.
+
+```{r}
+manual <- checking %>%
+  select(id, aps_case_num, aps_row)
+
+temp_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+for (i in 1:nrow(manual)){
+  intake_date <- pull(aps[aps$aps_row == pull(manual[i,'aps_row']), 
+                               'aps_intake_dt'])
+  
+  intake_window <- interval(start = intake_date - dhours(x=72), 
+                            end = intake_date)
+  ms_epcr_rows <- pull(medstar %>%
+                         filter((id == pull(manual[i,'id'])) &
+                                   (response_dt %within% intake_window)
+                                ) %>%
+                         select(ms_epcr_row)
+                    )
+  
+  temp_tibble <- tibble('id' = pull(manual[i,'id']), 
+                        'aps_case_num' = pull(manual[i,'aps_case_num']),
+                        'aps_row' = pull(manual[i,'aps_row']),
+                        'ms_epcr_row' = ms_epcr_rows
+  )
+  
+  temp_map <- rbind(temp_map, temp_tibble)
+  
+}
+
+manual <- manual %>%
+  filter( !(id %in% temp_map$id) )
+```
+
+This isolated 300 potential EMS Response - APS Intake pairs. There were 274 APS Person IDs and APS Case Numbers (47.57%) in this subset with a potential match in the MedStar data set.
+
+```{r}
+nrow(temp_map)
+length(unique(temp_map$id))
+length(unique(temp_map$aps_case_num))
+length(unique(temp_map$aps_row))
+length(unique(temp_map$ms_epcr_row))
+```
+
+There were 20 APS Person IDs, which represented 20 APS Case Numbers, with multiple potential matches from the MedStar Data Set. Each of these Case Numbers was represented by a single Intake/Row. There were no additional APS Case Numbers associated with any of the duplicated IDs.
+
+```{r}
+dup_ids <- temp_map %>%
+  filter(duplicated(id)|duplicated(id, fromLast = TRUE))
+
+length(unique(dup_ids$id))
+length(unique(dup_ids$aps_case_num))
+
+dup_cases <- temp_map %>%
+  filter(duplicated(aps_case_num)|duplicated(aps_case_num, fromLast = TRUE))
+
+nrow(dup_cases)
+length(unique(dup_cases$aps_case_num))
+
+dup_rows <- temp_map %>%
+  filter(duplicated(aps_row)|duplicated(aps_row, fromLast = TRUE))
+
+identical(dup_cases, dup_rows)
+
+length(unique(dup_ids[
+              !(dup_ids$aps_case_num %in% dup_cases$aps_case_num),
+              ]$aps_case_num
+              )
+       )
+```
+
+These 20 APS Person IDs were manually verified.
+
+```{r}
+checking_ids <- unique(dup_ids$id)
+
+length(checking_ids)
+
+for (i in 1:length(checking_ids)){
+  t_id <- checking_ids[i]
+  aps[aps$id == t_id,]
+  medstar[medstar$id == t_id,]
+}
+```
+
+Of the 20 APS Person ID values checked, there were 15 with a match that appeared valid within the MedStar data set and 5 IDs with no matches. Where multiple responses appeared to be temporally appropriate, the DETECT variables were examined. If there was no indication in the DETECT Variables, the most complete and temporally related record was selected if it did not appear otherwise inappropriate. We excluded the mismatched MedStar Responses, and isolated the APS Person IDs, Case Numbers, and Rows which were confirmed to have no apparent valid matches in the MedStar data set.
+
+```{r}
+dropping_ms_epcr_rows <- c(30698, 20850, 20817, 20721, 25828, 34777, 34811,
+                           34809, 34851, 10848, 30487, 8947, 27436, 2614, 2615,
+                           26559, 26560, 26371, 14586, 1794, 7653, 18536, 21029, 
+                           21200, 654, 13424, 31601, 22289, 22112, 11116, 11210)
+
+temp_map <- temp_map %>%
+  filter(!(ms_epcr_row %in% dropping_ms_epcr_rows))
+
+manually_verified_ids <- unique(c(manually_verified_ids, checking_ids))
+
+dup_ids <- dup_ids %>%
+  filter(
+    !(aps_row %in% temp_map$aps_row)
+    ) %>%
+  select(-c(ms_epcr_row))
+```
+
+We appended the results of this processing to our processing data frames.
+
+```{r}
+intake_response_pairs <- rbind(intake_response_pairs, temp_map)
+unmatched_aps_intakes <- rbind(unmatched_aps_intakes, dup_ids)
+```
+
+### APS Case Numbers with a Single Potential Intake
+
+There were 522 remaining APS Case Numbers which were represented only once in the filtered APS data set, across 413 APS Person IDs.
+
+```{r}
+checking <- aps %>%
+  filter(!( (aps_case_num %in% intake_response_pairs$aps_case_num)|
+             (aps_case_num %in% unmatched_aps_intakes$aps_case_num) )
+         ) %>%
+  filter(!(duplicated(aps_case_num)|duplicated(aps_case_num, fromLast=TRUE)))
+
+nrow(checking)
+length(unique(checking$id))
+length(unique(checking$aps_case_num))
+```
+
+We assessed for potential matches in the MedStar data set. A 72 hour window from MedStar Response to APS Intake was selected for temporal proximity.
+
+```{r}
+manual <- checking %>%
+  select(id, aps_case_num, aps_row)
+
+temp_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+for (i in 1:nrow(manual)){
+  intake_date <- pull(aps[aps$aps_row == pull(manual[i,'aps_row']), 
+                               'aps_intake_dt'])
+  
+  intake_window <- interval(start = intake_date - dhours(x=72), 
+                            end = intake_date)
+  ms_epcr_rows <- pull(medstar %>%
+                         filter((id == pull(manual[i,'id'])) &
+                                   (response_dt %within% intake_window)
+                                ) %>%
+                         select(ms_epcr_row)
+                    )
+  
+  temp_tibble <- tibble('id' = pull(manual[i,'id']), 
+                        'aps_case_num' = pull(manual[i,'aps_case_num']),
+                        'aps_row' = pull(manual[i,'aps_row']),
+                        'ms_epcr_row' = ms_epcr_rows
+  )
+  
+  temp_map <- rbind(temp_map, temp_tibble)
+  
+}
+```
+
+This isolated 124 potential EMS Response - APS Intake pairs. There were 67 APS Person IDs (16.22%) and 103 APS Case Numbers (19.73%) with a potential match in the MedStar data set.
+
+```{r}
+nrow(temp_map)
+length(unique(temp_map$id))
+length(unique(temp_map$aps_case_num))
+length(unique(temp_map$aps_row))
+length(unique(temp_map$ms_epcr_row))
+```
+
+There were 30 APS Person IDs, which represented 66 APS Case Numbers, represented more than once in our initial mapping. There were 14 Case Numbers, representing 12 APS Person IDs, with multiple potential matches from the MedStar Data Set. Each of these Case Numbers was represented by a single Intake/Row. There were no additional APS Case Numbers associated with any of the duplicated IDs. There were an additional 52 APS Case Numbers which were represented among the 30 APS Person IDs (which were duplicated), but only had a single potential match within a Case Number.
+
+```{r}
+dup_ids <- temp_map %>%
+  filter(duplicated(id)|duplicated(id, fromLast = TRUE))
+
+length(unique(dup_ids$id))
+length(unique(dup_ids$aps_case_num))
+
+dup_cases <- temp_map %>%
+  filter(duplicated(aps_case_num)|duplicated(aps_case_num, fromLast = TRUE))
+
+nrow(dup_cases)
+length(unique(dup_cases$aps_case_num))
+length(unique(dup_cases$id))
+
+dup_rows <- temp_map %>%
+  filter(duplicated(aps_row)|duplicated(aps_row, fromLast = TRUE))
+
+identical(dup_cases, dup_rows)
+
+length(unique(dup_ids[
+              !(dup_ids$aps_case_num %in% dup_cases$aps_case_num),
+              ]$aps_case_num
+              )
+       )
+```
+
+These 30 APS Person IDs were manually verified.
+
+```{r}
+checking_ids <- unique(dup_ids$id)
+
+length(checking_ids)
+
+for (i in 1:length(checking_ids)){
+  t_id <- checking_ids[i]
+  aps[aps$id == t_id,]
+  medstar[medstar$id == t_id,]
+}
+```
+
+Of the 30 APS Person ID values checked, only 1 APS Person ID (referencing two APS Case Numbers represented by a single Intake) appeared to lack any potentially valid match in the MedStar data set. Where multiple responses appeared to be temporally appropriate, the DETECT variables were examined. If there was no indication in the DETECT Variables, the most complete and temporally related record was selected if it did not appear otherwise inappropriate. We excluded the mismatched MedStar Responses, and isolated the APS Person IDs, Case Numbers, and Rows which were confirmed to have no apparent valid matches in the MedStar data set. There were 3 APS Person IDs that experienced multiple APS Intakes matched with a single MedStar Response; resolution of these groups resulted in 5 APS Case Numbers and Intakes being confirmed to have no apparent potentially valid match in the MedStar data set.
+
+```{r}
+dropping_ms_epcr_rows <- c(5859, 17811, 34908, 11030, 20338, 26442, 1552, 23554,
+                           19908, 21802, 15737, 6830, 6844, 14709, 14813, 14734, 
+                           19903, 19909, 19904, 19777, 32065, 2326, 35279, 1399, 
+                           1389, 3486, 17279, 23986, 5072, 5058)
+
+dropping_aps_rows <- c(4445, 4446, 13175, 14498, 14499)
+
+temp_map <- temp_map %>%
+  filter( !((ms_epcr_row %in% dropping_ms_epcr_rows)|
+            (aps_row %in% dropping_aps_rows))
+          )
+
+manually_verified_ids <- unique(c(manually_verified_ids, checking_ids))
+
+dup_ids <- dup_ids %>%
+  filter(
+    !(aps_row %in% temp_map$aps_row)
+    ) %>%
+  select(-c(ms_epcr_row))
+```
+
+Of the 10 APS Person IDs that represented an additional 13 APS Case Numbers, the resolution of 3 of these APS Person IDs resulted in the identification of 3 APS Case Numbers and 4 APS Intakes with apparently valid matches in the MedStar data set. We verified that these particular APS Case Numbers and Intakes were not otherwise represented in our section-wise map, nor in our overall MedStar Response-APS Intake pair map.
+
+```{r}
+point_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+point_map <- rbind(point_map, point_map_aps(44, 1184, 16995))
+point_map <- rbind(point_map, point_map_aps(1422, 12536, 21273))
+point_map <- rbind(point_map, point_map_aps(1541, 15432, 12431))
+point_map <- rbind(point_map, point_map_aps(1541, 15434, 13662))
+
+sum(point_map$id %in% temp_map$id)
+sum(point_map$aps_case_num %in% temp_map$aps_case_num)
+sum(point_map$aps_row %in% temp_map$aps_row)
+sum(point_map$ms_epcr_row %in% temp_map$ms_epcr_row)
+
+sum(point_map$id %in% intake_response_pairs$id)
+sum(point_map$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(point_map$aps_row %in% intake_response_pairs$aps_row)
+sum(point_map$ms_epcr_row %in% intake_response_pairs$ms_epcr_row)
+
+temp_map <- rbind(temp_map, point_map)
+```
+
+We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Case Number or APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Person ID, APS Case Number, or APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records.
+
+```{r}
+sum(temp_map$aps_case_num %in% dup_ids$aps_case_num)
+sum(temp_map$aps_row %in% dup_ids$aps_row)
+
+sum(temp_map$id %in% intake_response_pairs$id)
+sum(temp_map$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(temp_map$aps_row %in% intake_response_pairs$aps_row)
+
+sum(temp_map$id %in% unmatched_aps_intakes$id)
+sum(temp_map$aps_case_num %in% unmatched_aps_intakes$aps_case_num)
+sum(temp_map$aps_row %in% unmatched_aps_intakes$aps_row)
+
+sum(dup_ids$id %in% intake_response_pairs$id)
+sum(dup_ids$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(dup_ids$aps_row %in% intake_response_pairs$aps_row)
+
+sum(dup_ids$id %in% unmatched_aps_intakes$id)
+sum(dup_ids$aps_case_num %in% unmatched_aps_intakes$aps_case_num)
+sum(dup_ids$aps_row %in% unmatched_aps_intakes$aps_row)
+```
+
+We appended the results of this processing to our processing data frames.
+
+```{r}
+intake_response_pairs <- rbind(intake_response_pairs, temp_map)
+unmatched_aps_intakes <- rbind(unmatched_aps_intakes, dup_ids)
+```
+
+### Remaining APS Case Numbers by Reporter Category
+
+There were 533 remaining APS Case Numbers across 475 APS Person IDs which had not yet been matched or manually checked.
+
+```{r}
+checking <- aps %>%
+  filter(!( (aps_case_num %in% intake_response_pairs$aps_case_num)|
+             (aps_case_num %in% unmatched_aps_intakes$aps_case_num)|
+              (id %in% manually_verified_ids))
+         )
+
+nrow(checking)
+length(unique(checking$id))
+length(unique(checking$aps_case_num))
+```
+
+#### Missing Reporter Type
+
+There were 30 remaining APS Case Numbers, each with a single APS Person ID, with a missing value for Reporter Type in the intake.
+
+```{r}
+checking <- aps %>%
+  filter(!( (aps_case_num %in% intake_response_pairs$aps_case_num)|
+             (aps_case_num %in% unmatched_aps_intakes$aps_case_num)|
+              (id %in% manually_verified_ids))
+         ) %>%
+  filter(is.na(aps_reporter))
+
+nrow(checking)
+length(unique(checking$id))
+length(unique(checking$aps_case_num))
+```
+
+These 30 APS IDs were checked for matches.
+
+```{r}
+manual <- checking %>%
+  select(id, aps_case_num, aps_row)
+
+temp_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+for (i in 1:nrow(manual)){
+  intake_date <- pull(aps[aps$aps_row == pull(manual[i,'aps_row']), 
+                               'aps_intake_dt'])
+  
+  intake_window <- interval(start = intake_date - dhours(x=72), 
+                            end = intake_date)
+  ms_epcr_rows <- pull(medstar %>%
+                         filter((id == pull(manual[i,'id'])) &
+                                   (response_dt %within% intake_window)
+                                ) %>%
+                         select(ms_epcr_row)
+                    )
+  
+  temp_tibble <- tibble('id' = pull(manual[i,'id']), 
+                        'aps_case_num' = pull(manual[i,'aps_case_num']),
+                        'aps_row' = pull(manual[i,'aps_row']),
+                        'ms_epcr_row' = ms_epcr_rows
+  )
+  
+  temp_map <- rbind(temp_map, temp_tibble)
+  
+}
+```
+
+This isolated 3 potential EMS Response - APS Intake pairs. There were 2 APS Person IDs and Case Numbers (6.67%) with a potential match in the MedStar data set.
+
+```{r}
+nrow(temp_map)
+length(unique(temp_map$id))
+length(unique(temp_map$aps_case_num))
+length(unique(temp_map$aps_row))
+length(unique(temp_map$ms_epcr_row))
+
+dup_ids <- manual
+```
+
+All 30 APS IDs were manually verified.
+
+```{r}
+checking_ids <- unique(checking$id)
+
+length(checking_ids)
+
+for (i in 1:length(checking_ids)){
+  t_id <- checking_ids[i]
+  aps[aps$id == t_id,]
+  medstar[medstar$id == t_id,]
+}
+```
+
+Of the 30 APS Person ID Values checked, 27 APS Person IDs appeared to lack a potentially valid match in the MedStar data set (90.00% failure rate). None of the 3 potential pairs identified in the initial matching appeared to be valid. There were 3 APS Intakes, representing 3 APS Case Numbers and 3 APS Person IDs, which had manual matches made.
+
+```{r}
+temp_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+manually_verified_ids <- unique(c(manually_verified_ids, checking_ids))
+
+point_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+point_map <- rbind(point_map, point_map_aps(9, 302, 18975))
+point_map <- rbind(point_map, point_map_aps(189, 5033, 6085))
+point_map <- rbind(point_map, point_map_aps(1717, 14849, 35611))
+```
+
+We verified that these particular APS Case Numbers and Intakes were not otherwise represented in our overall MedStar Response-APS Intake pair map. We identified 2 APS Person IDs, 1 APS Case Number, 1 APS Row, and 1 MedStar ePCR Row which appeared to already be represented. These values were manually checked.
+
+```{r}
+sum(point_map$id %in% intake_response_pairs$id)
+sum(point_map$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(point_map$aps_row %in% intake_response_pairs$aps_row)
+sum(point_map$ms_epcr_row %in% intake_response_pairs$ms_epcr_row)
+```
+
+It was identified that there was a novel pairing for a unique APS Case Number associated with an APS Person ID already in the map, but the pairing was not already represented. The pairing for Group ID 9 was already represented, and thus eliminated from the section-wise temporary map.
+
+```{r}
+point_map <- point_map %>%
+  filter(!(aps_row %in% intake_response_pairs$aps_row))
+
+temp_map <- rbind(temp_map, point_map)
+```
+
+We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Case Number or APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Case Number or APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records.
+
+```{r}
+sum(temp_map$aps_case_num %in% dup_ids$aps_case_num)
+sum(temp_map$aps_row %in% dup_ids$aps_row)
+
+sum(temp_map$id %in% intake_response_pairs$id)
+sum(temp_map$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(temp_map$aps_row %in% intake_response_pairs$aps_row)
+
+sum(temp_map$id %in% unmatched_aps_intakes$id)
+sum(temp_map$aps_case_num %in% unmatched_aps_intakes$aps_case_num)
+sum(temp_map$aps_row %in% unmatched_aps_intakes$aps_row)
+
+sum(dup_ids$id %in% intake_response_pairs$id)
+sum(dup_ids$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(dup_ids$aps_row %in% intake_response_pairs$aps_row)
+
+sum(dup_ids$id %in% unmatched_aps_intakes$id)
+sum(dup_ids$aps_case_num %in% unmatched_aps_intakes$aps_case_num)
+sum(dup_ids$aps_row %in% unmatched_aps_intakes$aps_row)
+```
+
+We appended the results of this processing to our processing data frames.
+
+```{r}
+intake_response_pairs <- rbind(intake_response_pairs, temp_map)
+unmatched_aps_intakes <- rbind(unmatched_aps_intakes, dup_ids)
+```
+
+#### Anonymous Reporters
+
+There were 31 remaining APS Case Numbers, representing 35 APS Person IDs, with an Anonymous reporter.
+
+```{r}
+checking <- aps %>%
+  filter(!( (aps_case_num %in% intake_response_pairs$aps_case_num)|
+             (aps_case_num %in% unmatched_aps_intakes$aps_case_num)|
+              (id %in% manually_verified_ids))
+         ) %>%
+  filter(aps_reporter %in% potential_reporter_types[3])
+
+nrow(checking)
+length(unique(checking$id))
+length(unique(checking$aps_case_num))
+```
+
+These 31 APS IDs were checked for matches.
+
+```{r}
+manual <- checking %>%
+  select(id, aps_case_num, aps_row)
+
+temp_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+for (i in 1:nrow(manual)){
+  intake_date <- pull(aps[aps$aps_row == pull(manual[i,'aps_row']), 
+                               'aps_intake_dt'])
+  
+  intake_window <- interval(start = intake_date - dhours(x=72), 
+                            end = intake_date)
+  ms_epcr_rows <- pull(medstar %>%
+                         filter((id == pull(manual[i,'id'])) &
+                                   (response_dt %within% intake_window)
+                                ) %>%
+                         select(ms_epcr_row)
+                    )
+  
+  temp_tibble <- tibble('id' = pull(manual[i,'id']), 
+                        'aps_case_num' = pull(manual[i,'aps_case_num']),
+                        'aps_row' = pull(manual[i,'aps_row']),
+                        'ms_epcr_row' = ms_epcr_rows
+  )
+  
+  temp_map <- rbind(temp_map, temp_tibble)
+  
+}
+```
+
+This isolated 2 potential EMS Response - APS Intake pairs. There were 2 APS Person IDs and Case Numbers (6.45%) with a potential match in the MedStar data set.
+
+```{r}
+nrow(temp_map)
+length(unique(temp_map$id))
+length(unique(temp_map$aps_case_num))
+length(unique(temp_map$aps_row))
+length(unique(temp_map$ms_epcr_row))
+
+dup_ids <- manual
+```
+
+All 31 APS IDs were manually verified.
+
+```{r}
+checking_ids <- unique(checking$id)
+
+length(checking_ids)
+
+for (i in 1:length(checking_ids)){
+  t_id <- checking_ids[i]
+  aps[aps$id == t_id,]
+  medstar[medstar$id == t_id,]
+}
+```
+
+Of the 31 APS Person ID values checked, 26 APS Person IDs appeared to lack a potentially valid match in the MedStar data set (83.87% failure rate). Both of the potential pairs identified in the initial matching appeared to be valid. There were an additional 2 APS Intakes, representing 2 APS Case Numbers and 2 APS Person IDs, which had manual matches found during verification.
+
+```{r}
+manually_verified_ids <- unique(c(manually_verified_ids, checking_ids))
+
+point_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+point_map <- rbind(point_map, point_map_aps(945, 6205, 26841))
+point_map <- rbind(point_map, point_map_aps(1513, 14788, 5299))
+```
+
+We verified that these particular APS Case Numbers and Intakes were not otherwise represented in either our section-wise temporary map our overall MedStar Response-APS Intake pair map.
+
+```{r}
+sum(point_map$id %in% temp_map$id)
+sum(point_map$aps_case_num %in% temp_map$aps_case_num)
+sum(point_map$aps_row %in% temp_map$aps_row)
+sum(point_map$ms_epcr_row %in% temp_map$ms_epcr_row)
+
+sum(point_map$id %in% intake_response_pairs$id)
+sum(point_map$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(point_map$aps_row %in% intake_response_pairs$aps_row)
+sum(point_map$ms_epcr_row %in% intake_response_pairs$ms_epcr_row)
+```
+
+We appended our manually identified pairs to our section-wise map, and removed the entries from the list of unmatched APS Intakes.
+
+```{r}
+temp_map <- rbind(temp_map, point_map)
+dup_ids <- dup_ids %>%
+  filter(!(id %in% temp_map$id))
+```
+
+We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Case Number or APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Case Number or APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records.
+
+```{r}
+sum(temp_map$aps_case_num %in% dup_ids$aps_case_num)
+sum(temp_map$aps_row %in% dup_ids$aps_row)
+
+sum(temp_map$id %in% intake_response_pairs$id)
+sum(temp_map$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(temp_map$aps_row %in% intake_response_pairs$aps_row)
+
+sum(temp_map$id %in% unmatched_aps_intakes$id)
+sum(temp_map$aps_case_num %in% unmatched_aps_intakes$aps_case_num)
+sum(temp_map$aps_row %in% unmatched_aps_intakes$aps_row)
+
+sum(dup_ids$id %in% intake_response_pairs$id)
+sum(dup_ids$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(dup_ids$aps_row %in% intake_response_pairs$aps_row)
+
+sum(dup_ids$id %in% unmatched_aps_intakes$id)
+sum(dup_ids$aps_case_num %in% unmatched_aps_intakes$aps_case_num)
+sum(dup_ids$aps_row %in% unmatched_aps_intakes$aps_row)
+```
+
+We appended the results of this processing to our processing data frames.
+
+```{r}
+intake_response_pairs <- rbind(intake_response_pairs, temp_map)
+unmatched_aps_intakes <- rbind(unmatched_aps_intakes, dup_ids)
+```
+
+#### EMS/EMT Reporter
+
+There were 80 remaining APS Case Numbers, representing 78 APS Person IDs, with an EMS/EMT reporter.
+
+```{r}
+checking <- aps %>%
+  filter(!( (aps_case_num %in% intake_response_pairs$aps_case_num)|
+             (aps_case_num %in% unmatched_aps_intakes$aps_case_num)|
+              (id %in% manually_verified_ids))
+         ) %>%
+  filter(aps_reporter == potential_reporter_types[2])
+
+nrow(checking)
+length(unique(checking$id))
+length(unique(checking$aps_case_num))
+```
+
+These 78 APS IDs were checked for matches.
+
+```{r}
+manual <- checking %>%
+  select(id, aps_case_num, aps_row)
+
+temp_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+for (i in 1:nrow(manual)){
+  intake_date <- pull(aps[aps$aps_row == pull(manual[i,'aps_row']), 
+                               'aps_intake_dt'])
+  
+  intake_window <- interval(start = intake_date - dhours(x=72), 
+                            end = intake_date)
+  ms_epcr_rows <- pull(medstar %>%
+                         filter((id == pull(manual[i,'id'])) &
+                                   (response_dt %within% intake_window)
+                                ) %>%
+                         select(ms_epcr_row)
+                    )
+  
+  temp_tibble <- tibble('id' = pull(manual[i,'id']), 
+                        'aps_case_num' = pull(manual[i,'aps_case_num']),
+                        'aps_row' = pull(manual[i,'aps_row']),
+                        'ms_epcr_row' = ms_epcr_rows
+  )
+  
+  temp_map <- rbind(temp_map, temp_tibble)
+  
+}
+```
+
+This isolated 104 potential EMS Response - APS Intake pairs. There were 64 APS Person IDs (82.05%) and 66 Case Numbers (82.50%) with a potential match in the MedStar data set.
+
+```{r}
+nrow(temp_map)
+length(unique(temp_map$id))
+length(unique(temp_map$aps_case_num))
+length(unique(temp_map$aps_row))
+length(unique(temp_map$ms_epcr_row))
+
+dup_ids <- manual
+checking_ids <- unique(checking$id)
+```
+
+There were 22 APS Person IDs, which represented 24 APS Case Numbers, represented more than once in our initial mapping. There were 21 Case Numbers, representing 21 APS Person IDs, with multiple potential matches from the MedStar Data Set. There were 19 APS Rows with more than one potential match identified in the MedStar data set. There were 3 additional APS Case Numbers associated with the duplicated IDs, which were represented by a single intake.
+
+```{r}
+dup_ids <- temp_map %>%
+  filter(duplicated(id)|duplicated(id, fromLast = TRUE))
+
+length(unique(dup_ids$id))
+length(unique(dup_ids$aps_case_num))
+
+dup_cases <- temp_map %>%
+  filter(duplicated(aps_case_num)|duplicated(aps_case_num, fromLast = TRUE))
+
+nrow(dup_cases)
+length(unique(dup_cases$aps_case_num))
+length(unique(dup_cases$id))
+
+dup_rows <- temp_map %>%
+  filter(duplicated(aps_row)|duplicated(aps_row, fromLast = TRUE))
+
+identical(dup_cases, dup_rows)
+nrow(dup_cases) - length(unique(dup_cases$aps_row))
+
+length(unique(dup_ids[
+              !(dup_ids$aps_case_num %in% dup_cases$aps_case_num),
+              ]$aps_case_num
+              )
+       )
+```
+
+These 22 APS Person IDs were manually verified.
+
+```{r}
+checking_ids <- unique(dup_ids$id)
+
+length(checking_ids)
+
+for (i in 1:length(checking_ids)){
+  t_id <- checking_ids[i]
+  aps[aps$id == t_id,]
+  medstar[medstar$id == t_id,]
+}
+```
+
+Of the 22 APS Person ID values checked, all appeared to have at least one valid match within the MedStar data set. Where multiple responses appeared to be temporally appropriate, the DETECT variables were examined. If there was no indication in the DETECT Variables, the most complete and temporally related record was selected if it did not appear otherwise inappropriate. We excluded the mismatched MedStar Responses, and isolated the APS Person IDs, Case Numbers, and Rows which were confirmed to have no apparent valid matches in the MedStar data set.
+
+Of note, there were 2 APS Person IDs that required the removal then manual addition of an MedStar-APS pair, as both the APS Intake and MedStar Response had both a true-match and false-match in the section-wise map. There were also 7 APS Person IDs where there were multiple APS Intakes matched to a single MedStar Response; on inspection, it appeared that these intakes may have represented two EMS personnel (possibly both EMS partners) making separate reports relating to the same call. For these intakes, only the first matching intake was kept.
+
+```{r}
+dropping_ms_epcr_rows <- c(31033, 30897, 15990, 15922, 25679, 11448, 14284,
+                           10822, 34002, 16037, 29665, 23255, 7802, 7932, 7875,
+                           7957, 7954, 31176)
+
+dropping_aps_rows <- c(5199, 7887, 8682, 10132, 10131, 12846, 14670, 15113)
+
+temp_map <- temp_map %>%
+  filter( !((ms_epcr_row %in% dropping_ms_epcr_rows)|
+            (aps_row %in% dropping_aps_rows))
+          )
+
+manually_verified_ids <- unique(c(manually_verified_ids, checking_ids))
+
+dup_ids <- dup_ids %>%
+  filter(
+    !(aps_row %in% temp_map$aps_row)
+    ) %>%
+  select(-c(ms_epcr_row))
+```
+
+In addition to the 2 APS Person IDs that required manual pairing to keep the valid pairs, there were an additional 8 APS Intakes, representing 6 APS Case Numbers (1 previously unrepresented) and 6 APS Person IDs, which had manual matches found during verification.
+
+```{r}
+manually_verified_ids <- unique(c(manually_verified_ids, checking_ids))
+
+point_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+point_map <- rbind(point_map, point_map_aps(56, 1717, 32843))
+point_map <- rbind(point_map, point_map_aps(127, 3555, 15922))
+point_map <- rbind(point_map, point_map_aps(840, 9986, 20734))
+point_map <- rbind(point_map, point_map_aps(840, 9989, 25849))
+point_map <- rbind(point_map, point_map_aps(884, 11017, 8761))
+point_map <- rbind(point_map, point_map_aps(884, 11018, 9030))
+point_map <- rbind(point_map, point_map_aps(1416, 12266, 11448))
+point_map <- rbind(point_map, point_map_aps(1525, 15114, 12436))
+point_map <- rbind(point_map, point_map_aps(1555, 15796, 29665))
+point_map <- rbind(point_map, point_map_aps(1589, 16878, 31176))
+```
+
+We verified that these particular APS Intakes were not otherwise represented in either our section-wise temporary map our overall MedStar Response-APS Intake pair map.
+
+```{r}
+sum(point_map$id %in% temp_map$id)
+sum(point_map$aps_case_num %in% temp_map$aps_case_num)
+sum(point_map$aps_row %in% temp_map$aps_row)
+sum(point_map$ms_epcr_row %in% temp_map$ms_epcr_row)
+
+sum(point_map$id %in% intake_response_pairs$id)
+sum(point_map$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(point_map$aps_row %in% intake_response_pairs$aps_row)
+sum(point_map$ms_epcr_row %in% intake_response_pairs$ms_epcr_row)
+```
+
+We appended our manually identified pairs to our section-wise map, and removed the entries from the list of unmatched APS Intakes.
+
+```{r}
+temp_map <- rbind(temp_map, point_map)
+
+dup_ids <- dup_ids %>%
+  filter(!(id %in% temp_map$id))
+```
+
+We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Case Number or APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Case Number or APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records.
+
+```{r}
+sum(temp_map$aps_case_num %in% dup_ids$aps_case_num)
+sum(temp_map$aps_row %in% dup_ids$aps_row)
+
+sum(temp_map$id %in% intake_response_pairs$id)
+sum(temp_map$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(temp_map$aps_row %in% intake_response_pairs$aps_row)
+
+sum(temp_map$id %in% unmatched_aps_intakes$id)
+sum(temp_map$aps_case_num %in% unmatched_aps_intakes$aps_case_num)
+sum(temp_map$aps_row %in% unmatched_aps_intakes$aps_row)
+
+sum(dup_ids$id %in% intake_response_pairs$id)
+sum(dup_ids$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(dup_ids$aps_row %in% intake_response_pairs$aps_row)
+
+sum(dup_ids$id %in% unmatched_aps_intakes$id)
+sum(dup_ids$aps_case_num %in% unmatched_aps_intakes$aps_case_num)
+sum(dup_ids$aps_row %in% unmatched_aps_intakes$aps_row)
+```
+
+We appended the results of this processing to our processing data frames.
+
+```{r}
+intake_response_pairs <- rbind(intake_response_pairs, temp_map)
+unmatched_aps_intakes <- rbind(unmatched_aps_intakes, dup_ids)
+```
+
+#### Community Agencies/Organizations Reporter
+
+There were 166 remaining APS Case Numbers, representing 157 APS Person IDs, with a Community Agency/Organization reporter.
+
+```{r}
+checking <- aps %>%
+  filter(!( (aps_case_num %in% intake_response_pairs$aps_case_num)|
+             (aps_case_num %in% unmatched_aps_intakes$aps_case_num)|
+              (id %in% manually_verified_ids))
+         ) %>%
+  filter(aps_reporter == potential_reporter_types[4])
+
+nrow(checking)
+length(unique(checking$id))
+length(unique(checking$aps_case_num))
+```
+
+These 157 APS IDs were checked for matches.
+
+```{r}
+manual <- checking %>%
+  select(id, aps_case_num, aps_row)
+
+temp_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+for (i in 1:nrow(manual)){
+  intake_date <- pull(aps[aps$aps_row == pull(manual[i,'aps_row']), 
+                               'aps_intake_dt'])
+  
+  intake_window <- interval(start = intake_date - dhours(x=72), 
+                            end = intake_date)
+  ms_epcr_rows <- pull(medstar %>%
+                         filter((id == pull(manual[i,'id'])) &
+                                   (response_dt %within% intake_window)
+                                ) %>%
+                         select(ms_epcr_row)
+                    )
+  
+  temp_tibble <- tibble('id' = pull(manual[i,'id']), 
+                        'aps_case_num' = pull(manual[i,'aps_case_num']),
+                        'aps_row' = pull(manual[i,'aps_row']),
+                        'ms_epcr_row' = ms_epcr_rows
+  )
+  
+  temp_map <- rbind(temp_map, temp_tibble)
+  
+}
+```
+
+This isolated 5 potential EMS Response - APS Intake pairs. There were 4 APS Person IDs (97.45% failure rate) and APS Case Numbers (97.59% failure rate) with a potential match in the MedStar data set.
+
+```{r}
+nrow(temp_map)
+length(unique(temp_map$id))
+length(unique(temp_map$aps_case_num))
+length(unique(temp_map$aps_row))
+length(unique(temp_map$ms_epcr_row))
+
+dup_ids <- manual
+checking_ids <- unique(checking$id)
+```
+
+There was 1 APS Person ID, represented by 1 APS Case Number, that was represented more than once in our initial mapping. This APS Person ID appeared to reference a single APS Case Number with multiple Intakes, each of which was represented only once.
+
+```{r}
+dup_ids <- temp_map %>%
+  filter(duplicated(id)|duplicated(id, fromLast = TRUE))
+
+length(unique(dup_ids$id))
+length(unique(dup_ids$aps_case_num))
+
+dup_cases <- temp_map %>%
+  filter(duplicated(aps_case_num)|duplicated(aps_case_num, fromLast = TRUE))
+
+nrow(dup_cases)
+length(unique(dup_cases$aps_case_num))
+length(unique(dup_cases$id))
+
+dup_rows <- temp_map %>%
+  filter(duplicated(aps_row)|duplicated(aps_row, fromLast = TRUE))
+
+identical(dup_cases, dup_rows)
+nrow(dup_cases) - length(unique(dup_cases$aps_row))
+
+length(unique(dup_ids[
+              !(dup_ids$aps_case_num %in% dup_cases$aps_case_num),
+              ]$aps_case_num
+              )
+       )
+```
+
+The 4 APS Person IDs in the initial mapping were verified.
+
+```{r}
+checking_ids <- unique(temp_map$id)
+
+length(checking_ids)
+
+for (i in 1:length(checking_ids)){
+  t_id <- checking_ids[i]
+  aps[aps$id == t_id,]
+  medstar[medstar$id == t_id,]
+}
+```
+
+None of the pairs in the initial mapping appeared to be accurate. However, there were 5 pairs which appeared to be valid, that were not otherwise matched.
+
+```{r}
+dup_ids <- temp_map %>%
+  select(-c(ms_epcr_row))
+
+temp_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+manually_verified_ids <- unique(c(manually_verified_ids, checking_ids))
+
+point_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+point_map <- rbind(point_map, point_map_aps(1099, 12456, 30496))
+point_map <- rbind(point_map, point_map_aps(1480, 14172, 24848))
+point_map <- rbind(point_map, point_map_aps(1594, 16966, 12481))
+point_map <- rbind(point_map, point_map_aps(1634, 17968, 27507))
+point_map <- rbind(point_map, point_map_aps(1634, 17969, 31024))
+```
+
+We verified that these particular APS Intakes were not otherwise represented in either our section-wise temporary map our overall MedStar Response-APS Intake pair map.
+
+```{r}
+sum(point_map$id %in% intake_response_pairs$id)
+sum(point_map$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(point_map$aps_row %in% intake_response_pairs$aps_row)
+sum(point_map$ms_epcr_row %in% intake_response_pairs$ms_epcr_row)
+```
+
+We appended our manually identified pairs to our section-wise map.
+
+```{r}
+temp_map <- rbind(temp_map, point_map)
+```
+
+We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records.
+
+```{r}
+sum(temp_map$aps_case_num %in% dup_ids$aps_case_num)
+sum(temp_map$aps_row %in% dup_ids$aps_row)
+
+sum(temp_map$id %in% intake_response_pairs$id)
+sum(temp_map$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(temp_map$aps_row %in% intake_response_pairs$aps_row)
+
+sum(temp_map$id %in% unmatched_aps_intakes$id)
+sum(temp_map$aps_case_num %in% unmatched_aps_intakes$aps_case_num)
+sum(temp_map$aps_row %in% unmatched_aps_intakes$aps_row)
+
+sum(dup_ids$id %in% intake_response_pairs$id)
+sum(dup_ids$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(dup_ids$aps_row %in% intake_response_pairs$aps_row)
+
+sum(dup_ids$id %in% unmatched_aps_intakes$id)
+sum(dup_ids$aps_case_num %in% unmatched_aps_intakes$aps_case_num)
+sum(dup_ids$aps_row %in% unmatched_aps_intakes$aps_row)
+```
+
+We appended the results of this processing to our processing data frames.
+
+```{r}
+intake_response_pairs <- rbind(intake_response_pairs, temp_map)
+unmatched_aps_intakes <- rbind(unmatched_aps_intakes, dup_ids)
+```
+
+#### Health Care Provider/Staff Reporter
+
+There were 225 remaining APS Case Numbers, representing 210 APS Person IDs, with a Health Care Provider/Staff reporter that was not otherwise specified as EMS.
+
+```{r}
+checking <- aps %>%
+  filter(!( (aps_case_num %in% intake_response_pairs$aps_case_num)|
+             (aps_case_num %in% unmatched_aps_intakes$aps_case_num)|
+              (id %in% manually_verified_ids))
+         ) %>%
+  filter(aps_reporter == potential_reporter_types[1])
+
+nrow(checking)
+length(unique(checking$id))
+length(unique(checking$aps_case_num))
+```
+
+These 210 APS IDs were checked for matches.
+
+```{r}
+manual <- checking %>%
+  select(id, aps_case_num, aps_row)
+
+temp_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+for (i in 1:nrow(manual)){
+  intake_date <- pull(aps[aps$aps_row == pull(manual[i,'aps_row']), 
+                               'aps_intake_dt'])
+  
+  intake_window <- interval(start = intake_date - dhours(x=72), 
+                            end = intake_date)
+  ms_epcr_rows <- pull(medstar %>%
+                         filter((id == pull(manual[i,'id'])) &
+                                   (response_dt %within% intake_window)
+                                ) %>%
+                         select(ms_epcr_row)
+                    )
+  
+  temp_tibble <- tibble('id' = pull(manual[i,'id']), 
+                        'aps_case_num' = pull(manual[i,'aps_case_num']),
+                        'aps_row' = pull(manual[i,'aps_row']),
+                        'ms_epcr_row' = ms_epcr_rows
+  )
+  
+  temp_map <- rbind(temp_map, temp_tibble)
+  
+}
+```
+
+This isolated 39 potential EMS Response - APS Intake pairs. There were 22 APS Person IDs (89.52% failure rate) and APS Case Numbers (90.22% failure rate) with a potential match in the MedStar data set.
+
+```{r}
+nrow(temp_map)
+length(unique(temp_map$id))
+length(unique(temp_map$aps_case_num))
+length(unique(temp_map$aps_row))
+length(unique(temp_map$ms_epcr_row))
+
+checking_ids <- unique(checking$id)
+```
+
+There were 12 APS Person IDs, represented by 29 APS Case Numbers, that were represented more than once in our initial mapping. Of these APS Case Numbers, there were 5 potential pairs that represented a repeated Intake.
+
+```{r}
+dup_ids <- temp_map %>%
+  filter(duplicated(id)|duplicated(id, fromLast = TRUE))
+
+length(unique(dup_ids$id))
+length(unique(dup_ids$aps_case_num))
+
+dup_cases <- temp_map %>%
+  filter(duplicated(aps_case_num)|duplicated(aps_case_num, fromLast = TRUE))
+
+nrow(dup_cases)
+length(unique(dup_cases$aps_case_num))
+length(unique(dup_cases$id))
+
+dup_rows <- temp_map %>%
+  filter(duplicated(aps_row)|duplicated(aps_row, fromLast = TRUE))
+
+identical(dup_cases, dup_rows)
+nrow(dup_cases) - length(unique(dup_cases$aps_row))
+
+length(unique(dup_ids[
+              !(dup_ids$aps_case_num %in% dup_cases$aps_case_num),
+              ]$aps_case_num
+              )
+       )
+```
+
+The 22 APS Person IDs in the initial mapping were verified.
+
+```{r}
+dup_ids <- temp_map
+
+checking_ids <- unique(dup_ids$id)
+
+length(checking_ids)
+
+for (i in 1:length(checking_ids)){
+  t_id <- checking_ids[i]
+  aps[aps$id == t_id,]
+  medstar[medstar$id == t_id,]
+}
+```
+
+Of the 22 APS Person ID values checked, none appeared to lack any potentially valid match in the MedStar data set. Where multiple responses appeared to be temporally appropriate, the DETECT variables were examined. If there was no indication in the DETECT Variables, the most complete and temporally related record was selected if it did not appear otherwise inappropriate. We excluded the mismatched MedStar Responses, and isolated the APS Person IDs, Case Numbers, and Rows which were confirmed to have no apparent valid matches in the MedStar data set. There were 7 APS Person IDs that experienced multiple APS Intakes matched with a single MedStar Response; resolution of these groups resulted in no APS Case Numbers and 6 Intakes being confirmed to have no apparent potentially valid match in the MedStar data set. Of these, there were 3 APS Person IDs which required manual reassignment of pairs to resolve.
+
+```{r}
+dropping_ms_epcr_rows <- c(31861, 12621, 7411, 26307, 7107, 29173)
+
+dropping_aps_rows <- c(3077, 5305, 5306, 13580, 13581, 17937)
+
+temp_map <- temp_map %>%
+  filter( !((ms_epcr_row %in% dropping_ms_epcr_rows)|
+            (aps_row %in% dropping_aps_rows))
+          )
+
+manually_verified_ids <- unique(c(manually_verified_ids, checking_ids))
+
+dup_ids <- dup_ids %>%
+  filter(
+    !(aps_row %in% temp_map$aps_row)
+    ) %>%
+  select(-c(ms_epcr_row))
+```
+
+There were 3 APS IDs which required a single manual pair assignment to resolve.
+
+```{r}
+point_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+point_map <- rbind(point_map, point_map_aps(509, 4066, 12621))
+point_map <- rbind(point_map, point_map_aps(1128, 7017, 7411))
+point_map <- rbind(point_map, point_map_aps(1962, 17918, 7107))
+```
+
+We verified that these particular APS Intakes were not otherwise represented in either our section-wise temporary map our overall MedStar Response-APS Intake pair map.
+
+```{r}
+sum(point_map$id %in% intake_response_pairs$id)
+sum(point_map$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(point_map$aps_row %in% intake_response_pairs$aps_row)
+sum(point_map$ms_epcr_row %in% intake_response_pairs$ms_epcr_row)
+```
+
+We appended our manually identified pairs to our section-wise map.
+
+```{r}
+temp_map <- rbind(temp_map, point_map)
+
+dup_ids <- dup_ids %>%
+  filter(
+    !(aps_row %in% temp_map$aps_row)
+    )
+```
+
+We confirmed that our section-wise sets of both confirmed and unconfirmed matches did not contain an APS Intake that overlapped in both sets. We also confirmed that neither set contained an APS Intake already present in either the overall MedStar Response-APS Intake pair map, or map of confirmed unmatched APS records.
+
+```{r}
+sum(temp_map$aps_case_num %in% dup_ids$aps_case_num)
+sum(temp_map$aps_row %in% dup_ids$aps_row)
+
+sum(temp_map$id %in% intake_response_pairs$id)
+sum(temp_map$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(temp_map$aps_row %in% intake_response_pairs$aps_row)
+
+sum(temp_map$id %in% unmatched_aps_intakes$id)
+sum(temp_map$aps_case_num %in% unmatched_aps_intakes$aps_case_num)
+sum(temp_map$aps_row %in% unmatched_aps_intakes$aps_row)
+
+sum(dup_ids$id %in% intake_response_pairs$id)
+sum(dup_ids$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(dup_ids$aps_row %in% intake_response_pairs$aps_row)
+
+sum(dup_ids$id %in% unmatched_aps_intakes$id)
+sum(dup_ids$aps_case_num %in% unmatched_aps_intakes$aps_case_num)
+sum(dup_ids$aps_row %in% unmatched_aps_intakes$aps_row)
+```
+
+We appended the results of this processing to our processing data frames.
+
+```{r}
+intake_response_pairs <- rbind(intake_response_pairs, temp_map)
+unmatched_aps_intakes <- rbind(unmatched_aps_intakes, dup_ids)
+```
+
+### Remaining Unmatched EMS/EMT Reporter Intakes
+
+There were 13 remaining APS Intakes, representing 13 APS Case Numbers and APS Person IDs, which had not been paired or manually verified to include a matching MedStar Response.
+
+```{r}
+checking <- aps %>%
+  filter(!( (aps_row %in% intake_response_pairs$aps_row)|
+             (aps_row %in% unmatched_aps_intakes$aps_row)|
+              (id %in% manually_verified_ids))
+         ) %>%
+  filter(aps_reporter == potential_reporter_types[2])
+
+nrow(checking)
+length(unique(checking$id))
+length(unique(checking$aps_case_num))
+```
+
+These 13 APS Person IDs were manually verified.
+
+```{r}
+dup_ids <- checking
+checking_ids <- unique(dup_ids$id)
+
+length(checking_ids)
+
+for (i in 1:length(checking_ids)){
+  t_id <- checking_ids[i]
+  aps[aps$id == t_id,]
+  medstar[medstar$id == t_id,]
+}
+```
+
+There was a single additional pair identified.
+
+```{r}
+temp_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+manually_verified_ids <- unique(c(manually_verified_ids, checking_ids))
+
+point_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+
+point_map <- rbind(point_map, point_map_aps(770, 7684, 15246))
+```
+
+We verified that this particular APS Intake was not otherwise represented in our overall MedStar Response-APS Intake pair map.
+
+```{r}
+sum(point_map$id %in% intake_response_pairs$id)
+sum(point_map$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(point_map$aps_row %in% intake_response_pairs$aps_row)
+sum(point_map$ms_epcr_row %in% intake_response_pairs$ms_epcr_row)
+```
+
+We appended the results of this processing to our processing data frames.
+
+```{r}
+intake_response_pairs <- rbind(intake_response_pairs, point_map)
+```
+
+### Updates from Manually Checked ID List
+
+We ensured that all APS Case Numbers and APS Rows associated with the manually checked APS Person IDs were added to the confirmed unmatched APS set.
+
+```{r}
+manual_aps <- aps %>%
+  filter( (id %in% manually_verified_ids) & 
+            !((aps_row %in% intake_response_pairs$aps_row)|
+              (aps_row %in% unmatched_aps_intakes$aps_row))
+          ) %>%
+  select(id, aps_case_num, aps_row)
+
+unmatched_aps_intakes <- rbind(unmatched_aps_intakes, manual_aps) %>%
+  distinct()
+```
+
+## MedStar
+
+There were 2,523 remaining Responses, representing 645 MedStar Subject IDs, that had not yet been paired with an APS Response.
+
+```{r}
+checking <- medstar %>%
+  filter(!(ms_epcr_row %in% intake_response_pairs$ms_epcr_row))
+
+nrow(checking)
+length(unique(checking$id))
+```
+
+Of these, 12 remaining Responses indicated an APS Report was made, 1,996 indicated that a report was *not* made, and 515 were missing a value to indicate if a report was made.
+
+```{r}
+get_unique_value_summary(checking, "detect_report_made")
+```
+
+### Responses Indicating a Report was Made
+
+There were 12 remaining Responses, across 11 MedStar Subject IDs, which indicated an APS report was made.
+
+```{r}
+checking <- medstar %>%
+  filter(!(ms_epcr_row %in% intake_response_pairs$ms_epcr_row)
+         ) %>%
+  filter(detect_report_made == "YES")
+
+nrow(checking)
+length(unique(checking$id))
+```
+
+These 11 MedStar Subject IDs were manually verified.
+
+```{r}
+dup_ids <- checking %>%
+  select(id, ms_epcr_row)
+
+checking_ids <- unique(dup_ids$id)
+
+length(checking_ids)
+
+for (i in 1:length(checking_ids)){
+  t_id <- checking_ids[i]
+  aps[aps$id == t_id,]
+  medstar[medstar$id == t_id,]
+}
+```
+
+Of the 11 MedStar Subject IDs manually verified, only two were not found to have a valid appearing pair. There was one additional pair identified.
+
+```{r}
+point_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+
+point_map <- rbind(point_map, point_map_aps(824, 9482, 19998))
+
+manually_verified_ids <- unique(c(manually_verified_ids, checking_ids))
+```
+
+We verified that these particular MedStar Responses were not otherwise represented in either our section-wise temporary map our overall MedStar Response-APS Intake pair map.
+
+```{r}
+sum(point_map$id %in% intake_response_pairs$id)
+sum(point_map$aps_case_num %in% intake_response_pairs$aps_case_num)
+sum(point_map$aps_row %in% intake_response_pairs$aps_row)
+sum(point_map$ms_epcr_row %in% intake_response_pairs$ms_epcr_row)
+```
+
+```{r}
+intake_response_pairs <- rbind(intake_response_pairs, point_map)
+```
+
+### Subjects With a Single Remaining Response
+
+There were 117 remaining MedStar Responses, which represented MedStar Subject IDs which appeared in a single remaining unmatched Response in the MedStar data set.
+
+```{r}
+checking <- medstar %>%
+  filter(!((ms_epcr_row %in% intake_response_pairs$ms_epcr_row)|
+             (id %in% manually_verified_ids))
+         ) %>%
+  filter( !(duplicated(id)|duplicated(id, fromLast=TRUE)) )
+
+nrow(checking)
+length(unique(checking$id))
+```
+
+These 117 MedStar Subject IDs were manually checked for any potential matches.
+
+```{r}
+checking_ids <- unique(checking$id)
+
+length(checking_ids)
+
+for (i in 1:length(checking_ids)){
+  t_id <- checking_ids[i]
+  aps[aps$id == t_id,]
+  medstar[medstar$id == t_id,]
+}
+```
+
+No new potential matches were identified. We appended the manually verified IDs and their associated MedStar ePCR Rows to our processing data structures.
+
+```{r}
+dup_ids <- checking %>%
+  filter(!(ms_epcr_row %in% intake_response_pairs$ms_epcr_row)
+         ) %>%
+  select('id', 'ms_epcr_row')
+
+manually_verified_ids <- unique(c(manually_verified_ids, checking_ids))
+
+unmatched_ms_responses <- rbind(unmatched_ms_responses, dup_ids)
+```
+
+### Responses Missing an Indication of a Report Being Made
+
+There were 236 remaining MedStar Responses, represented by 121 MedStar Subject IDs, which were missing a value indicating if a report was or was not made.
+
+```{r}
+checking <- medstar %>%
+  filter(!((ms_epcr_row %in% intake_response_pairs$ms_epcr_row)|
+             (ms_epcr_row %in% unmatched_ms_responses$ms_epcr_row)|
+             (id %in% manually_verified_ids))
+         )  %>%
+  filter(is.na(detect_report_made))
+
+nrow(checking)
+length(unique(checking$id))
+```
+
+We assessed for potential matches in the APS data set. A 72 hour window from MedStar Response to APS Intake was selected for temporal proximity.
+
+```{r}
+manual <- checking %>%
+  select(id, ms_epcr_row)
+
+temp_map <- tibble("id" = c(), "aps_case_num" = c(), 
+                   "aps_row" = c(), "ms_epcr_row" = c()
+                   )
+
+for (i in 1:nrow(manual)){
+  response_date <- medstar[medstar$ms_epcr_row == pull(manual[i,'ms_epcr_row']),
+                            ]$response_dt
+  
+  intake_window <- interval(start = response_date, 
+                            end = response_date + dhours(72))
+    
+
+  aps_rows <- aps %>%
+    filter((id == pull(manual[i,'id'])) &
+              (aps_intake_dt %within% intake_window)
+            ) %>%
+     select(aps_case_num, aps_row)
+                  
+
+  temp_tibble <- tibble('id' = pull(manual[i,'id']), 
+                        'aps_case_num' = aps_rows$aps_case_num,
+                        'aps_row' = aps_rows$aps_row,
+                        'ms_epcr_row' = pull(manual[i,'ms_epcr_row'])
+  )
+  
+  temp_map <- rbind(temp_map, temp_tibble)
+  
+}
+```
+
+This isolated 4 potential EMS Response - APS Intake pairs. There were 3 APS Person IDs and APS Case Numbers matched with 3 MedStar Responses (98.81% failure rate).
+
+```{r}
+nrow(temp_map)
+length(unique(temp_map$id))
+length(unique(temp_map$aps_case_num))
+length(unique(temp_map$aps_row))
+length(unique(temp_map$ms_epcr_row))
+```
+
+These 3 MedStar Subject IDs were manually verified.
+
+```{r}
+checking_ids <- unique(temp_map$id)
+
+length(checking_ids)
+
+for (i in 1:length(checking_ids)){
+  t_id <- checking_ids[i]
+  aps[aps$id == t_id,]
+  medstar[medstar$id == t_id,]
+}
+```
+
+There was a single mismatched APS Intake, which was adjusted to reference a more potentially valid MedStar Response. The remaining pairs appeared potentially valid, without additional potential pairs identified.
+
+```{r}
+temp_map <- rbind(temp_map[temp_map$aps_row != 11603,], 
+                   point_map_aps(906, 11603, 5097))
+
+manually_verified_ids <- unique(c(manually_verified_ids, checking_ids))
+```
+
+```{r}
+checking_ids <- setdiff(unique(checking$id), checking_ids)
+
+length(checking_ids)
+
+for (i in 1:length(checking_ids)){
+  t_id <- checking_ids[i]
+  aps[aps$id == t_id,]
+  medstar[medstar$id == t_id,]
+}
+```
+
+No further potential pairs were identified.
+
+```{r}
+manually_verified_ids <- unique(c(manually_verified_ids, checking_ids))
+intake_response_pairs <- rbind(intake_response_pairs,temp_map)
+```
+
+### Updates from Manually Checked ID List
+
+We ensured that all MedStar ePCR Rows associated with the manually checked IDs were added to the confirmed unmatched MedStar set.
+
+```{r}
+manual_ms <- medstar %>%
+  filter((id %in% manually_verified_ids) &
+           !((ms_epcr_row %in% intake_response_pairs$ms_epcr_row)|
+             (ms_epcr_row %in% unmatched_ms_responses$ms_epcr_row))
+  ) %>%
+  select(id, ms_epcr_row)
+  
+unmatched_ms_responses <- rbind(unmatched_ms_responses, manual_ms) %>%
+  distinct()
+```
+
+# Check for Remaining Unmatched Values
+
+## Unmatched MedStar Responses Indicating a Report was Made
+
+There were 11 remaining MedStar Responses, across 10 MedStar Subject IDs, which either indicated an APS Report was made or contained an APS Report Number, that remained unmatched with an APS Intake.
+
+```{r}
+checking <- medstar %>%
+  filter( ((detect_report_made == "YES")|!is.na(detect_report_comment)) & 
+           !(ms_epcr_row %in% intake_response_pairs$ms_epcr_row))
+
+nrow(checking)
+length(unique(checking$id))
+```
+
+All 10 of these MedStar Subject IDs had been previously checked, but were rechecked.
+
+```{r}
+checking_ids <- unique(checking$id)
+
+length(checking_ids)
+sum(checking_ids %in% manually_verified_ids)
+
+for (i in 1:length(checking_ids)){
+  t_id <- checking_ids[i]
+  aps[aps$id == t_id,]
+  medstar[medstar$id == t_id,]
+}
+```
+
+No additional pairs were found.
+
+## Unmatched APS Intakes Indicating EMS/EMT Reporter
+
+There were 29 remaining APS Intakes, across 28 APS Person IDs and APS Case Numbers, which indicated the reporter was an EMS/EMT professional and remained unmatched with a MedStar Response.
+
+```{r}
+checking <- aps %>%
+  filter( aps_reporter == potential_reporter_types[2] & 
+           !(aps_row %in% intake_response_pairs$aps_row))
+
+nrow(checking)
+length(unique(checking$id))
+length(unique(checking$aps_case_num))
+```
+
+All 28 of these MedStar Subject IDs had been previously checked, but were rechecked.
+
+```{r}
+checking_ids <- unique(checking$id)
+
+length(checking_ids)
+sum(checking_ids %in% manually_verified_ids)
+
+for (i in 1:length(checking_ids)){
+  t_id <- checking_ids[i]
+  aps[aps$id == t_id,]
+  medstar[medstar$id == t_id,]
+}
+```
+
+Two pairs were identified in which the MedStar Response was matched with another temporally proximal APS Intake which did not specify an EMS/EMT reporter; these two pairs were corrected.
+
+```{r}
+intake_response_pairs <- rbind(
+  intake_response_pairs[intake_response_pairs$aps_row != 962,],
+  point_map_aps(248, 961, 34870))
+
+intake_response_pairs <- rbind(
+  intake_response_pairs[intake_response_pairs$aps_row != 16878,],
+  point_map_aps(1589, 16879, 31176)
+)
+```
+
+# Map Verification and Application
+
+## Verification
+
+The map of MedStar Response-APS Intake pairs contained 492 pairs, representing 461 APS Case Numbers and 422 Subjects
+
+```{r}
+nrow(intake_response_pairs)
+length(unique(intake_response_pairs$aps_case_num))
+length(unique(intake_response_pairs$id))
+```
+
+We verified that there were no instances where any APS Intake or MedStar Response was paired more than once. Similarly, we checked to ensure no typo errors caused the inclusion of an APS Intake or MedStar Response that did not exist in the source data sets.
+
+```{r}
+nrow(intake_response_pairs) == length(unique(intake_response_pairs$aps_row))
+nrow(intake_response_pairs) == length(unique(intake_response_pairs$ms_epcr_row))
+
+sum(!(intake_response_pairs$aps_row %in% aps$aps_row))
+sum(!(intake_response_pairs$ms_epcr_row %in% medstar$ms_epcr_row))
+```
+
+We tested to ensure no pairs were created between an APS Intake and any MedStar response that occurred *after* the Intake event.
+
+```{r}
+nrow(intake_response_pairs %>%
+  rowwise() %>%
+  mutate(intake_dt = aps[aps$aps_row == aps_row,]$aps_intake_dt,
+         response_dt = medstar[medstar$ms_epcr_row == ms_epcr_row,]$ms_epcr_row
+         ) %>%
+  filter(response_dt > intake_dt) %>%
+  ungroup()
+)
+```
+
+## Addition of Within-Set ID Values
+
+We added values for within-set Subject IDs and MedStar Compliance Row to our map.
+
+```{r}
+intake_response_pairs <- intake_response_pairs %>%
+  add_column(aps_person_id = NA_integer_, ms_id = NA_integer_, 
+             ms_comp_row = NA_integer_)
+```
+
+We added these values to our map from our trimmed source data sets.
+
+```{r}
+aps <- aps %>%
+  select(id, aps_person_id, aps_case_num, aps_row)
+
+intake_response_pairs <- rows_update(intake_response_pairs, aps, 
+                                      by = "aps_row", unmatched = "ignore")
+
+medstar <- medstar %>%
+  select(id, ms_id, ms_epcr_row, ms_comp_row)
+
+intake_response_pairs <- rows_update(intake_response_pairs, medstar, 
+                                      by = "ms_epcr_row", unmatched = "ignore")
+```
+
+## Applying Map to Source Data Sets
+
+We re-imported the revised MedStar data set, without any filtering or trimming, for processing.
+
+```{r}
+medstar <- readRDS(here("data","DETECT Shared GRAs", "medstar_cleaning",
+                        "medstar_02.rds"))
+```
+
+We re-imported the revised APS data set, without any filtering or trimming, for processing.
+
+```{r}
+aps <- readRDS(here("data","DETECT Shared GRAs", "aps_cleaning", "aps_04.rds"))
+```
+
+We added values for all within-set identifiers to both data sets.
+
+```{r}
+medstar <- medstar %>%
+  add_column(aps_person_id = NA_integer_, aps_case_num = NA_integer_, 
+             aps_row = NA_integer_)
+
+medstar <- rows_update(medstar, intake_response_pairs, by = "ms_epcr_row") 
+medstar <- rows_update(medstar, merge_pattern %>%
+                         select(id, aps_person_id) %>%
+                         distinct(), by = "id", unmatched = "ignore") %>%
+  relocate(id, ms_id, aps_person_id, aps_case_num, aps_row, ms_epcr_row, 
+           ms_comp_row)
+
+aps <- aps %>%
+  add_column(ms_id = NA_integer_, ms_epcr_row = NA_integer_, 
+             ms_comp_row = NA_integer_)
+
+aps <- rows_update(aps, intake_response_pairs, by = "aps_row") 
+aps <- rows_update(aps, merge_pattern %>%
+                     select(id, ms_id) %>%
+                     distinct(), by = "id", unmatched = "ignore") %>%
+    relocate(id, ms_id, aps_person_id, aps_case_num, aps_row, ms_epcr_row, 
+           ms_comp_row)
+```
+
+# Save and Export
+
+We saved and exported our map for later use.
+
+```{r}
+saveRDS(intake_response_pairs, 
+        here("data","DETECT Shared GRAs", "merge_aps_medstar", 
+             "medstar_aps_full_row_map_01.rds"))
+```
+
+We saved the updated MedStar data set for later use.
+
+```{r}
+saveRDS(medstar, here("data","DETECT Shared GRAs", "medstar_cleaning",
+                        "medstar_03.rds"))
+```
+
+We saved the updated APS data set for later use.
+
+```{r}
+saveRDS(aps, here("data","DETECT Shared GRAs", "aps_cleaning", "aps_05.rds"))
+```

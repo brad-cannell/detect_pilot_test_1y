@@ -124,9 +124,8 @@ There were 985 observations (in 925 APS Subject IDs) which did not have an exclu
             -   115 remaining APS Person ID values in 415 observations with variation in Street Name
 
             -   40 remaining APS Person ID values in 158 observations with variation in Street Number
-            
-    -   Manual verification of 74 APS Person ID values, which were connected to Case Numbers that referred more than one APS Person ID 
-            -   Reconciliation of these 74 APS Person ID values into 37 Person ID Values (37 value reduction)
+
+    -   Manual verification of 74 APS Person ID values, which were connected to Case Numbers that referred more than one APS Person ID - Reconciliation of these 74 APS Person ID values into 37 Person ID Values (37 value reduction)
 
 # Imports
 
@@ -344,7 +343,6 @@ get_all_cases_persons <- function(df, case_list) {
   
 }
 ```
-
 
 # Initial Data Structure
 
@@ -1340,10 +1338,45 @@ We expected values for Close Reason to be standardized and selected from a pre-d
 get_unique_value_summary(aps,'aps_inv_close_reason')
 ```
 
-We finally converted the variable to an unordered factor.
+As closure reasons extend to the entire investigation (Case Number), these were consolidated to be identical across all occurrences of the same APS Case Number. Occurrences with only values of "Closed to Merge" were considered still ongoing, as no full closure reason was located in our Data Set. 
+
+Closures of both "Progress to Maintenance" and "Progress to ICS" indicated continued following by APS Services; as such, these were consolidated into "Progress to Maintenance or ICS" as there were Case Numbers with both closure reasons.
 
 ```{r}
-aps$aps_inv_close_reason <- as.factor(aps$aps_inv_close_reason)
+aps <- aps %>%
+  mutate(aps_inv_close_reason = na_if(aps_inv_close_reason, "Closed to Merge"),
+         aps_inv_close_reason = if_else(
+           (aps_inv_close_reason %in% 
+              c("Progress to Maintenance", "Progress to ICS")), 
+           "Progress to Maintenance or ICS", aps_inv_close_reason)
+         )
+```
+
+We created a map of Case Numbers and Closure Reasons, where the unique closure reason for each Case would be stored as a factor.
+
+```{r}
+case_closures <- aps %>%
+  filter(!is.na(aps_inv_close_reason)
+         ) %>%
+  group_by(aps_case_num) %>%
+  mutate(aps_close_list = unique(list(aps_inv_close_reason)),
+         ) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(aps_inv_close_reason = as.character(
+    list(na.omit(unique(aps_close_list))))
+         ) %>%
+  ungroup() %>%
+  select(aps_case_num, aps_inv_close_reason) %>%
+  distinct()
+
+case_closures$aps_inv_close_reason <- as.factor(case_closures$aps_inv_close_reason)
+```
+
+We finally applied this map to update our values.
+
+```{r}
+aps <- rows_update(aps, case_closures, by = 'aps_case_num')
 ```
 
 ### Intake Date/Time `aps_intake_dt`
@@ -2250,7 +2283,7 @@ length(unique(search$aps_case_num))
 length(unique(search$aps_person_id))
 ```
 
-Each group was evaluated separately. With the exception of one group (group 24), all groups appeared to be entirely valid pairings. 
+Each group was evaluated separately. With the exception of one group (group 24), all groups appeared to be entirely valid pairings.
 
 ```{r}
 case_nums <- unique(checking$aps_case_num)
@@ -2269,7 +2302,7 @@ aps$aps_person_id[aps$aps_row == 6079] <- aps$aps_person_id[aps$aps_row == 6078]
 case_nums <- case_nums[-24]
 ```
 
-For all other observations, a replacement map was created to facilitate corrections in both this data set, and in potential future APS data sets, to ensure consistency throughout the project. The first APS Person ID associated with the group was selected to be kept.  
+For all other observations, a replacement map was created to facilitate corrections in both this data set, and in potential future APS data sets, to ensure consistency throughout the project. The first APS Person ID associated with the group was selected to be kept.
 
 ```{r}
 fix_map <- tibble(
@@ -2306,7 +2339,6 @@ for (i in 1:length(case_nums)){
   get_all_cases_persons(aps, case_nums[i])
 }
 ```
-
 
 In addition to manually checking the result, checking the full data set for any Case Numbers with more than one APS Person ID value finds that there are no remaining unfixed Case Number groups.
 
@@ -2410,4 +2442,3 @@ The map of APS Person ID replacements was saved and exported.
 ```{r}
 saveRDS(fix_map, here("data", "DETECT Shared GRAs", "aps_cleaning", "aps_id_replacement_map.rds"))
 ```
-

@@ -144,7 +144,6 @@ editor: visual
 
 library(tidyverse)
 library(here)
-library(fastLink)
 ```
 
 ## Data Imports
@@ -168,10 +167,16 @@ The APS data set was loaded for processing.
 
 ```{r}
 aps <- readRDS(here("data","DETECT Shared GRAs","aps_cleaning",
-                             "aps_01.rds")
+                             "aps_02.rds")
                ) %>%
     mutate(pt_dob = as.character(pt_dob)
          )
+```
+
+The original APS Source ID Modification Map was loaded for processing.
+
+```{r}
+aps_source_map_original <- readRDS(here("data","DETECT Shared GRAs", "aps_cleaning","aps_id_replacement_map.rds"))
 ```
 
 ## Functions
@@ -5079,25 +5084,44 @@ aps <- left_join(aps, full_pattern, by='aps_person_id') %>%
   select(-c('ms_id'))
 ```
 
+# Finalizing APS Subject ID Revision Maps
+
+We checked to ensure none of the new APS Person ID revisions were present in the original APS Subject ID revision map.
+
+```{r}
+colnames(aps_source_map_original)[1] <- "old_id"
+
+sum(aps_source_map_original$new_id %in% aps_source_map$old_id)
+sum(aps_source_map_original$old_id %in% aps_source_map$new_id)
+sum(aps_source_map_original$old_id %in% aps_source_map$old_id)
+```
+
+We appended the original APS Source ID revision map to our newly created revision map.
+
+```{r}
+aps_source_map <- rbind(aps_source_map, aps_source_map_original)
+```
+
 # Saving and Exporting Data
 
 We exported our maps, both for revising the source data set Subject IDs but also the map of the merge between the IDs in each data set.
 
 ```{r}
 saveRDS(aps_source_map, here("data","DETECT Shared GRAs","merge_aps_medstar",
-                             "aps_id_revision_pattern_01"))
+                             "aps_id_revision_pattern_01.rds"))
 
 saveRDS(ms_source_map, here("data","DETECT Shared GRAs","merge_aps_medstar",
-                             "medstar_id_revision_pattern_01"))
+                             "medstar_id_revision_pattern_01.rds"))
 
 saveRDS(full_pattern, here("data","DETECT Shared GRAs","merge_aps_medstar",
-                             "aps_medstar_full_map_01"))
+                             "aps_medstar_full_subjid_map_01.rds"))
 ```
 
 We exported our revised source data sets.
 
 ```{r}
-saveRDS(medstar, here("data","DETECT Shared GRAs","medstar_02.rds"))
+saveRDS(medstar, here("data","DETECT Shared GRAs", "medstar_cleaning",
+                      "medstar_02.rds"))
 
-saveRDS(aps, here("data","DETECT Shared GRAs","aps_02.rds"))
+saveRDS(aps, here("data","DETECT Shared GRAs", "aps_cleaning", "aps_03.rds"))
 ```
