@@ -14,19 +14,19 @@ editor: visual
 -   Patient identifiers were present in both data sets
 
     -   Patient Address County was the only variable kept from the APS data set when collapsing to a single row
-    
+
 -   A merged data set containing all rows from both data sets was created
 
     -   This was created to facilitate creating a "Timeline" of all data points from each subject
-    
+
     -   APS Rows were given the Event Type of "APS Intake"; MedStar Rows were given the Event Type of "MedStar Response"
-    
+
     -   The APS Intake Date/Time was selected as the event from the APS data; The Response Date/Time was selected as the event from the MedStar data
 
 -   A merged data set containing all rows from the MedStar data set, with any paired APS row data appended in the same row was created
 
     -   This was created to facilitate analysis of a single MedStar Response and its associated APS Intake
-    
+
 -   A merged data set containing a single row per subject, containing only subject-wide aggregate data for each subject in the MedStar data set (and associated subject-wide data from the APS data set, if present) was created
 
 # Imports
@@ -68,7 +68,7 @@ row_pattern <- readRDS(here("data","DETECT Shared GRAs","merge_aps_medstar",
 
 ## APS
 
-We isolated variables from the APS data set into groups. 
+We isolated variables from the APS data set into groups.
 
 ```{r}
 universal_id_vars <- aps %>%
@@ -135,7 +135,7 @@ medstar <- medstar %>%
   ungroup()
 ```
 
-We isolated variables from the MedStar data set into groups. 
+We isolated variables from the MedStar data set into groups.
 
 ```{r}
 ms_pt_vars <- medstar %>%
@@ -320,7 +320,7 @@ row_merge_cols <- c(universal_id_vars, ms_event_vars, pt_vars,
                     ms_resp_detail_vars, ms_comp_vars)
 ```
 
-We modified our MedStar Data set to eliminate the empty "pt_address_county" variable, and the APS Data Set to exclude any other patient identifier variable. We generated a simple key between the two data sets, consisting of both the MedStar Response and APS Intake. 
+We modified our MedStar Data set to eliminate the empty "pt_address_county" variable, and the APS Data Set to exclude any other patient identifier variable. We generated a simple key between the two data sets, consisting of both the MedStar Response and APS Intake.
 
 ```{r}
 ms_modified <- medstar %>%
@@ -342,6 +342,30 @@ merged_set <- left_join(ms_modified, aps_modified, by="key") %>%
 merged_set <- merged_set[,row_merge_cols]
 ```
 
+We isolated the APS Intakes associated with a Subject present in both data sets. We similarly isolated the variables which represented the aggregate total of all data associated with the subject across all associated MedStar Responses. We reduced the data set to a single row per Subject, and excluded the unnecessary Row and Case identifiers.
+
+```{r}
+aps_subj_vars <- aps %>%
+  select(starts_with("aps_subject")
+         ) %>%
+  names()
+
+aps_modified <- aps %>%
+  select(all_of(universal_id_vars), all_of(aps_subj_vars)
+         ) %>%
+  filter(!is.na(ms_id)) %>%
+  group_by(id) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  select(-c(aps_case_num, aps_row, ms_epcr_row, ms_comp_row))
+```
+
+We utilized this to update subject-level data across all observations in the merged data set.
+
+```{r}
+merged_set <- rows_update(merged_set, aps_modified, by=c('id', 'aps_person_id', 'ms_id'))
+```
+
 We saved and exported this data set.
 
 ```{r}
@@ -351,7 +375,7 @@ saveRDS(merged_set, here("data","DETECT Shared GRAs","merge_aps_medstar",
 
 ## 3. Subjects in Aggregate, Single Row per Subject
 
-We isolated the APS Intakes associated with a Subject present in both data sets. We similarly isolated the variables which represented the aggregate total of all data associated with the subject across all associated MedStar Responses. We reduced the data set to a single row per Subject, and excluded the unnecessary Row and Case identifiers.  
+We isolated the APS Intakes associated with a Subject present in both data sets. We similarly isolated the variables which represented the aggregate total of all data associated with the subject across all associated MedStar Responses. We reduced the data set to a single row per Subject, and excluded the unnecessary Row and Case identifiers.
 
 ```{r}
 aps_subj_vars <- aps %>%
@@ -395,7 +419,7 @@ detect_cols <- c(ms_detect_vars[!(ms_detect_vars %in%
 
 ```
 
-In the MedStar data set, we converted any "Unable to Assess" DETECT item to a missing value, which allowed us to sum the total of "YES" responses for each detect item across all encounters for a subject. We also summed the number of missing DETECT variables to determine the number of screens performed on each subject. We reduced the data set to a single row per Subject, and excluded the unnecessary Row and Case Identifiers, as well as any other variables which were specific to individual Responses. 
+In the MedStar data set, we converted any "Unable to Assess" DETECT item to a missing value, which allowed us to sum the total of "YES" responses for each detect item across all encounters for a subject. We also summed the number of missing DETECT variables to determine the number of screens performed on each subject. We reduced the data set to a single row per Subject, and excluded the unnecessary Row and Case Identifiers, as well as any other variables which were specific to individual Responses.
 
 ```{r}
 ms_modified <- medstar
@@ -424,7 +448,7 @@ ms_modified <- ms_modified %>%
          all_of(starts_with("ms_subj")))
 ```
 
-We identified and ordered our desired variables.
+We identified and ordered our desired variables for the merged set.
 
 ```{r}
 subj_merged_cols_ids <- ms_modified %>%
@@ -458,4 +482,3 @@ We saved and exported this data set.
 saveRDS(merged_set, here("data","DETECT Shared GRAs","merge_aps_medstar",
                          "medstar_aps_merged_03_single_subject_per_row.rds"))
 ```
-
