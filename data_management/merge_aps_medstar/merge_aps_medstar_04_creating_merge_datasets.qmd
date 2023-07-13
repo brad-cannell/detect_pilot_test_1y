@@ -9,9 +9,10 @@ editor: visual
 -   Both data sets were slightly modified and exported
 
     -   The APS data set was reordered
+
     -   The MedStar data set recieved 7 new variables and was reordered
-    
-        -   If screening was performed, if screening was positive, number of responses for the subject, number of paired APS intakes for the subject, the number of APS Cases associated with the paired Intakes for the subject, the earliest response date, the latest response date   
+
+        -   If screening was performed, if screening was positive, number of responses for the subject, number of paired APS intakes for the subject, the number of APS Cases associated with the paired Intakes for the subject, the earliest response date, the latest response date
 
 -   Patient identifiers were present in both data sets
 
@@ -150,6 +151,8 @@ We created two new variables which contained the determination of if a screening
 ```{r}
 ms_modified <- medstar
 
+ms_modified$na_count <- rowSums(is.na(ms_modified[,detect_items]))
+
 ms_modified <- ms_modified %>%
   mutate(across(all_of(detect_items),
          ~ case_when(.x == "YES" ~ TRUE,
@@ -159,7 +162,6 @@ ms_modified <- ms_modified %>%
          )
 
 ms_modified$yes_count <- rowSums(ms_modified[,detect_items], na.rm=TRUE)
-ms_modified$na_count <- rowSums(is.na(ms_modified[,detect_items]))
 
 ms_modified <- ms_modified %>%
   mutate(detect_screened = ifelse(na_count < length(detect_items), TRUE, FALSE),
