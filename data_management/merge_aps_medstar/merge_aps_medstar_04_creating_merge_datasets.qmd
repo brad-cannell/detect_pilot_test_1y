@@ -426,7 +426,12 @@ ms_modified <- medstar
 ms_modified$na_count <- rowSums(is.na(ms_modified[,detect_questions]))
 
 ms_modified <- ms_modified %>%
-  mutate(across(detect_cols,
+  mutate(detect_report_made = case_when(detect_report_made == "YES" ~ "YES",
+                                        !is.na(detect_report_num) ~ "YES",
+                                        detect_report_made == "NO" ~ "NO",
+                                        is.na(detect_report_made) ~ NA_character_)
+         ) %>%
+  mutate(across(c(all_of(detect_cols), detect_report_made),
          ~ case_when(.x == "YES" ~ TRUE,
                      .x == "NO" ~ FALSE,
                      .x == "UNABLE TO ASSESS" ~ NA)
@@ -436,7 +441,7 @@ ms_modified <- ms_modified %>%
                                  FALSE)
          ) %>%
   group_by(id) %>%
-  mutate(across(detect_cols,
+  mutate(across(c(all_of(detect_cols), detect_report_made),
                 ~ sum(.x, na.rm=TRUE)
                 )
          ) %>%
