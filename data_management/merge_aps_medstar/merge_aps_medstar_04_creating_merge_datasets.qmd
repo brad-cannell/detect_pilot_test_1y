@@ -410,6 +410,9 @@ detect_questions <- medstar %>%
          ) %>%
   names()
 
+detect_items <- detect_questions[
+  !(detect_questions %in% c('detect_report_made', 'detect_report_num'))]
+
 detect_cols <- c(ms_detect_vars[!(ms_detect_vars %in% 
                                     c('detect_report_num', 
                                       'detect_report_comment', 
@@ -431,7 +434,7 @@ ms_modified <- ms_modified %>%
                                         detect_report_made == "NO" ~ "NO",
                                         is.na(detect_report_made) ~ NA_character_)
          ) %>%
-  mutate(across(c(all_of(detect_cols), detect_report_made),
+  mutate(across(all_of(detect_cols),
          ~ case_when(.x == "YES" ~ TRUE,
                      .x == "NO" ~ FALSE,
                      .x == "UNABLE TO ASSESS" ~ NA)
@@ -439,9 +442,15 @@ ms_modified <- ms_modified %>%
          ) %>%
   mutate(detect_screen = if_else(na_count < length(detect_questions), TRUE, 
                                  FALSE)
+         )
+
+ms_modified$yes_count <- rowSums(ms_modified[,detect_items], na.rm = TRUE)
+
+ms_modified <- ms_modified %>%
+  mutate(ms_subj_num_positive = ifelse(yes_count > 0, TRUE, FALSE)
          ) %>%
   group_by(id) %>%
-  mutate(across(c(all_of(detect_cols), detect_report_made),
+  mutate(across(c(all_of(detect_cols), ms_subj_num_positive),
                 ~ sum(.x, na.rm=TRUE)
                 )
          ) %>%
