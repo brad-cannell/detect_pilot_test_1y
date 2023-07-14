@@ -1,0 +1,510 @@
+---
+title: "Response Patterns"
+format: html
+#editor: visual
+---
+
+# Summary
+
+-   We generated simple frequency statistics of the response patterns for the DETECT tool
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(here)
+library(lubridate)
+```
+
+## Data Imports
+
+We imported the revised MedStar data set for processing.
+
+```{r}
+medstar <- readRDS(here("data","DETECT Shared GRAs","merge_aps_medstar",
+                "medstar_aps_merged_02_response_based_row_pairs.rds"))
+```
+
+## Functions
+
+### Unique Value Summary
+
+A function written in a previous cleaning document was imported. It was written to display counts of each unique observations within a selection of columns.
+
+```{r}
+get_unique_value_summary <- function(df,cols){
+  
+  # Input: 
+  #     df (data frame) - original source data frame
+  #     cols (list) - list of target column names as strings
+  # Output:
+  #     unique_summary (data frame) - summary counts of each unique value in
+  #           each of the target columns
+  
+  # Get list of unique values in all target columns
+  
+  df <- df %>%
+    dplyr::mutate(across(everything(), as.character))
+  
+  val <- unique(as.factor(as.vector(as.matrix(df[cols]))))
+  
+  # Initialize output data frame with unique value row
+  
+  unique_summary <- data.frame("value"=val)
+  
+  # Get counts of unique values in original data frame
+  
+  for (i in cols){
+    
+    # utilizes table to get summary count of each column
+    
+    table <- as.data.frame(table(df[i]))
+    
+    # sets column names to "value" and "freq"
+    
+  colnames(table) <- c("value","freq")
+  
+    # adds count of missing values in each column
+  
+  table<- add_row(table, value = NA, freq = sum(is.na(df[i])))
+  
+    # readjusts names of columns to "value" and the name of the target column
+  
+  colnames(table) <- c("value",i)
+  
+    # joins table's summary counts to complete the count values
+  
+    unique_summary <- left_join(unique_summary,table, by="value")
+  }
+  
+  # returns completed, but unordered, data frame
+  
+  unique_summary
+  }
+```
+
+### Response Pattern Summary
+
+A convenience function was written to extract the number and percentage of rows which contain values of given factor variables.
+
+```{r}
+get_column_pattern <- function(t_df, t_cols, t_response=NULL){
+  #
+  # Generates a tibble displaying the response pattern in a data frame for 
+  # each column. Assumes columns are factor variables
+  #
+  # Input: 
+  #     t_df:       data frame. Data frame desired for analysis
+  #     t_cols:     list. List of target column names as strings
+  #     t_response: list. List of target responses/levels, for which the
+  #                 number of times a variable is the only occurrence of the
+  #                 target response in a row, and the percentage of times
+  #                 the target response for a variable is the only occurrence
+  #                 of the target response in a row, will be calculated.
+  #                 Default is Null, which results in omitting this calculation.
+  # Output:
+  #     summary_df  data frame. Provides the number and percentage completed
+  #                 and containing each level of each factor variable.
+  
+  # Gets the number of rows in the data frame for completed percentage
+  
+  num_used <- nrow(t_df)
+  
+  # Extracts the levels of all target columns
+  
+  t_levels <- unique(as.vector(sapply(t_df[, t_cols], levels)))
+  
+  # Generates the variables names for the output data frame
+  
+  summary_groups <- c("COMPLETED", t_levels)
+  summary_cols <- c("Variable")
+  
+  for (t_group in summary_groups){
+    t_name <- stringr::str_replace_all(t_group, "( )", "_")
+    t_num <- paste("NUM", t_name, sep = "_")
+    t_per <- paste("PER", t_name, sep =  "_") 
+    summary_cols <- c(summary_cols, t_num, t_per)
+  }
+  
+  # Initiates an empty output data frame
+  
+  summary_df <- tibble::tibble(!!!summary_cols, .rows = 0, 
+                               .name_repair = ~summary_cols)
+  
+  # Processes for each target column...
+  
+  for (i in 1:length(t_cols)){
+  
+    # Extracts the variable content
+    
+    t_item <- pull(t_df[,t_cols[i]])
+    
+    # Calculates the number of rows with a value in the target column, and the
+    # percentage of rows that contain a value for the target column
+    
+    completed_num <- sum(!is.na(t_item))
+    completed_per <- (completed_num / num_used) * 100
+    
+    vals <- c(t_cols[i], completed_num, completed_per)
+    
+    # Calculates the number of rows with a value of a specific level in the 
+    # target column, and the percentage of rows with such value (out of the number
+    # of rows with a value). Does this for each level.
+    
+    for (t_level in t_levels){
+      t_num <- sum(t_item == t_level, na.rm = TRUE)
+      t_per <- (t_num / completed_num) * 100
+      vals <- c(vals, t_num, t_per)
+    }
+    
+    # Transposes the list, renames the columns, appends to output data frame
+    
+    row_vals <- t(vals)
+    colnames(row_vals) <- summary_cols
+    summary_df <- rbind(summary_df, row_vals)
+  }
+  
+  # Converts all columns except the variable name into numeric type
+  
+  summary_df <- summary_df %>%
+    mutate(across(colnames(summary_df)[colnames(summary_df) != "Variable"],
+                  .fns = ~as.numeric(.)))
+  
+  # If there are target responses...
+  
+  if(!is.null(t_response)){
+    
+    # For each target response...
+    for (j in 1:length(t_response)){
+      
+      # Calculates the number of times the target response appears in each row
+      
+      t_df$n_response <- rowSums(t_df[,t_cols] == t_response[j], na.rm = TRUE)
+      
+      # Extracts only the observations which had one occurrence of the target 
+      # response, sums the number of times each Column contains the only 
+      # instance of the target response for a row, and reduces to one value each
+      
+      temp_df <- t_df %>%
+        filter(n_response == 1) %>%
+        select(all_of(t_cols)) %>%
+        mutate(across(all_of(t_cols), 
+                      .fns = ~sum(.x == t_response[j], na.rm = TRUE))
+               ) %>%
+        slice_head(n = 1)
+      
+      # The extracted values are transposed so each variable is a row (rather
+      # than a column), and strips column and variable names
+      
+      var_names <- colnames(temp_df)
+      temp_df <- t(temp_df)
+      rownames(temp_df) <- NULL
+      colnames(temp_df) <- NULL
+      
+      # Initiates a temporary tibble where each row lists the Variable and
+      # the number of times the target response appeared only once for the
+      # variable, and renames columns appropriately
+      
+      temp_tbl <- tibble::tibble(var_names, as.vector(temp_df))
+      colnames(temp_tbl) <- c("Variable", paste("NUM_ONLY", 
+                                                t_response[j], sep = "_"))
+      
+      # Joins this temporary tibble to the output data frame, matching by
+      # Variable name
+      
+      summary_df <- left_join(summary_df, temp_tbl, by = "Variable")
+      
+      # Isolates the number of times the target response was selected for
+      # each variable, the number of times each variable was the only
+      # instance of the target response in a particular row, and
+      # the name of the variable. Renames columns
+      
+      temp_tbl <- summary_df %>%
+        select('Variable', paste("NUM", t_response[j], sep = "_"), 
+               paste("NUM_ONLY", t_response[j], sep = "_")
+               )
+      colnames(temp_tbl) <- c("Variable","num", "num_only")
+      
+      # Calculates the percentage of times the occurrence of the target response
+      # in a variable was the only instance of the target response in a
+      # single row, renames column names appropriately
+      
+      temp_tbl <- temp_tbl %>%
+        mutate(temp_per = (num_only / num) * 100) %>%
+        select('Variable', 'temp_per')
+      colnames(temp_tbl) <- c("Variable", paste("PER_ONLY", t_response[j], sep = "_"))
+      
+      # Appends the new column to the output data frame
+      
+      summary_df <- left_join(summary_df, temp_tbl, by = "Variable")
+    }
+  }
+  
+  # Returns the output data frame
+  
+  summary_df
+}
+```
+
+### Outcome Pattern
+
+```{r}
+get_occurence_pattern <- function(t_df, t_cols, t_response, t_vars = NULL){
+  #
+  # Generates a tibble displaying the number of co-occuring values between
+  # a target response (occurring in one of the target columns) and a TRUE value
+  # in one of the logical target variables
+  #
+  # Input: 
+  #     t_df:       data frame. Data frame desired for analysis
+  #     t_cols:     list. List of target column names as strings
+  #     t_response: string. Target response occurring in the target columns,
+  #                 which is of interest in co-occurrence with TRUE values in
+  #                 the target variables.
+  #     t_vars:     list. List of target variable names as strings. Logical
+  #                 variables of interest for co-occurrence with the target
+  #                 response value in the target columns.
+  #                 Default is Null, which results in omitting this calculation.
+  # Output:
+  #     summary_df  data frame. Provides the number and percentage completed,
+  #                 with the target response, and co-occurring with each
+  #                 target variable
+
+  # Reduces the temporary data frame to only the target columns and variables,
+  # converts the target columns into logical booleans indicating if their value
+  # matches the target value or not
+
+  t_df <- t_df %>%
+    select(all_of(t_cols), all_of(t_vars)
+           ) %>%
+    mutate(across(all_of(t_cols), .fns = ~.x == t_response))
+
+  # Gets the total number of entries
+  
+  num_used <- nrow(t_df)
+  
+  # Generates the variables names for the output data frame
+  
+  summary_groups <- c("COMPLETED", t_response, t_vars)
+  summary_cols <- c("Variable")
+  
+  for (t_group in summary_groups[1:2]){
+    t_name <- toupper(stringr::str_replace_all(t_group, "( )", "_"))
+    t_num <- paste("NUM", t_name, sep = "_")
+    t_per <- paste("PER", t_name, sep =  "_") 
+    summary_cols <- c(summary_cols, t_num, t_per)
+    
+  }
+  
+  for (t_group in summary_groups[3:length(summary_groups)]){
+    t_name <- toupper(stringr::str_replace_all(t_group, "( )", "_"))
+    t_num <- paste("NUM", t_response, t_name, sep = "_")
+    t_per <- paste("PER", t_response, t_name, sep =  "_") 
+    summary_cols <- c(summary_cols, t_num, t_per)
+  }
+
+# Initiates an empty output data frame
+  
+  summary_df <- tibble::tibble(!!!summary_cols, .rows = 0, 
+                               .name_repair = ~summary_cols)
+  
+  # Processes for each target column...
+  
+  for (i in 1:length(t_cols)){
+  
+    # Extracts the variable content, and converts to a logical indicating if
+    # the value indicates the target response or not
+    
+    t_item <- t_df %>%
+      select(t_cols[i], all_of(t_vars))
+    
+    # Calculates the number of rows with a value in the target column, and the
+    # percentage of rows that contain a value for the target column
+    
+    completed_num <- sum(!is.na(t_item[,t_cols[i]]))
+    completed_per <- (completed_num / num_used) * 100
+    
+    # Calculates the number of rows with the target response in the target
+    # column, and the percentage of COMPLETED rows (with any value) that are the
+    # target response in the target column
+    
+    response_num <- sum(t_item[,t_cols[i]], na.rm = TRUE)
+    response_per <- (response_num / completed_num) * 100
+    
+    vals <- c(t_cols[i], 
+              completed_num, completed_per, 
+              response_num, response_per)
+    
+    # Calculates the number of the rows with the target response in the target
+    # column AND a TRUE value in a target variable column, and the percentage
+    # of rows with such target value (out of the number of rows with the value)
+    # which have the TRUE value in the target variable. Does this for each
+    # target variable.
+    
+    for (j in 1:length(t_vars)){
+      t_rows <- pull(t_item[,t_cols[i]])
+      t_num <- sum(t_item[t_rows, t_vars[j]], na.rm = TRUE)
+      t_per <- (t_num / completed_num) * 100
+      vals <- c(vals, t_num, t_per)
+    }
+    
+    # Transposes the list, renames the columns, appends to output data frame
+    
+    row_vals <- t(vals)
+    colnames(row_vals) <- summary_cols
+    summary_df <- rbind(summary_df, row_vals)
+  }
+  
+  # Converts all columns except the variable name into numeric type
+  
+  summary_df <- summary_df %>%
+    mutate(across(colnames(summary_df)[colnames(summary_df) != "Variable"],
+                  .fns = ~as.numeric(.)))  
+    
+  # Returns the output data frame
+  
+  summary_df
+}
+```
+
+
+# Analysis
+
+## Consolidation of "Reported" Variable
+
+We consolidated our "detect_report_made" variable into a logical variable, wherein a value of "YES" or the presence of a report number would evaluate to TRUE, a value of "NO" without a report number would evaluate to FALSE, and any other response would convert to a missing value.
+
+```{r}
+medstar <- medstar %>%
+  mutate(detect_report_made = case_when(
+    detect_report_made == "YES" ~ TRUE,
+    detect_report_made == "NO" & is.na(detect_report_num) ~ FALSE,
+    !is.na(detect_report_num) ~ TRUE)
+         )
+
+get_unique_value_summary(medstar, 'detect_report_made')
+```
+
+We renamed the variables indicating if a report was made, if there was one or more valid allegation in an associated APS Case Number, and if there was one or more valid allegation associated with a subject in the APS data set. This was done for brevity in code for viewing. We also isolated the names of our outcome variables.
+
+```{r}
+medstar <- medstar %>%
+  rename(reported = detect_report_made,
+         valid_case = aps_cases_any_valid,
+         valid_subj = aps_subject_any_valid)
+
+outcome_vars <- medstar %>%
+  select(reported, valid_case, valid_subj) %>%
+  names()
+```
+
+## Selecting Variables
+
+We isolated our DETECT Questionnaire variables into three groups: the variables relating to comments entered into the "Report Number" field that were not strictly a report number, all items of the DETECT Tool, and the screening questions of the DETECT Tool.
+
+```{r}
+detect_comment_vars <- medstar %>%
+  select(detect_report_comment, detect_report_aps_unable, 
+         detect_report_aps_onscene, detect_report_aps_existing, 
+         detect_facility, detect_other_reporter, detect_uta
+         ) %>%
+  names()
+
+detect_questions <- medstar %>%
+  select(detect_env_odor, detect_env_hoarding, detect_env_concern, 
+         detect_env_isolated, detect_cond_hygiene, detect_cond_clothes, 
+         detect_cond_needs, detect_cond_anxious, detect_meds_hoarding, 
+         detect_meds_difficulty, detect_caregiver_lack, 
+         detect_caregiver_inattentive, detect_caregiver_frustrated, 
+         detect_caregiver_anxious) %>%
+  names()
+
+detect_items <- medstar %>%
+  select(all_of(detect_questions), reported, detect_report_num
+         ) %>%
+  names()
+```
+
+## All Screenings
+
+There were 24,007 Observations with a DETECT screening. This included 15,212 Subjects.
+
+```{r}
+screened <- medstar %>%
+  filter(detect_screened)
+
+nrow(screened) 
+
+length(unique(screened$id))
+```
+
+We analyzed the response pattern of the DETECT question variables for each of the 24,007 Responses which contained a screening. We were particularly interested in unique occurrences of "YES" responses.
+
+```{r}
+get_column_pattern(screened, detect_questions, "YES") %>%
+  select(-c(contains("NOT_APPLICABLE")))
+```
+
+## Single-Item Screenings
+
+We isolated the screenings which contained only one completed DETECT screening item. There was only one such screening.
+
+```{r}
+medstar$na_count <- rowSums (is.na(medstar[,detect_questions]))
+
+single_item <- medstar %>%
+  filter(na_count < length(detect_questions)
+         ) %>%
+  filter(na_count == (length(detect_questions)-1))
+
+nrow(single_item)
+
+length(unique(single_item$id))
+```
+
+We examined the responses to the DETECT screening questions. Only the question regarding an environmental odor was selected.
+
+```{r}
+single_item[, detect_questions]
+```
+
+## Screenings by Report Status
+
+### Report Made
+
+We isolated the 338 screenings that either indicated a report was made, or contained a report number.
+
+```{r}
+checking <- screened %>%
+  filter(reported)
+
+nrow(checking)
+```
+
+```{r}
+get_column_pattern(checking, detect_questions, "YES") %>%
+  select(-c(contains("NOT_APPLICABLE")))
+```
+
+### No Report Made
+
+We then isolated the 23,647 screenings which indicated no report was made, and lacked a report number.
+
+```{r}
+checking <- screened %>%
+  filter(!reported)
+
+nrow(checking)
+```
+
+```{r}
+get_column_pattern(checking, detect_questions, "YES") %>%
+  select(-c(contains("NOT_APPLICABLE")))
+```
+
+# BOTTOM
