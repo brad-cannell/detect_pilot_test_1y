@@ -1,12 +1,14 @@
 ---
 title: "Response Patterns"
 format: html
-#editor: visual
+editor: visual
 ---
 
 # Summary
 
 -   We generated simple frequency statistics of the response patterns for the DETECT tool
+
+-   We generated simple frequency statistics of the co-occurrence of "YES" responses in the DETECT tool variables against the outcome of at least one valid APS allegation at the APS Case Number and Subject level.
 
 # Imports
 
@@ -349,7 +351,7 @@ get_occurence_pattern <- function(t_df, t_cols, t_response, t_vars = NULL){
     for (j in 1:length(t_vars)){
       t_rows <- pull(t_item[,t_cols[i]])
       t_num <- sum(t_item[t_rows, t_vars[j]], na.rm = TRUE)
-      t_per <- (t_num / completed_num) * 100
+      t_per <- (t_num / response_num) * 100
       vals <- c(vals, t_num, t_per)
     }
     
@@ -450,6 +452,13 @@ get_column_pattern(screened, detect_questions, "YES") %>%
   select(-c(contains("NOT_APPLICABLE")))
 ```
 
+We also analyzed the pattern of outcomes co-occuring with an answer of "YES" to the DETECT question variables in the 24,007 responses which contained a screening.  
+
+```{r}
+get_occurence_pattern(screened, detect_questions, "YES", outcome_vars)
+```
+
+
 ## Single-Item Screenings
 
 We isolated the screenings which contained only one completed DETECT screening item. There was only one such screening.
@@ -467,10 +476,10 @@ nrow(single_item)
 length(unique(single_item$id))
 ```
 
-We examined the responses to the DETECT screening questions. Only the question regarding an environmental odor was selected.
+We examined the responses to the DETECT screening questions. Only the question regarding an environmental odor was selected. There was no APS Subject associated with this response.
 
 ```{r}
-single_item[, detect_questions]
+single_item[, c(detect_questions, outcome_vars)]
 ```
 
 ## Screenings by Report Status
@@ -486,10 +495,19 @@ checking <- screened %>%
 nrow(checking)
 ```
 
+We analyzed the response pattern to all DETECT variables in the subset, with specific interest on answers of "YES".
+
 ```{r}
 get_column_pattern(checking, detect_questions, "YES") %>%
   select(-c(contains("NOT_APPLICABLE")))
 ```
+
+We analyzed the outcome pattern associated with "YES" responses to all DETECT variables in the subset.
+
+```{r}
+get_occurence_pattern(checking, detect_questions, "YES", outcome_vars)
+```
+
 
 ### No Report Made
 
@@ -502,9 +520,15 @@ checking <- screened %>%
 nrow(checking)
 ```
 
+We analyzed the response pattern to all DETECT variables in the subset, with specific interest on answers of "YES".
+
 ```{r}
 get_column_pattern(checking, detect_questions, "YES") %>%
   select(-c(contains("NOT_APPLICABLE")))
 ```
 
-# BOTTOM
+We analyzed the outcome pattern associated with "YES" responses to all DETECT variables in the subset.
+
+```{r}
+get_occurence_pattern(checking, detect_questions, "YES", outcome_vars)
+```
