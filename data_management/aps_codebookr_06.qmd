@@ -1,5 +1,5 @@
 ---
-title: "APS_06_Codebook"
+title: "APS_06 Codebook"
 format: html
 editor: visual
 ---
@@ -38,26 +38,6 @@ The APS data set was imported.
 
 ```{r}
 aps <- readRDS(here("data","DETECT Shared GRAs", "aps_cleaning", "aps_06.rds"))
-```
-
-```{r}
-medstar <- readRDS(here("data","DETECT Shared GRAs", "medstar_cleaning",
-                        "medstar_04.rds"))
-```
-
-```{r}
-merged_time <- readRDS(here("data","DETECT Shared GRAs","merge_aps_medstar",
-                              "medstar_aps_merged_01_timeline_all_rows.rds"))
-```
-
-```{r}
-merged_pairs <- readRDS(here("data","DETECT Shared GRAs","merge_aps_medstar",
-                "medstar_aps_merged_02_response_based_row_pairs.rds"))
-```
-
-```{r}
-merged_subj <- readRDS(here("data","DETECT Shared GRAs","merge_aps_medstar",
-                         "medstar_aps_merged_03_single_subject_per_row.rds"))
 ```
 
 # Initial Data Structure
@@ -122,7 +102,7 @@ All Record Number Variables received a Column Type label in aggregate
 ```{r}
 record_vars <- aps %>%
   select(aps_row, aps_case_num, aps_intake_num, aps_inv_num, ms_id, ms_epcr_row,
-         ms_comp_row, id, aps_person_id
+         ms_comp_row
          ) %>%
   names()
 
@@ -162,6 +142,20 @@ for (i in pt_name_vars) {
 }
 ```
 
+### Group Labelling of Subject ID Variables
+
+```{r}
+pt_id_vars <- aps %>%
+  select(id, all_of(contains("_id"))
+         ) %>%
+  names()
+
+for (i in pt_id_vars) {
+  attr(aps[[i]], "col_type") <- "Subject ID"
+}
+```
+
+
 ## Ordering Factors
 
 ### Binary Variables
@@ -199,7 +193,6 @@ for (i in binary_vars) {
   attr(aps[[i]], "col_type") <- "Binary Category"
 }
 ```
-
 
 ### Multiple Category Factors
 
@@ -242,7 +235,6 @@ test2 <- str_match(determination_vars_r[1],"(aps_rows_)(.*?)(_)(.*)")
 ```{r}
 paste(str_to_title((test2[,5])),str_to_title((test2[,3])), sep = " ")
 ```
-
 
 These variables were already ordered factors. The column type and description were added to each variable
 
@@ -635,7 +627,7 @@ aps <- aps %>%
     description = "Number of APS Case Numbers associated with a specific Subject"
   )
 
-``` 
+```
 
 # Codebook Generation
 
@@ -659,7 +651,3 @@ book <- codebook(
 ```{r}
 print(book, here("docs", "codebooks", "aps_codebook_06.docx"))
 ```
-
-
-
-
