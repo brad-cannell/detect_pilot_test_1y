@@ -1,7 +1,7 @@
 ---
 title: "Medstar_04 Codebook"
 format: html
-#editor: visual
+editor: visual
 ---
 
 # Summary
@@ -757,8 +757,10 @@ We generated our codebook, with title, subtitle, and description. We blocked sum
 ```{r}
 #| message: false
 
+medstar_04 <- ms_data
+
 book <- codebook(
-  df = ms_data,
+  df = medstar_04,
   title = "DETECT MedStar EMS Data",
   subtitle = "February 2017 - February 2018",
   description = "In collaboration with MedStar Mobile Healthcare (https://www.medstar911.org/).
