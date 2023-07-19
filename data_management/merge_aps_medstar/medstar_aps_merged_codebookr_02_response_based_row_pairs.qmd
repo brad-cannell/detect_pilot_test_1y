@@ -39,7 +39,7 @@ merged_data <- readRDS(here("data","DETECT Shared GRAs","merge_aps_medstar",
 
 # Initial Data Structure
 
-Our MedStar-based Paired Data Set contained 28,228 observations of 136 variables. There were 16,565 unique subject IDs, corresponding to 16,565 MedStar Subject IDs and  1,967 APS Person IDs. there were 461 APS Case Numbers represented in the data set.
+Our MedStar-based Paired Data Set contained 28,228 observations of 136 variables. There were 16,565 unique subject IDs, corresponding to 16,565 MedStar Subject IDs and 1,967 APS Person IDs. there were 461 APS Case Numbers represented in the data set.
 
 ```{r}
 dim(merged_data)
@@ -50,7 +50,7 @@ length(na.omit(unique(merged_data$aps_person_id)))
 length(na.omit(unique(merged_data$aps_case_num)))
 ```
 
-There was a unique value for `ms_epcr_row` (row number in original MedStar ePCR source data) or `aps_row` (row number in original APS data set) for each observation. There were 492 rows which represented a MedStar response with a paired APS Intake, and no rows which did not have a value for either variable. 
+There was a unique value for `ms_epcr_row` (row number in original MedStar ePCR source data) or `aps_row` (row number in original APS data set) for each observation. There were 492 rows which represented a MedStar response with a paired APS Intake, and no rows which did not have a value for either variable.
 
 ```{r}
 length(na.omit(unique(merged_data$ms_epcr_row)))
@@ -480,7 +480,6 @@ for (i in c('id', 'aps_person_id', 'ms_id')){
 }
 ```
 
-
 ## Question Types
 
 Variables were grouped based on the type of question/response that a variable represented: "Binary Category" and "Single Choice, Multiple Options"
@@ -534,7 +533,6 @@ for (i in aps_vars){
     "APS Intake and Case Number level values were absent for responses that lacked a paired APS Intake. APS Subject level values were absent for Subjects that were not found in the APS data set."
 }
 ```
-
 
 ### DETECT Comment Variables
 
