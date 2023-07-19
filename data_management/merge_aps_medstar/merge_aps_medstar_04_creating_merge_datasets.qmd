@@ -482,6 +482,7 @@ ms_modified <- medstar
 ms_modified <- ms_modified %>%
   mutate(across(all_of(detect_factors),
          ~ case_when(.x == "YES" ~ TRUE,
+                     .x == "TRUE" ~ TRUE,
                      .x == "NO" ~ FALSE,
                      .x == "UNABLE TO ASSESS" ~ NA,
                      is.na(.x) ~ NA)
