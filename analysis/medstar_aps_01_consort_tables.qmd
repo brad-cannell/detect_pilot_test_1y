@@ -1,7 +1,7 @@
 ---
 title: "Consort Tables"
 format: html
-#editor: visual
+editor: visual
 ---
 
 # Summary
@@ -16,29 +16,149 @@ format: html
 
     -   28,228 Responses represented an individual eligible for DETECT screening
 
-    -   24,007 Responses included at least one DETECT item
+    -   24,007 Responses were screened with the DETECT tool
 
-        -   336 of these had a positive screening
+        -   871 of these had a positive screening
 
-            -   278 of these had a matching APS Intake, and 58 did not
+            -   328 of these positive screenings were reported
 
-            -   229 of those with a paired APS Intake were associated with a case with at least one valid allegation, and 49 were not
+                -   273 of these reports had a matching APS Intake
 
-        -   23,649 had a negative screening
+                    -   226 of these Intakes were associated with an APS Case Number with at least 1 Valid Allegation of Elder Mistreatment, and 247 were associated with a Subject with at least 1 Valid Allegation of Elder Mistreatment across the entire APS data set
 
-            -   186 of these had a matching APS Intake, and 23,463 did not
+                    -   47 of these Intakes were associated with an APS Case Number with no Valid Allegation of Elder Mistreatment, and 26 were associated with a Subject with at no Allegation of Elder Mistreatment across the entire APS data set
 
-            -   141 of those with a paired APS Intake were associated with a case with at least one valid allegation, and 45 were not
+                -   55 of these reports did not have a matching APS Intake
 
-        -   22 were missing a value regarding the determination
+                    -   25 of these Intakes were associated with a Subject with at least 1 Valid Allegation of Elder Mistreatment across the entire APS data set
 
-            -   Of these, none had a matching APS Intake
+                    -   2 of these Intakes were associated with a Subject with at no Allegation of Elder Mistreatment across the entire APS data set
 
-    -   4,221 Responses included no DETECT items
+                    -   28 were associated with a Subject that was not present in the APS data set
 
-        -   28 of these had a matched APS Intake, and 4,193 did not
+            -   541 of these positive screenings were not reported
 
-        -   24 of those with a paired APS Intake were associated with a case with at least one valid allegation, and 4 were not
+                -   48 of these screenings had a matching APS Intake
+
+                    -   42 of these Intakes were associated with an APS Case Number with at least 1 Valid Allegation of Elder Mistreatment, and 43 were associated with a Subject with at least 1 Valid Allegation of Elder Mistreatment across the entire APS data set
+
+                    -   6 of these Intakes were associated with an APS Case Number with no Valid Allegation of Elder Mistreatment, and 5 were associated with a Subject with at no Allegation of Elder Mistreatment across the entire APS data set
+
+                    -   493 of these screenings did not have a matching APS Intake
+
+                        -   144 of these Intakes were associated with a Subject with at least 1 Valid Allegation of Elder Mistreatment across the entire APS data set
+
+                        -   24 of these Intakes were associated with a Subject with at no Allegation of Elder Mistreatment across the entire APS data set
+
+                        -   325 were associated with a Subject that was not present in the APS data set
+
+                -   2 of these positive screenings were missing any indication of if they were or were not reported
+
+                    -   1 of these reports was associated with a Subject with at least 1 Valid Allegation of Elder Mistreatment across the entire APS data set
+
+                    -   1 of these reports was associated with a Subject that was not present in the APS data set
+
+        -   23,136 of these had a negative screening
+
+            -   10 of these negative screenings were reported
+
+                -   7 of these reports had a matching APS Intake
+
+                    -   5 of these Intakes were associated with an APS Case Number with at least 1 Valid Allegation of Elder Mistreatment, and 6 were associated with a Subject with at least 1 Valid Allegation of Elder Mistreatment across the entire APS data set
+
+                    -   2 of these Intakes were associated with an APS Case Number with no Valid Allegation of Elder Mistreatment, and 1 was associated with a Subject with at no Allegation of Elder Mistreatment across the entire APS data set
+
+            -   3 of these reports did not have a matching APS Intake
+
+                -   All 3 were associated with a Subject that was not present in the APS data set
+
+            -   23,106 of these negative screenings were not reported
+
+                -   136 of these screenings had a matching APS Intake
+
+                    -   97 of these Intakes were associated with an APS Case Number with at least 1 Valid Allegation of Elder Mistreatment, and 110 were associated with a Subject with at least 1 Valid Allegation of Elder Mistreatment across the entire APS data set
+
+                    -   39 of these Intakes were associated with an APS Case Number with no Valid Allegation of Elder Mistreatment, and 26 were associated with a Subject with at no Allegation of Elder Mistreatment across the entire APS data set
+
+            -   22,970 of these screenings did not have a matching APS Intake
+
+                -   2,785 of these Intakes were associated with a Subject with at least 1 Valid Allegation of Elder Mistreatment across the entire APS data set
+
+                -   1,123 of these Intakes were associated with a Subject with at no Allegation of Elder Mistreatment across the entire APS data set
+
+                -   19,062 were associated with a Subject that was not present in the APS data set
+
+        -   20 of these positive screenings were missing any indication of if they were or were not reported
+
+            -   1 of these reports was associated with a Subject with at least 1 Valid Allegation of Elder Mistreatment across the entire APS data set
+
+            -   19 of these reports were associated with a Subject that was not present in the APS data set
+
+    -   4,221 Responses were not screened with the DETECT tool
+
+        -   28 of these Responses had a matching APS Intake
+
+            -   24 of these Intakes were associated with an APS Case Number with at least 1 Valid Allegation of Elder Mistreatment, and 24 were associated with a Subject with at least 1 Valid Allegation of Elder Mistreatment across the entire APS data set
+
+            -   4 of these Intakes were associated with an APS Case Number with no Valid Allegation of Elder Mistreatment, and 4 were associated with a Subject with at no Allegation of Elder Mistreatment across the entire APS data set
+
+            -   4,193 of these Responses did not have a matching APS Intake
+
+                -   662 of these Intakes were associated with a Subject with at least 1 Valid Allegation of Elder Mistreatment across the entire APS data set
+
+                -   231 of these Intakes were associated with a Subject with at no Allegation of Elder Mistreatment across the entire APS data set
+
+                -   3,300 were associated with a Subject that was not present in the APS data set
+
+-   Data was taken from the Subject-Based aggregate data set
+
+    -   There were 16,565 subjects eligible for screening, of which 15,212 were screened at least once
+
+        -   Of these, 749 subjects had at least one positive screen
+
+            -   Of these, 293 were reported at least once
+
+                -   238 of these reported subjects were associated with at least one valid allegation
+
+                -   27 of these reported subjects were not associated with any valid allegation
+
+                -   28 of these reported subjects were not present in the APS data set
+
+            -   Of these, 456 were not reported
+
+                -   116 of these subjects were associated with at least one valid allegation
+
+                -   27 of these subjects were not associated with any valid allegation
+
+                -   313 of these subjects were not present in the APS data set
+
+        -   Of these, 14,912 subjects had no positive screens
+
+            -   Of these, 7 were reported at least once
+
+                -   3 of these reported subjects were associated with at least one valid allegation
+
+                -   1 of these reported subjects was not associated with any valid allegation
+
+                -   3 of these reported subjects were not present in the APS data set
+
+            -   Of these, 14,456 were not reported
+
+                -   906 of these subjects were associated with at least one valid allegation
+
+                -   542 of these subjects were not associated with any valid allegation
+
+                -   13,008 of these subjects were not present in the APS data set
+
+    -   1,353 subjects were not screened with the DETECT tool
+
+        -   Of these, none were reported
+
+        -   68 of these subjects were associated with at least one valid allegation
+
+        -   39 of these subjects were not associated with any valid allegation
+
+        -   1,246 of these subjects were not present in the APS data set
 
 # Imports
 
@@ -87,6 +207,9 @@ get_unique_value_summary <- function(df,cols){
   
   # Get list of unique values in all target columns
   
+  df <- df %>%
+    mutate(across(everything(), as.character))
+  
   val <- unique(as.factor(as.vector(as.matrix(df[cols]))))
   
   # Initialize output data frame with unique value row
@@ -124,9 +247,21 @@ get_unique_value_summary <- function(df,cols){
   }
 ```
 
+# Modification of "APS Report Number" Fields
+
+The value of the DETECT field containing an APS report number was modified to a character factor, indicating if there was or was not an APS Report Number (rather than the actual alphanumeric string APS report number).
+
+```{r}
+ms_paired <- ms_paired %>%
+  mutate(detect_report_num = if_else(!is.na(detect_report_num), 
+                                     "YES", NA_character_)
+         ) %>%
+  mutate(detect_report_num = as.factor(detect_report_num))
+```
+
 # Individual Intakes
 
-# Overview
+## Overview
 
 There were a total of 28,228 MedStar Responses in our data set. This represented 16,565 Subjects, 1,967 of which were also represented in the APS data set. There were 492 Responses with a paired APS Intake, which represented 461 APS Case Numbers.
 
@@ -148,7 +283,9 @@ length(unique(temp_df$aps_case_num))
 
 ## Screen vs No Screen
 
-We isolated our DETECT Questionnaire variables into two groups: the variables relating to comments entered into the "Report Number" field that were not strictly a report number, and the DETECT Tool questions.
+We isolated our DETECT Questionnaire variables into four groups: the variables relating to comments entered into the "Report Number" field that were not strictly a report number, the DETECT Tool questions, the DETECT Report determination with the DETECT Tool questions, and all the variables presented as part of the DETECT screening.
+
+### Selecting Variables
 
 ```{r}
 detect_comment_vars <- ms_paired %>%
@@ -159,145 +296,385 @@ detect_comment_vars <- ms_paired %>%
   names()
 
 detect_questions <- ms_paired %>%
-  select(starts_with("detect_")
-         ) %>%
-  select(-all_of(c(detect_comment_vars))
-         ) %>%
+  select(detect_env_odor, detect_env_hoarding, detect_env_concern, 
+         detect_env_isolated, detect_cond_hygiene, detect_cond_clothes, 
+         detect_cond_needs, detect_cond_anxious ,detect_meds_hoarding, 
+         detect_meds_difficulty, detect_caregiver_lack, 
+         detect_caregiver_inattentive, detect_caregiver_frustrated, 
+         detect_caregiver_anxious) %>%
   names()
+
+detect_items <- c(detect_questions, "detect_report_made")
+
+screen_vars <- c(detect_items, "detect_report_num")
 ```
 
 There were 4,221 Observations without a single DETECT Tool variable entered. This included 2,769 Subjects. There were 28 paired APS Intakes for these observations, representing 27 APS Case Numbers.
 
 ```{r}
-ms_paired$na_count <- rowSums (is.na(ms_paired[,detect_questions]))
-
 no_screen <- ms_paired %>%
-  filter(na_count == length(detect_questions))
+  filter(!detect_screened)
 
 nrow(no_screen)
 
 length(unique(no_screen$id))
-length(unique(no_screen$aps_row))
-length(unique(no_screen$aps_case_num))
+length(unique(na.omit(no_screen$aps_row)))
+length(unique(na.omit(no_screen$aps_case_num)))
 ```
 
-There were 24,007 Observations with at least one DETECT Tool variable entered. This included 15,212 Subjects. There were 464 paired APS Intakes for these observations, representing 437 APS Case Numbers.
+There were 24,007 Observations with at least one DETECT Tool variable entered (inclusive of APS Report Number and if a report was made). This included 15,212 Subjects. There were 464 paired APS Intakes for these observations, representing 437 APS Case Numbers.
 
 ```{r}
 screened <- ms_paired %>%
-  filter(na_count < length(detect_questions))
+  filter(detect_screened)
 
 nrow(screened)
 
 length(unique(screened$id))
-length(unique(screened$aps_row))
-length(unique(screened$aps_case_num))
+length(unique(na.omit(screened$aps_row)))
+length(unique(na.omit(screened$aps_case_num)))
 ```
 
-Of the 24,007 Responses with at least one DETECT question completed, 336 indicated a positive screening, 23,649 indicated a negative screening, and 22 did not indicate either a positive or negative screening (missing value).
+Of the 24,007 Responses with at least one DETECT question completed, 336 indicated a report was made, 23,649 indicated no report was made, and 22 did not indicate if a report was or was not made (missing value).
 
 ```{r}
 get_unique_value_summary(screened, 'detect_report_made')
 ```
 
-## Matching to APS
+## Screened Positive
 
-### Screened Positive
-
-The 336 Responses which had a positive screening represented 300 Subjects.
+A screening was considered positive if at least one of the DETECT variables (not including that a report was made, or a report number) was selected as "YES". This included 871 observations of 749 Subjects. There were 321 paired APS Intakes for these observations, representing 307 APS Case Numbers.
 
 ```{r}
 checking <- screened %>%
-  filter(detect_report_made == "YES")
+  filter(detect_positive)
 
 nrow(checking)
 length(unique(checking$id))
+length(unique(na.omit(checking$aps_row)))
+length(unique(na.omit(checking$aps_case_num)))
 ```
 
-There were 278 of these Responses with a paired APS Intake, representing 267 APS Cases across 278 Subjects. There were 58 Responses without a paired APS Intake.
+Of these positive screenings, 327 indicated a report was made, 542 indicated a report was *not* made, and 2 did not indicate if a report was or was not made (missing value).
+
+```{r}
+get_unique_value_summary(checking, 'detect_report_made')
+```
+
+### Reported
+
+The Positive Screenings where it was either indicated a report was made or a report number was recorded in the DETECT tool were further isolated. This included 328 observations of 292 Subjects. There were 273 paired APS Intakes for these observations, representing 262 APS Case Numbers.
 
 ```{r}
 checking_subset <- checking %>%
-  filter(!is.na(aps_row))
+  filter(detect_report_made == "YES" | detect_report_num == "YES")
 
 nrow(checking_subset)
-nrow(checking) - nrow(checking_subset)
 length(unique(checking_subset$id))
-length(unique(checking_subset$aps_row))
-length(unique(checking_subset$aps_case_num))
+length(unique(na.omit(checking_subset$aps_row)))
+length(unique(na.omit(checking_subset$aps_case_num)))
 ```
 
-Of these, 229 were associated with an APS Case Number that had at least one valid allegation, 49 which did not have any valid allegations.
+This subset included a single observation which indicated a report was not made, but provided an APS Report Number. This observation was manually verified. As the comments of the APS Report indicated a new report was made, the observation was kept in this subset.
 
 ```{r}
-get_unique_value_summary(checking_subset, 'aps_cases_any_valid')
+get_unique_value_summary(checking_subset, 'detect_report_made')
 ```
 
-### Screened Negative
+The 273 reported observations with a paired APS Intake were further isolated. This subset contained 245 Subjects and 262 APS Case Numbers.
 
-The 23,649 Responses which had a negative screening represented 15,091 Subjects.
+```{r}
+checking_subset2 <- checking_subset %>%
+  filter(!is.na(aps_row))
+
+nrow(checking_subset2)
+length(unique(checking_subset2$id))
+length(unique(na.omit(checking_subset2$aps_row)))
+length(unique(na.omit(checking_subset2$aps_case_num)))
+```
+
+Within this subset, 226 observations referenced an APS Case Number that had at least one valid determination of elder mistreatment, and 47 observations did not. More broadly, there were 247 observations that referenced a subject that had at least one valid determination of elder mistreatment across any APS Case Number within the APS data set (even if not directly matched to the specific response), and 26 were not.
+
+```{r}
+get_unique_value_summary(checking_subset2, c('aps_cases_any_valid','aps_subject_any_valid'))
+```
+
+The 55 remaining reported observations without a paired APS Intake were further isolated. This subset contained 54 Subjects.
+
+```{r}
+checking_subset2 <- checking_subset %>%
+  filter(is.na(aps_row))
+
+nrow(checking_subset2)
+length(unique(checking_subset2$id))
+length(unique(na.omit(checking_subset2$aps_row)))
+length(unique(na.omit(checking_subset2$aps_person_id)))
+sum(!is.na(checking_subset2$aps_subject_any_valid))
+```
+
+Within this subset, there were 25 observations that referenced a subject that had at least one valid determination of elder mistreatment across any APS Case Number within the APS data set (even if not directly matched to the specific response), and 2 were not. The remaining 28 observations did not have any determinations made at the subject level, as they were missing from the APS data set.
+
+```{r}
+get_unique_value_summary(checking_subset2, c('aps_subject_any_valid'))
+```
+
+```{r}
+sum(is.na(checking_subset2[
+  is.na(checking_subset2$aps_subject_any_valid),]$aps_person_id)) == 
+  sum(is.na(checking_subset2$aps_subject_any_valid))
+```
+
+### Not Reported
+
+The Positive Screenings where it was indicated that a report was *not* made and no report number was recorded in the DETECT tool were further isolated. This included 542 observations of 493 Subjects. There were 48 paired APS Intakes for these observations, representing 48 APS Case Numbers.
+
+```{r}
+checking_subset <- checking %>%
+  filter(detect_report_made == "NO" & is.na(detect_report_num))
+
+nrow(checking_subset)
+length(unique(checking_subset$id))
+length(unique(na.omit(checking_subset$aps_row)))
+length(unique(na.omit(checking_subset$aps_case_num)))
+```
+
+The 48 non-reported observations with a paired APS Intake were further isolated. This subset contained 47 Subjects and 48 APS Case Numbers.
+
+```{r}
+checking_subset2 <- checking_subset %>%
+  filter(!is.na(aps_row))
+
+nrow(checking_subset2)
+length(unique(checking_subset2$id))
+length(unique(na.omit(checking_subset2$aps_row)))
+length(unique(na.omit(checking_subset2$aps_case_num)))
+```
+
+Within this subset, 42 observations referenced an APS Case Number that had at least one valid determination of elder mistreatment, and 6 observations did not. More broadly, there were 43 observations that referenced a subject that had at least one valid determination of elder mistreatment across any APS Case Number within the APS data set (even if not directly matched to the specific response), and 5 were not.
+
+```{r}
+get_unique_value_summary(checking_subset2, c('aps_cases_any_valid','aps_subject_any_valid'))
+```
+
+The 493 remaining reported observations without a paired APS Intake were further isolated. This subset contained 458 Subjects.
+
+```{r}
+checking_subset2 <- checking_subset %>%
+  filter(is.na(aps_row))
+
+nrow(checking_subset2)
+length(unique(checking_subset2$id))
+length(unique(na.omit(checking_subset2$aps_row)))
+length(unique(na.omit(checking_subset2$aps_person_id)))
+sum(!is.na(checking_subset2$aps_subject_any_valid))
+```
+
+Within this subset, there were 144 observations that referenced a subject that had at least one valid determination of elder mistreatment across any APS Case Number within the APS data set (even if not directly matched to the specific response), and 24 were not. The remaining 325 observations did not have any determinations made at the subject level, as they were missing from the APS data set.
+
+```{r}
+get_unique_value_summary(checking_subset2, c('aps_subject_any_valid'))
+```
+
+```{r}
+sum(is.na(checking_subset2[
+  is.na(checking_subset2$aps_subject_any_valid),]$aps_person_id)) == 
+  sum(is.na(checking_subset2$aps_subject_any_valid))
+```
+
+### Missing Indicator of Report
+
+The Positive Screenings where it was neither indicated a report was or was not made (missing value) nor had a report number recorded in the DETECT tool were further isolated. This included 2 observations of 2 Subjects. There were no paired APS Intakes for these observations.
+
+```{r}
+checking_subset <- checking %>%
+  filter(is.na(detect_report_made) & is.na(detect_report_num))
+
+nrow(checking_subset)
+length(unique(checking_subset$id))
+length(unique(na.omit(checking_subset$aps_row)))
+length(unique(na.omit(checking_subset$aps_case_num)))
+```
+
+Within this subset, there was 1 observation that referenced a subject that had at least one valid determination of elder mistreatment across any APS Case Number within the APS data set (even if not directly matched to the specific response). The remaining observation did not have any determinations made at the subject level, as the subject was missing from the APS data set.
+
+```{r}
+get_unique_value_summary(checking_subset, c('aps_subject_any_valid'))
+```
+
+## Screened Negative
+
+A screening was considered negative if at least of the DETECT variables (not including that a report was made, or a report number) was selected, but no variable was selected as "YES". This included 23,136 observations of 148,881 Subjects. There were 143 paired APS Intakes for these observations, representing 137 APS Case Numbers.
 
 ```{r}
 checking <- screened %>%
-  filter(detect_report_made == "NO")
+  filter(!detect_positive)
 
 nrow(checking)
 length(unique(checking$id))
+length(unique(na.omit(checking$aps_row)))
+length(unique(na.omit(checking$aps_case_num)))
 ```
 
-There were 186 of these Responses with a paired APS Intake, representing 178 APS Cases across 172 Subjects. There were 23,463 Responses without a paired APS Intake.
+Of these negative screenings, 9 indicated a report was made, 23,107 indicated a report was *not* made, and 20 did not indicate if a report was or was not made (missing value).
+
+```{r}
+get_unique_value_summary(checking, 'detect_report_made')
+```
+
+### Reported
+
+The Negative Screenings where it was either indicated a report was made or a report number was recorded in the DETECT tool were further isolated. This included 10 observations of 10 Subjects. There were 7 paired APS Intakes for these observations, representing 7 APS Case Numbers.
 
 ```{r}
 checking_subset <- checking %>%
-  filter(!is.na(aps_row))
+  filter(detect_report_made == "YES" | detect_report_num == "YES")
 
 nrow(checking_subset)
-nrow(checking) - nrow(checking_subset)
 length(unique(checking_subset$id))
-length(unique(checking_subset$aps_row))
-length(unique(checking_subset$aps_case_num))
+length(unique(na.omit(checking_subset$aps_row)))
+length(unique(na.omit(checking_subset$aps_case_num)))
 ```
 
-Of these, 141 were associated with an APS Case Number that had at least one valid allegation, 45 which did not have any valid allegations.
+This subset included a single observation which indicated a report was not made, but provided an APS Report Number. This observation was manually verified. As the comments of the APS Report indicated a new report was made, the observation was kept in this subset.
 
 ```{r}
-get_unique_value_summary(checking_subset, 'aps_cases_any_valid')
+get_unique_value_summary(checking_subset, 'detect_report_made')
 ```
 
-### Missing Screening Determination
-
-The 22 Responses which had a missing value regarding the screening determination represented 22 Subjects.
+The 7 reported observations with a paired APS Intake were further isolated. This subset contained 7 Subjects and 7 APS Case Numbers.
 
 ```{r}
-checking <- screened %>%
-  filter(is.na(detect_report_made))
+checking_subset2 <- checking_subset %>%
+  filter(!is.na(aps_row))
 
-nrow(checking)
-length(unique(checking$id))
+nrow(checking_subset2)
+length(unique(checking_subset2$id))
+length(unique(na.omit(checking_subset2$aps_row)))
+length(unique(na.omit(checking_subset2$aps_case_num)))
 ```
 
-None of these Intakes had a matched row in the APS data set.
+Within this subset, 5 observations referenced an APS Case Number that had at least one valid determination of elder mistreatment, and 2 observations did not. More broadly, there were 6 observations that referenced a subject that had at least one valid determination of elder mistreatment across any APS Case Number within the APS data set (even if not directly matched to the specific response), and 1 did not.
+
+```{r}
+get_unique_value_summary(checking_subset2, c('aps_cases_any_valid','aps_subject_any_valid'))
+```
+
+The 3 remaining reported observations without a paired APS Intake were further isolated. This subset contained 3 Subjects.
+
+```{r}
+checking_subset2 <- checking_subset %>%
+  filter(is.na(aps_row))
+
+nrow(checking_subset2)
+length(unique(checking_subset2$id))
+length(unique(na.omit(checking_subset2$aps_row)))
+length(unique(na.omit(checking_subset2$aps_person_id)))
+sum(!is.na(checking_subset2$aps_subject_any_valid))
+```
+
+Within this subset, none of the 3 observations had any determinations made at the subject level, as they were missing from the APS data set.
+
+```{r}
+sum(is.na(checking_subset2$aps_subject_any_valid)) == nrow(checking_subset2)
+
+sum(is.na(checking_subset2[
+  is.na(checking_subset2$aps_subject_any_valid),]$aps_person_id)) == 
+  sum(is.na(checking_subset2$aps_subject_any_valid))
+```
+
+### Not Reported
+
+The Negative Screenings where it was indicated that a report was *not* made and no report number was recorded in the DETECT tool were further isolated. This included 23,106 observations of 14,866 Subjects. There were 136 paired APS Intakes for these observations, representing 130 APS Case Numbers.
 
 ```{r}
 checking_subset <- checking %>%
-  filter(!is.na(aps_row))
+  filter(detect_report_made == "NO" & is.na(detect_report_num))
 
 nrow(checking_subset)
-nrow(checking) - nrow(checking_subset)
 length(unique(checking_subset$id))
-length(unique(checking_subset$aps_row))
-length(unique(checking_subset$aps_case_num))
+length(unique(na.omit(checking_subset$aps_row)))
+length(unique(na.omit(checking_subset$aps_case_num)))
 ```
 
-### Not Screened
+The 136 non-reported observations with a paired APS Intake were further isolated. This subset contained 127 Subjects and 130 APS Case Numbers.
+
+```{r}
+checking_subset2 <- checking_subset %>%
+  filter(!is.na(aps_row))
+
+nrow(checking_subset2)
+length(unique(checking_subset2$id))
+length(unique(na.omit(checking_subset2$aps_row)))
+length(unique(na.omit(checking_subset2$aps_case_num)))
+```
+
+Within this subset, 97 observations referenced an APS Case Number that had at least one valid determination of elder mistreatment, and 39 observations did not. More broadly, there were 110 observations that referenced a subject that had at least one valid determination of elder mistreatment across any APS Case Number within the APS data set (even if not directly matched to the specific response), and 26 did not.
+
+```{r}
+get_unique_value_summary(checking_subset2, c('aps_cases_any_valid','aps_subject_any_valid'))
+```
+
+The 22,970 remaining reported observations without a paired APS Intake were further isolated. This subset contained 14,831 Subjects.
+
+```{r}
+checking_subset2 <- checking_subset %>%
+  filter(is.na(aps_row))
+
+nrow(checking_subset2)
+length(unique(checking_subset2$id))
+length(unique(na.omit(checking_subset2$aps_row)))
+length(unique(na.omit(checking_subset2$aps_person_id)))
+sum(!is.na(checking_subset2$aps_subject_any_valid))
+```
+
+Within this subset, there were 144 observations that referenced a subject that had at least one valid determination of elder mistreatment across any APS Case Number within the APS data set (even if not directly matched to the specific response), and 24 were not. The remaining 325 observations did not have any determinations made at the subject level, as they were missing from the APS data set.
+
+```{r}
+get_unique_value_summary(checking_subset2, c('aps_subject_any_valid'))
+```
+
+```{r}
+sum(is.na(checking_subset2[
+  is.na(checking_subset2$aps_subject_any_valid),]$aps_person_id)) == 
+  sum(is.na(checking_subset2$aps_subject_any_valid))
+```
+
+### Missing Indicator of Report
+
+The Negative Screenings where it was neither indicated a report was or was not made (missing value) nor had a report number recorded in the DETECT tool were further isolated. This included 20 observations of 20 Subjects. There were no paired APS Intakes for these observations.
+
+```{r}
+checking_subset <- checking %>%
+  filter(is.na(detect_report_made) & is.na(detect_report_num))
+
+nrow(checking_subset)
+length(unique(checking_subset$id))
+length(unique(na.omit(checking_subset$aps_row)))
+length(unique(na.omit(checking_subset$aps_case_num)))
+```
+
+Within this subset, there was 1 observation that referenced a subject that had at least one valid determination of elder mistreatment across any APS Case Number within the APS data set (even if not directly matched to the specific response). The remaining 19 observations did not have any determinations made at the subject level, as the subjects were missing from the APS data set.
+
+```{r}
+get_unique_value_summary(checking_subset, c('aps_subject_any_valid'))
+```
+
+## Not Screened
 
 The 4,221 Responses which were not screened represented 2,769 Subjects.
 
 ```{r}
-checking <- no_screen  
+checking <- no_screen 
 
 nrow(checking)
 length(unique(checking$id))
+```
+
+None of these responses had a value indicating that a report was made, or a report number.
+
+```{r}
+sum(!is.na(no_screen$detect_report_made))
+sum(!is.na(no_screen$detect_report_num))
 ```
 
 There were 28 of these Responses with a paired APS Intake, representing 27 APS Cases across 27 Subjects. There were 4,193 Responses without a paired APS Intake.
@@ -313,10 +690,24 @@ length(unique(checking_subset$aps_row))
 length(unique(checking_subset$aps_case_num))
 ```
 
-Of these, 24 were associated with an APS Case Number that had at least one valid allegation, 4 which did not have any valid allegations.
+Of these APS-matched responses, 24 were associated with an APS Case Number that had at least one valid allegation, 4 which did not have any valid allegations. This was identical at the subject level.
 
 ```{r}
-get_unique_value_summary(checking_subset, 'aps_cases_any_valid')
+get_unique_value_summary(checking_subset, c('aps_cases_any_valid', 'aps_subject_any_valid'))
+```
+
+Of the responses that lacked a paired APS intake, 662 were associated with Subject that had at least one valid allegation in the APS data set, and 231 which did not have any valid allegations. The remaining 3,300 observations were not present in the APS data set.
+
+```{r}
+checking_subset <- checking %>%
+  filter(is.na(aps_row))
+
+get_unique_value_summary(checking_subset, 'aps_subject_any_valid')
+```
+
+```{r}
+sum(!is.na(checking_subset[
+  is.na(checking_subset$aps_subject_any_valid),]$aps_person_id))
 ```
 
 # Subject-Wide Aggregate
@@ -345,11 +736,11 @@ There were 15,212 subjects which had at least one DETECT tool variable selected.
 
 ```{r}
 screened <- subj_data %>%
-  filter(ms_subj_screen_count > 0)
+  filter(detect_screened > 0)
 
 nrow(screened)
 sum(screened$ms_subj_num_responses)
-sum(screened$ms_subj_screen_count)
+sum(screened$detect_screened)
 
 length(unique(screened[!is.na(screened$aps_person_id),]$aps_person_id))
 sum(screened$aps_subject_num_intakes, na.rm = TRUE)
@@ -360,72 +751,204 @@ There were 1,353 subjects which were never screened with the DETECT tool. These 
 
 ```{r}
 no_screen <- subj_data %>%
-  filter(ms_subj_screen_count == 0)
+  filter(detect_screened == 0)
 
 nrow(no_screen)
 sum(no_screen$ms_subj_num_responses)
-sum(no_screen$ms_subj_screen_count)
+sum(no_screen$detect_screened)
 
 length(unique(no_screen[!is.na(no_screen$aps_person_id),]$aps_person_id))
 sum(no_screen$aps_subject_num_intakes, na.rm = TRUE)
 sum(no_screen$aps_subject_num_cases, na.rm = TRUE)
 ```
 
-## Matching to APS
+## Screened Positive
 
-### Screened Positive
-
-The 300 Subjects which had at least one positive screening represented 1,121 MedStar Responses and 944 DETECT screenings. Of these, 269 were also present in the APS data set, representing 827 APS Intakes and 579 APS Case Numbers.
+The 749 Subjects which had at least one positive screening representing 2,708 MedStar Responses and 2,251 DETECT screenings were further isolated. Of these, 408 were also present in the APS data set, representing 1,151 APS Intakes and 838 APS Case Numbers.
 
 ```{r}
 checking <- screened %>%
+  filter(detect_positive > 0)
+
+nrow(checking)
+sum(checking$ms_subj_num_responses)
+sum(checking$detect_screened)
+
+length(unique(checking[!is.na(checking$aps_person_id),]$aps_person_id))
+sum(checking$aps_subject_num_intakes, na.rm = TRUE)
+sum(checking$aps_subject_num_cases, na.rm = TRUE)
+```
+
+Of the 749 Subjects which had at least one positive screening, 354 were associated with at least one valid determination of elder mistreatment in the APS data set, and 54 were not. The remaining 341 Subjects were not present in the APS data set. There were 456 Subjects that were not reported to APS, and 293 that were reported at least once.
+
+```{r}
+get_unique_value_summary(checking, 
+                         c('detect_report_made','aps_subject_any_valid'))
+```
+
+```{r}
+sum(!is.na(checking[is.na(checking$aps_subject_any_valid),]$aps_person_id))
+```
+
+### Reported
+
+The Subjects with at least one Positive Screening that were reported at least once were further isolated. This included 293 Subjects, representing 1,112 Responses and 935 Screenings. There were 295 Subjects also present in the APS data set, representing 821 Intakes and 574 APS Case Numbers.
+
+```{r}
+checking_subset <- checking %>%
   filter(detect_report_made > 0)
 
-nrow(checking)
-sum(checking$ms_subj_num_responses)
-sum(checking$ms_subj_screen_count)
+nrow(checking_subset)
+sum(checking_subset$ms_subj_num_responses)
+sum(checking_subset$detect_screened)
 
-length(unique(checking[!is.na(checking$aps_person_id),]$aps_person_id))
-sum(checking$aps_subject_num_intakes, na.rm = TRUE)
-sum(checking$aps_subject_num_cases, na.rm = TRUE)
+length(unique(
+  checking_subset[!is.na(checking_subset$aps_person_id),]$aps_person_id))
+sum(checking_subset$aps_subject_num_intakes, na.rm = TRUE)
+sum(checking_subset$aps_subject_num_cases, na.rm = TRUE)
 ```
 
-Of the 300 Subjects which had at least one positive screening, 241 were associated with at least one valid determination of elder mistreatment in the APS data set, and 28 were not. The remaining 31 Subjects were not present in the APS data set.
+Within this subset, there were 238 Subjects with at least one valid determination of elder mistreatment across any APS Case Number within the APS data set (even if not directly matched to the specific response), and 27 did not. The remaining 28 observations did not have any determinations made at the subject level, as they were missing from the APS data set.
 
 ```{r}
-get_unique_value_summary(checking, 'aps_subject_any_valid')
+get_unique_value_summary(checking_subset, 'aps_subject_any_valid')
 ```
 
-### Screened Positive
+```{r}
+sum(is.na(checking_subset[
+  is.na(checking_subset$aps_subject_any_valid),]$aps_person_id)) == 
+  sum(is.na(checking_subset$aps_subject_any_valid))
+```
 
-The 14,912 Subjects which had no positive screening represented 25,501 MedStar Responses and 23,063 DETECT screenings. Of these, 1,591 were also present in the APS data set, representing 3178 APS Intakes and 2,663 APS Case Numbers.
+### Not Reported
+
+The Subjects with at least one Positive Screening that were not recorded as reported in the DETECT tool were further isolated. This included 456 Subjects, representing 1,596 Responses and 1,316 Screenings. There were 143 Subjects also present in the APS data set, representing 330 Intakes and 264 APS Case Numbers.
+
+```{r}
+checking_subset <- checking %>%
+  filter(detect_report_made == 0)
+
+nrow(checking_subset)
+sum(checking_subset$ms_subj_num_responses)
+sum(checking_subset$detect_screened)
+
+length(unique(
+  checking_subset[!is.na(checking_subset$aps_person_id),]$aps_person_id))
+sum(checking_subset$aps_subject_num_intakes, na.rm = TRUE)
+sum(checking_subset$aps_subject_num_cases, na.rm = TRUE)
+```
+
+Within this subset, there were 116 Subjects with at least one valid determination of elder mistreatment across any APS Case Number within the APS data set (even if not directly matched to the specific response), and 27 did not. The remaining 313 observations did not have any determinations made at the subject level, as they were missing from the APS data set.
+
+```{r}
+get_unique_value_summary(checking_subset, 'aps_subject_any_valid')
+```
+
+```{r}
+sum(is.na(checking_subset[
+  is.na(checking_subset$aps_subject_any_valid),]$aps_person_id)) == 
+  sum(is.na(checking_subset$aps_subject_any_valid))
+```
+
+## Screened Negative
+
+The 14,463 Subjects which had at no positive screening representing 23,914 MedStar Responses and 21,756 DETECT screenings were further isolated. Of these, 1,452 were also present in the APS data set, representing 2,854 APS Intakes and 2,404 APS Case Numbers.
 
 ```{r}
 checking <- screened %>%
-  filter(detect_report_made == 0)
+  filter(detect_positive == 0)
 
 nrow(checking)
 sum(checking$ms_subj_num_responses)
-sum(checking$ms_subj_screen_count)
+sum(checking$detect_screened)
 
 length(unique(checking[!is.na(checking$aps_person_id),]$aps_person_id))
 sum(checking$aps_subject_num_intakes, na.rm = TRUE)
 sum(checking$aps_subject_num_cases, na.rm = TRUE)
 ```
 
-Of the 14,912 Subjects which had no positive screening, 1,022 were associated with at least one valid determination of elder mistreatment in the APS data set, and 569 were not. The remaining 13,321 Subjects were not present in the APS data set.
+Of the 14,463 Subjects which had no positive screening, 909 were associated with at least one valid determination of elder mistreatment in the APS data set, and 543 were not. The remaining 13,011 Subjects were not present in the APS data set. There were 14,456 Subjects that were not reported to APS, and 7 that were reported at least once.
 
 ```{r}
-get_unique_value_summary(checking, 'aps_subject_any_valid')
+get_unique_value_summary(checking, 
+                         c('detect_report_made','aps_subject_any_valid'))
 ```
 
-### Not Screened
+```{r}
+sum(!is.na(checking[is.na(checking$aps_subject_any_valid),]$aps_person_id))
+```
 
-Of the 1,353 Subjects which were not screened with the DETECT tool, 68 were associated with at least one valid determination of elder mistreatment in the APS data set, and 39 were not. The remaining 1,246 Subjects were not present in the APS data set.
+### Reported
 
+The Subjects with at no Positive Screening that were reported at least once were further isolated. This included 7 Subjects, representing 9 Responses and 9 Screenings. There were 4 Subjects also present in the APS data set, representing 6 Intakes and 5 APS Case Numbers.
 
 ```{r}
-get_unique_value_summary(no_screen, 'aps_subject_any_valid')
+checking_subset <- checking %>%
+  filter(detect_report_made > 0)
+
+nrow(checking_subset)
+sum(checking_subset$ms_subj_num_responses)
+sum(checking_subset$detect_screened)
+
+length(unique(
+  checking_subset[!is.na(checking_subset$aps_person_id),]$aps_person_id))
+sum(checking_subset$aps_subject_num_intakes, na.rm = TRUE)
+sum(checking_subset$aps_subject_num_cases, na.rm = TRUE)
+```
+
+Within this subset, there were 238 Subjects with at least one valid determination of elder mistreatment across any APS Case Number within the APS data set (even if not directly matched to the specific response), and 27 did not. The remaining 28 observations did not have any determinations made at the subject level, as they were missing from the APS data set.
+
+```{r}
+get_unique_value_summary(checking_subset, 'aps_subject_any_valid')
+```
+
+```{r}
+sum(is.na(checking_subset[
+  is.na(checking_subset$aps_subject_any_valid),]$aps_person_id)) == 
+  sum(is.na(checking_subset$aps_subject_any_valid))
+```
+
+### Not Reported
+
+The Subjects with no Positive Screening that were not recorded as reported in the DETECT tool were further isolated. This included 14,456 Subjects, representing 23,905 Responses and 21,747 Screenings. There were 1,448 Subjects also present in the APS data set, representing 2,848 Intakes and 2,399 APS Case Numbers.
+
+```{r}
+checking_subset <- checking %>%
+  filter(detect_report_made == 0)
+
+nrow(checking_subset)
+sum(checking_subset$ms_subj_num_responses)
+sum(checking_subset$detect_screened)
+
+length(unique(
+  checking_subset[!is.na(checking_subset$aps_person_id),]$aps_person_id))
+sum(checking_subset$aps_subject_num_intakes, na.rm = TRUE)
+sum(checking_subset$aps_subject_num_cases, na.rm = TRUE)
+```
+
+Within this subset, there were 906 Subjects with at least one valid determination of elder mistreatment across any APS Case Number within the APS data set (even if not directly matched to the specific response), and 542 did not. The remaining 13,008 observations did not have any determinations made at the subject level, as they were missing from the APS data set.
+
+```{r}
+get_unique_value_summary(checking_subset, 'aps_subject_any_valid')
+```
+
+```{r}
+sum(is.na(checking_subset[
+  is.na(checking_subset$aps_subject_any_valid),]$aps_person_id)) == 
+  sum(is.na(checking_subset$aps_subject_any_valid))
+```
+
+## Not Screened
+
+Of the 1,353 Subjects which were not screened with the DETECT tool (of which none were reported to APS), 68 were associated with at least one valid determination of elder mistreatment in the APS data set, and 39 were not. The remaining 1,246 Subjects were not present in the APS data set.
+
+```{r}
+get_unique_value_summary(no_screen, c('detect_report_made','aps_subject_any_valid'))
+```
+
+```{r}
+sum(is.na(checking[is.na(checking$aps_subject_any_valid),]$aps_person_id)) == 
+  sum(is.na(checking$aps_subject_any_valid))
 ```
 
 # BOTTOM

@@ -1,0 +1,643 @@
+---
+title: "APS_06 Codebook"
+format: html
+editor: visual
+---
+
+# Summary
+
+-   Boolean/Logical variables were converted into factors and ordered
+
+    -   `pt_homeless`, `aps_rows_none`, `aps_cases_none`, `aps_subject_none`, `aps_rows_any_valid`, `aps_cases_any_valid`, `aps_subject_any_valid`, `aps_rows_reporter_ems`, `aps_cases_reporter_ems`, `aps_subject_reporter_ems`, `aps_rows_reporter_health`, `aps_cases_reporter_health`, `aps_subject_reporter_health`
+
+-   Un-ordered factor variables were ordered for presentation
+
+    -   `aps_reporter`, `aps_inv_close_reason` ,`aps_abuse_emotional`, `aps_exploitation`, `aps_neglect_medical`, `aps_neglect_mental`, `aps_abuse_physical`, `aps_neglect_physical`, `aps_abuse_sexual`
+
+-   Variables that would cause PHI to be revealed, even when presented in aggregate, were identified and blocked from revealing values in summary statistics
+
+-   Sources were attached to variables in aggregate
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(codebookr)
+library(here)
+library(stringr)
+```
+
+## Data Imports
+
+The APS data set was imported.
+
+```{r}
+aps <- readRDS(here("data","DETECT Shared GRAs", "aps_cleaning", "aps_06.rds"))
+```
+
+# Initial Data Structure
+
+Our APS data contained 18,152 observations of 79 variables. There were 10,996 unique subject IDs.
+
+```{r}
+dim(aps)
+
+length(unique(aps$aps_person_id))
+```
+
+There was a unique value for `aps_row` (row number in original APS source data) for each observation, and no observations lacking a value for this variable.
+
+```{r}
+length(unique(aps$aps_row))
+sum(is.na(aps$aps_row))
+```
+
+We verified our variable names.
+
+```{r}
+colnames(aps)
+```
+
+# Data Modification for Codebook
+
+We refined our data for codebook purposes.
+
+## Aggregate Modifications
+
+### Adding Source
+
+All variables came from the same source, so source was added in aggregate.
+
+```{r}
+for (i in colnames(aps)) {
+  attr(aps[[i]], "source") <- "Texas Adult Protective Services Data"
+}
+```
+
+### PHI Identification
+
+All patient identifiers were isolated, so that we could block summary statistics from potentially revealing PHI.
+
+```{r}
+phi_vars <- aps %>%
+  select (pt_name_full, pt_name_last, pt_name_first, pt_dob, aps_person_id, 
+          pt_address_pobox, pt_address_street, pt_address_num, pt_address_unit,
+          pt_address_zip, pt_address_city, aps_case_num,
+          aps_intake_num, aps_inv_num, aps_intake_dt, aps_intake_date,
+          aps_inv_close_dt, aps_inv_close_date, aps_cases_earliest,
+          aps_cases_latest, aps_subject_earliest, aps_subject_latest
+          ) %>%
+  names()
+```
+
+### Group Labeling of Record Number Variables
+
+All Record Number Variables received a Column Type label in aggregate
+
+```{r}
+record_vars <- aps %>%
+  select(aps_row, aps_case_num, aps_intake_num, aps_inv_num, ms_id, ms_epcr_row,
+         ms_comp_row
+         ) %>%
+  names()
+
+for (i in record_vars) {
+  attr(aps[[i]], "col_type") <- "Record Number"
+}
+```
+
+### Group Labelling of Address Variables
+
+Variables which contained Address values were modified in aggregate.
+
+```{r}
+pt_addr_vars <- aps %>%
+  select(pt_address_pobox, pt_address_street, pt_address_num, pt_address_unit,
+         pt_address_city, pt_address_county, pt_address_zip
+         ) %>%
+  names()
+
+for (i in pt_addr_vars) {
+  attr(aps[[i]], "col_type") <- "Address"
+}
+```
+
+### Group Labelling of Name Variables
+
+Variables which contained Name values were modified in aggregate.
+
+```{r}
+pt_name_vars <- aps %>%
+  select(pt_name_full, pt_name_first, pt_name_last
+         ) %>%
+  names()
+
+for (i in pt_name_vars) {
+  attr(aps[[i]], "col_type") <- "Name"
+}
+```
+
+### Group Labelling of Subject ID Variables
+
+```{r}
+pt_id_vars <- aps %>%
+  select(id, all_of(contains("_id"))
+         ) %>%
+  names()
+
+for (i in pt_id_vars) {
+  attr(aps[[i]], "col_type") <- "Subject ID"
+}
+```
+
+## Ordering Factors
+
+### Binary Variables
+
+#### Boolean 0/1 Variables
+
+Binary variables were converted to an ordered factor for presentation
+
+```{r}
+binary_vars <- aps %>%
+  select(all_of(ends_with("_none")), all_of(ends_with("any_valid")),
+         all_of(ends_with("reporter_ems")), all_of(ends_with("reporter_health")),
+         pt_homeless
+         ) %>%
+  names()
+
+ bool_levels <- c("True", "False")
+
+aps <- aps %>%
+  mutate(across(all_of(binary_vars),
+                ~ case_when(is.na(.) ~ NA_character_,
+                           . == 1 ~ "True",
+                           . == 0 ~ "False"))
+         ) %>%
+  mutate(across(all_of(binary_vars),
+                ~factor(.x, ordered = TRUE, levels = bool_levels)
+                )
+         )
+```
+
+We added the "Binary Category" Column Type attribute to these variables.
+
+```{r}
+for (i in binary_vars) {
+  attr(aps[[i]], "col_type") <- "Binary Category"
+}
+```
+
+### Multiple Category Factors
+
+#### Determination Variables
+
+The determination variables were isolated.
+
+```{r}
+determination_vars_r <- aps %>%
+  select(all_of(contains("rows_abuse")), all_of(contains("rows_neglect"))
+         ) %>%
+  names()
+
+determination_vars_c <- aps %>%
+  select(all_of(contains("cases_abuse")), all_of(contains("cases_neglect"))
+         ) %>%
+  names()
+
+determination_vars_s <- aps %>%
+  select(all_of(contains("subject_abuse")), all_of(contains("subject_neglect"))
+         ) %>%
+  names() 
+
+exploitation_vars <- aps %>%
+  select(all_of(contains("_exploitation"))
+         ) %>%
+  names()
+
+determination_vars <- c(determination_vars_r, determination_vars_c,
+                        determination_vars_s, exploitation_vars)
+```
+
+These variables were already ordered factors. The column type and description were added to each variable
+
+```{r}
+for (i in determination_vars) {
+  attr(aps[[i]], "col_type") <- "Single Choice, Multiple Options"
+}
+
+for (i in determination_vars_r) {
+  t_var <- str_match(i, "(aps_rows_)(.*?)(_)(.*)")
+  attr(aps[[i]], "description") <- paste("APS Determination of",
+                                         str_to_title(t_var[,5]),
+                                         str_to_title(t_var[,3]),
+                                         "by Intake (Row)",
+                                         sep = " ")
+}
+
+for (i in determination_vars_c) {
+  t_var <- str_match(i, "(aps_cases_)(.*?)(_)(.*)")
+  attr(aps[[i]], "description") <- paste("APS Determination of",
+                                         str_to_title(t_var[,5]),
+                                         str_to_title(t_var[,3]),
+                    "by APS Case Number (includes all associated rows/intakes)",
+                                         sep = " ")
+}
+
+for (i in determination_vars_s) {
+  t_var <- str_match(i, "(aps_subject_)(.*?)(_)(.*)")
+  attr(aps[[i]], "description") <- paste("APS Determination of",
+                                         str_to_title(t_var[,5]),
+                                         str_to_title(t_var[,3]),
+                      "by Subject (includes all associated rows/intakes)",
+                                         sep = " ")
+}
+
+aps <- aps %>%
+  cb_add_col_attributes(
+    aps_rows_exploitation,
+    description = "APS Determination of Exploitation by Intake (Row)"
+  ) %>%
+  cb_add_col_attributes(
+    aps_cases_exploitation,
+    description = "APS Determination of Exploitation by APS Case Number (includes all associated rows/intakes)"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_exploitation,
+    description = "APS Determination of Exploitation by Subject (includes all associated rows/intakes)"
+  )
+```
+
+#### Reporter Category `aps_reporter`
+
+There were 13 categories of Reporter in the `aps_reporter` Variable
+
+```{r}
+levels(aps$aps_reporter)
+```
+
+These levels were ordered for presentation.
+
+```{r}
+reporter_levels <- c("Health Care Providers/Staff -- EMS/EMT", 
+                     "Health Care Providers/Staff", "Law Enforcement", 
+                     "State Agencies", "Legal and Court-Related Services/Staff",
+                     "Community Agencies/Organizations", "Financial Institution",
+                     "Other Providers", "Family Members and Relatives", 
+                     "Friends and Neighbors", "Victim", "Other", "Anonymous")
+
+aps$aps_reporter <- factor(aps$aps_reporter, 
+                           ordered = TRUE, 
+                           levels = reporter_levels)
+```
+
+The variable's column type and description were added.
+
+```{r}
+aps <- aps %>%
+cb_add_col_attributes(
+  aps_reporter,
+  col_type = "Single Choice, Multiple Options",
+  description = "Reporter Type"
+)
+```
+
+#### Investigation Close Reason `aps_inv_close_reason`
+
+There were 16 categories of Close Reason in the `aps_inv_close_reason` Variable
+
+```{r}
+unique(aps$aps_inv_close_reason)
+```
+
+These levels were ordered for presentation.
+
+```{r}
+close_levels <- c("Progress to Maintenance or ICS", 
+                  "Services Needed, But Not Available", 
+                  "Resolved During Investigation with Services", 
+                  "Self-Neglect Resolved Before Face-to-Face",  "Client died", 
+                  "Client Refused Services", "No Services Required", 
+                  "Does not meet definition of APS", "Invalid", 
+                  "Reclassification", "Closed to Merge", 
+                  "Administrative closure", 
+                  "Dupl. Referral/Already Investigated", 
+                  "Moved/Unable to locate", "Other Agency/Out of State", 
+                  "Unable to determine")
+
+aps$aps_inv_close_reason <- factor(aps$aps_inv_close_reason,
+                                   ordered = TRUE,
+                                   levels = close_levels)
+```
+
+The variable's column type and description were added.
+
+```{r}
+aps <- aps %>%
+cb_add_col_attributes(
+  aps_inv_close_reason,
+  col_type = "Single Choice, Multiple Options",
+  description = "Reason Provided for Closing Report"
+)
+```
+
+## Individual Modifications
+
+```{r}
+# | message: false
+aps <- aps %>%
+  cb_add_col_attributes(
+   id,
+   description = "Unique Subject ID shared by both APS and MedStar data sets"
+  ) %>%
+  cb_add_col_attributes(
+    aps_row,
+    description = "Identifies row number of the observation in original APS data set"
+  ) %>%
+  cb_add_col_attributes(
+    aps_person_id,
+    description = "Unique Subject ID originally created by APS and verified in cleaning"
+  ) %>%
+  cb_add_col_attributes(
+    ms_id,
+    source = "MedStar ePCR Data",
+    description = "Unique subject ID created from probabilistic matching within the MedStar data set using fastLink, manual cleaning"
+  ) %>%
+  cb_add_col_attributes(
+    ms_epcr_row,
+    source = "MedStar ePCR Data",
+    description = "Identifies row number of the observation in original MedStar ePCR data set"
+  ) %>%
+  cb_add_col_attributes(
+    ms_comp_row,
+    source = "MedStar Compliance Data",
+    description = "Identifies row number of the observation in the original MedStar Compliance data set"
+  ) %>%
+  cb_add_col_attributes(
+    pt_name_full,
+    description = "Patient's full name (First Last)"
+  ) %>%
+  cb_add_col_attributes(
+    pt_name_first,
+    description = "Patient's first name"
+  ) %>%
+  cb_add_col_attributes(
+    pt_name_last,
+    description = "Patient's last name"
+  ) %>%
+  cb_add_col_attributes(
+    pt_age,
+    col_type = "Age",
+    description = "Patient's Age as entered by APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_dob,
+    col_type = "Date of Birth",
+    description = "Patient's date of birth as entered by APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_dob_year,
+    col_type = "Year",
+    description = "Patient's year of birth as entered by APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_dob_month,
+    col_type = "Month",
+    description = "Patient's month of birth as entered by APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_dob_day,
+    col_type = "Day",
+    description = "Patient's day of birth as entered by APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_homeless,
+    description = "Indicates if the data in original values for Patient's Address indicated that patient was 'Homeless' or 'Transient'",
+    skip_pattern = "No value entered if there was not information for patient street address"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_pobox,
+    description = "PO BOX information that was provided as the patient's address in the street address field"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_num,
+    description = "Street number of Patient Address, contains letters and numbers
+    For an address of 123 Example St #45, City, TX, 77054 the Address Number would be '123'"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_street,
+    description = "Street Name of Patient Address
+    For an address of 123 Example St #45, City, TX, 77054 the Street Name would be 'Example St'",
+    skip_pattern = "Values relating to either an 'Unknown' address or that the patient was Homeless/Transient were converted to missing values"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_unit,
+    description = "Unit Number of Patient Address
+    For an address of 123 Example St #45, City, TX, 77054 the Unit Number would be '45'"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_city,
+    description = "City of Patient Address
+    For an address of 123 Example St #45, City, TX, 77054 the City would be 'City'"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_county,
+    description = "County listed for Patient Address"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_zip,
+    description = "Zip Code of Patient Address
+    For an address of 123 Example St #45, City, TX, 77054 the City would be '77054'"
+  ) %>%
+  cb_add_col_attributes(
+    aps_case_num,
+    description = "APS Case Number"
+  ) %>%
+  cb_add_col_attributes(
+    aps_intake_num,
+    description = "APS Intake Number - indicates a single reporting event, but may include multiple reporters"
+  ) %>%
+  cb_add_col_attributes(
+    aps_inv_num,
+    description = "APS Investigation Number - automatically generated from Intake Number"
+  ) %>%
+  cb_add_col_attributes(
+    aps_reporter,
+    description = "Relationship of reporter to patient"
+  ) %>%
+  cb_add_col_attributes(
+    aps_intake_dt,
+    col_type = "Date and Time",
+    description = "Date and Time of the Intake Report"
+  ) %>%
+    cb_add_col_attributes(
+    aps_intake_date,
+    col_type = "Date",
+    description = "Date of the Intake Report"
+  ) %>%
+    cb_add_col_attributes(
+    aps_intake_time,
+    col_type = "Time",
+    description = "Time of the Intake Report"
+  ) %>%
+    cb_add_col_attributes(
+    aps_intake_year,
+    col_type = "Year",
+    description = "Year of the Intake Report"
+  ) %>%
+    cb_add_col_attributes(
+    aps_intake_month,
+    col_type = "Month",
+    description = "Month of the Intake Report"
+  ) %>%
+    cb_add_col_attributes(
+    aps_intake_day,
+    col_type = "Day",
+    description = "Day of the Intake Report"
+  ) %>%
+  cb_add_col_attributes(
+    aps_inv_close_dt,
+    col_type = "Date and Time",
+    description = "Date and Time of the Investigation Close"
+  ) %>%
+    cb_add_col_attributes(
+    aps_inv_close_date,
+    col_type = "Date",
+    description = "Date of the Investigation Close"
+  ) %>%
+    cb_add_col_attributes(
+    aps_inv_close_time,
+    col_type = "Time",
+    description = "Time of the Investigation Close"
+  ) %>%
+    cb_add_col_attributes(
+    aps_inv_close_year,
+    col_type = "Year",
+    description = "Year of the Investigation Close"
+  ) %>%
+    cb_add_col_attributes(
+    aps_inv_close_month,
+    col_type = "Month",
+    description = "Month of the Investigation Close"
+  ) %>%
+    cb_add_col_attributes(
+    aps_inv_close_day,
+    col_type = "Day",
+    description = "Day of the Investigation Close"
+  ) %>%
+  cb_add_col_attributes(
+    aps_inv_close_reason,
+    description = "Reason for Investigation Closure"
+  ) %>%
+  cb_add_col_attributes(
+    aps_rows_any_valid,
+    description = "Were any allegations found to be valid in the APS Intake (row)?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_cases_any_valid,
+    description = "Were any allegations found to be valid in the APS Case Number, across all associated APS Intakes (rows)?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_any_valid,
+    description = "Were any allegations found to be valid for the Subject, across all associated APS Intakes (rows)?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_rows_none,
+    description = "Were there no allegations with determinations of any kind in the APS Intake (row)?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_cases_none,
+    description = "Were there no allegations with determinations of any kind for the APS Case Number, across all associated Intakes (rows)?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_none,
+    description = "Were there no allegations with determinations of any kind for the Subject, across all associated Intakes (rows)?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_rows_reporter_ems,
+    description = "Was the reporter for the APS Intake (row) specifically listed as EMS/EMT?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_cases_reporter_ems,
+    description = "Was there at least one intake with an EMS/EMT reporter in the APS Case Number, across all associated Intakes (rows)?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_reporter_ems,
+    description = "Was there at least one intake with an EMS/EMT reporter for the Subject, across all associated Intakes (rows)?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_rows_reporter_health,
+    description = "Was the reporter for the APS Intake (row) listed as a Health Care Professional, either specifically EMS/EMT or non-specific?"
+  ) %>%
+    cb_add_col_attributes(
+    aps_cases_reporter_health,
+    description = "Was there at least one intake in the APS Case Number with a reporter listed as a Health Care Professional, either specifically EMS/EMT or non-specific, across all associated Intakes (rows)?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_reporter_health,
+    description = "Was there at least one intake for the Subject with a reporter listed as a Health Care Professional, either specifically EMS/EMT or non-specific, across all associated Intakes (rows)?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_cases_earliest,
+    col_type = "Date/Time",
+    description = "Earliest APS Intake Date/Time associated with the APS Case Number"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_earliest,
+    col_type = "Date/Time",
+    description = "Earliest APS Intake Date/Time associated with the Subject"
+  ) %>%
+  cb_add_col_attributes(
+    aps_cases_latest,
+    col_type = "Date/Time",
+    description = "Latest APS Intake Date/Time associated with the APS Case Number"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_latest,
+    col_type = "Date/Time",
+    description = "Latest APS Intake Date/Time associated with the Subject"
+  ) %>%
+  cb_add_col_attributes(
+    aps_cases_num_intakes,
+    description = "Number of APS Intakes associated with a specific APS Case Number"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_num_intakes,
+    description = "Number of APS Intakes associated with a specific Subject"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_num_cases,
+    description = "Number of APS Case Numbers associated with a specific Subject"
+  )
+
+```
+
+# Codebook Generation
+
+We generated our codebook, with title, subtitle, and description. We blocked summary statistics on our PHI fields.
+
+```{r}
+#| message: false
+
+aps_06 <- aps
+
+book <- codebook(
+  df = aps_06,
+  title = "Texas Adult Protective Services Data",
+  subtitle = "Intake and Investigation Data for Clients aged 65 years and older and in Dallas, Johnson or Tarrant County; Intakes 12/31/2014 - 2/28/2018, Closures 1/3/2015 - 6/28/2018",
+  description = "In collaboration Texas Adult Protective Services.
+  Data was originally collected during the course of Adult Protective Services operations, with Intake dates from 12/31/2014 - 2/28/2018 and Closure dates from 1/3/2015 - 6/28/2018. Data was requested as part of the Detection of Elder abuse Through Emergency Care Technicians (DETECT) screening tool pilot project (doi: 10.1080/08946566.2018.1564104).",
+  no_summary_stats = phi_vars,
+  keep_blank_attributes = FALSE)
+```
+
+# Exporting Codebook to DOCX Format
+
+```{r}
+print(book, here("docs", "codebooks", "aps_codebook_06.docx"))
+```

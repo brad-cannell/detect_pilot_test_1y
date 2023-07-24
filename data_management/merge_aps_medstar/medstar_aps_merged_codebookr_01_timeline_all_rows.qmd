@@ -1,0 +1,1057 @@
+---
+title: "Medstar_aps_merged_01_timeline_all_rows Codebook"
+format: html
+editor: visual
+---
+
+# Summary
+
+-   List variables were converted into counts for presentation without revealing PHI
+-   Boolean/Logical variables were converted into factors and ordered
+    -   `pt_hispanic`, `pt_homeless`, `detect_report_aps_unable`, `detect_report_aps_onscene`, `detect_report_aps_existing`, `detect_facility`, `detect_other_reporter`, `detect_uta`, `aps_rows_none`, `aps_cases_none`, `aps_subject_none`, `aps_rows_any_valid`, `aps_cases_any_valid`, `aps_subject_any_valid`, `aps_rows_reporter_ems`, `aps_cases_reporter_ems`, `aps_subject_reporter_ems`, `aps_rows_reporter_health`, `aps_cases_reporter_health`, `aps_subject_reporter_health`
+-   Un-ordered factor variables were ordered for presentation
+    -   `pt_race`, `comp_report_method`, `aps_reporter`, `aps_inv_close_reason`
+-   Variables that would cause PHI to be revealed, even when presented in aggregate, were identified and blocked from revealing values in summary statistics
+-   Sources were attached to variables in aggregate
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(codebookr)
+library(here)
+library(stringr)
+```
+
+## Data Imports
+
+The composite MedStar data set was imported.
+
+```{r}
+merged_data <- readRDS(here("data","DETECT Shared GRAs","merge_aps_medstar",
+                              "medstar_aps_merged_01_timeline_all_rows.rds"))
+```
+
+# Initial Data Structure
+
+Our Combined Timeline data contained 46,380 observations of 131 variables. There were 25,594 unique subject IDs, corresponding to 16,565 MedStar Subject IDs and 10,996 APS Person IDs. there were 15,280 APS Case Numbers represented in the data set.
+
+```{r}
+dim(merged_data)
+
+length(na.omit(unique(merged_data$id)))
+length(na.omit(unique(merged_data$ms_id)))
+length(na.omit(unique(merged_data$aps_person_id)))
+length(na.omit(unique(merged_data$aps_case_num)))
+```
+
+There was a unique value for `ms_epcr_row` (row number in original MedStar ePCR source data) or `aps_row` (row number in original APS data set) for each observation. There were no rows that were either missing a value for both variables, or included a value for both variables.
+
+```{r}
+length(na.omit(unique(merged_data$ms_epcr_row)))
+length(na.omit(unique(merged_data$aps_row)))
+sum(!is.na(merged_data$ms_epcr_row) & !is.na(merged_data$aps_row))
+sum(is.na(merged_data$ms_epcr_row) & is.na(merged_data$aps_row))
+```
+
+# Data Modification for Codebook
+
+We refined our data for codebook purposes.
+
+## List Variables
+
+We cannot perform summary statistics of our List Columns (`comp_report_num_list` and `comp_report_created_list`). We converted our list variables into numeric values, which indicated the length of the list within each variable.
+
+```{r}
+merged_data <- merged_data %>%
+  mutate(comp_report_num_list = case_when (is.na(comp_report_num_list) ~ 0,
+                                           comp_report_num_list == "NULL" ~ 0,
+                                           TRUE ~ lengths(comp_report_num_list)
+                                           )
+  ) %>%
+  mutate(comp_report_created_list = case_when (
+    is.na(comp_report_created_list) ~ 0, 
+    comp_report_created_list == "NULL" ~ 0, 
+    TRUE ~ lengths(comp_report_created_list)
+    )
+  ) %>%
+  mutate(
+    comp_report_num_list = na_if(comp_report_num_list, 0),
+    comp_report_created_list = na_if(comp_report_created_list, 0)
+  )
+```
+
+## Ordering Factors
+
+The vast majority of the factor variables within our data did not need to be ordered. However, the clarity of a codebook benefited from ordering these factors.
+
+### Boolean/Logical Variables
+
+We converted all Boolean Variables to ordered factors, so that their presentation in the codebook would be uniform and conform to the overall style of the codebook
+
+```{r}
+boolean_vars <- merged_data %>%
+  select(pt_hispanic, pt_homeless, detect_report_aps_unable, 
+         detect_report_aps_onscene, detect_report_aps_existing, 
+         detect_facility, detect_other_reporter, detect_uta,
+         all_of(ends_with("_none")), all_of(ends_with("_any_valid")),
+         all_of(ends_with("_reporter_ems")), 
+         all_of(ends_with("_reporter_health"))
+         ) %>%
+  names()
+
+bool_levels <- c("True", "False")
+
+merged_data <- merged_data %>%
+  mutate(across(all_of(boolean_vars),
+                ~ case_when(is.na(.) ~ "NULL",
+                           . == TRUE ~ "True",
+                           . == FALSE ~ "False"))
+         ) %>%
+  mutate(across(all_of(boolean_vars), ~na_if(.,"NULL"))
+         ) %>%
+  mutate(across(all_of(boolean_vars),
+                ~factor(.x, ordered = TRUE, levels = bool_levels)
+                )
+         )
+```
+
+### Race `pt_race`
+
+Race was ordered based on the [US Census Presentation of race options](https://www.census.gov/topics/population/race/about.html).
+
+```{r}
+races <- c("White", "Black or African American","American Indian or Alaska Native", "Asian", "Native Hawaiian or Other Pacific Islander", "Multiracial", "Other Race")
+
+merged_data <- merged_data %>% 
+  mutate(pt_race = factor(pt_race, ordered=TRUE, levels=races)
+         )
+```
+
+### Report Method `comp_report_method`
+
+Character values for Report Method were converted into Title Case, then converted into an ordered factor for display in the codebook.
+
+```{r}
+report_levels <- c("Electronic", "Telephone", "Both Electronic And Telephone",
+                   "Other - Not Specified")
+
+merged_data$comp_report_method <- str_to_title(merged_data$comp_report_method) 
+merged_data$comp_report_method <- factor(merged_data$comp_report_method, 
+                                         ordered = TRUE, levels = report_levels)
+
+```
+
+# Aggregate Modifications
+
+We grouped our variables, where possible, to facilitate ease of adding attributions using Codebookr.
+
+## PHI Identification and Grouping
+
+All patient identifiers were isolated, so that we could block summary statistics from potentially revealing PHI.
+
+```{r}
+pt_name_vars <- merged_data %>%
+  select(all_of(starts_with("pt_name_"))) %>%
+  names()
+
+pt_addr_vars <- merged_data %>%
+  select(all_of(starts_with("pt_address_"))) %>%
+  names()
+
+pt_dob_vars <- merged_data %>%
+  select(all_of(starts_with("pt_dob"))) %>%
+  names()
+
+pt_rec_ids <- merged_data %>%
+  select(response_pcr, response_num) %>%
+  names()
+
+report_num_vars <- merged_data %>%
+  select(detect_report_num, comp_report_num, aps_intake_num, aps_inv_num,
+         aps_case_num) %>%
+  names()
+
+other_phi_vars <- merged_data %>%
+  select(detect_report_comment, comp_report_created_dt, comp_report_comment, 
+         response_ems_epcr_sig, response_symptoms, aps_person_id, 
+         ms_subj_earliest, ms_subj_latest, aps_inv_close_dt, aps_inv_close_date, 
+         aps_cases_earliest, aps_cases_latest, aps_subject_earliest, 
+         aps_subject_latest, event_dt, event_date) %>%
+  names()
+
+phi_vars <- merged_data %>%
+  select(all_of(pt_name_vars), pt_dob, all_of(pt_rec_ids), pt_address_num, 
+         pt_address_street, pt_address_unit, pt_address_pobox, pt_address_county,
+         pt_address_zip, pt_address_city, comp_report_date,
+         comp_report_created_date, all_of(report_num_vars), 
+         all_of(other_phi_vars)
+         )%>%
+  names()
+```
+
+## Source Data Set Modification
+
+We grouped our variables based on the Source of the Data: "MedStar ePCR Data", "MedStar Compliance Data", and "DETECT Tool Questionnaire (MedStar ePCR Data)"
+
+```{r}
+epcr_vars <- merged_data %>%
+  select(ms_id, ms_epcr_row, pt_name_middle, response_pcr, response_num, 
+         response_complaint, response_symptoms, response_dispo, 
+         response_ems_epcr_sig, ms_subj_earliest, ms_subj_latest,
+         pt_race, pt_gender, pt_hispanic, pt_address_state
+         ) %>%
+  names() 
+  
+comp_vars <- merged_data %>%
+  select(ms_comp_row, comp_report_agency, comp_report_date, comp_report_method, 
+         comp_report_num, comp_report_created_dt, comp_report_created_date, 
+         comp_report_created_time, comp_report_comment,
+         comp_report_num_list, comp_report_created_list) %>%
+  names()
+  
+detect_q_vars <- merged_data %>%
+  select(detect_cond_anxious, detect_cond_hygiene, detect_cond_needs, 
+         detect_cond_clothes, detect_meds_difficulty, detect_meds_hoarding, 
+         detect_caregiver_anxious, detect_caregiver_frustrated, 
+         detect_caregiver_lack, detect_caregiver_inattentive, 
+         detect_env_isolated, detect_env_concern, detect_env_hoarding, 
+         detect_env_odor) %>%
+  names()
+
+detect_vars <- merged_data %>%
+   select(all_of(detect_q_vars), detect_report_made, detect_report_num, 
+         detect_report_comment, detect_report_aps_unable, 
+         detect_report_aps_onscene, detect_report_aps_existing, detect_facility, 
+         detect_other_reporter, detect_uta) %>%
+  names()
+
+aps_vars <- merged_data %>%
+  select(all_of(starts_with("aps_")), pt_address_county
+         ) %>%
+  names()
+
+calc_detect_vars <- merged_data %>%
+  select(detect_screened, detect_positive) %>%
+  names()
+
+calc_subj_vars <- merged_data %>%
+  select(all_of(starts_with("ms_subj_"))
+         ) %>%
+  names()
+```
+
+And we used this to modify the source of these variables in aggregate
+
+```{r}
+for (i in epcr_vars) {
+  attr(merged_data[[i]], "source") <- "MedStar ePCR Data"
+}
+
+for (i in comp_vars) {
+  attr(merged_data[[i]], "source") <- "MedStar Compliance Data"
+}
+
+for (i in detect_vars) {
+  attr(merged_data[[i]], 
+       "source") <- "DETECT Tool Questionnaire (MedStar ePCR Data)"
+}
+
+for (i in aps_vars){
+  attr(merged_data[[i]], "source") <- "Texas Adult Protective Services Data"
+}
+
+for (i in calc_detect_vars) {
+  attr(merged_data[[i]], 
+       "source") <- "Calculated from DETECT Tool Questionnaire (MedStar ePCR Data)"
+}
+
+for (i in calc_subj_vars) {
+  attr(merged_data[[i]], "source") <- "Calculated from MedStar ePCR Data"
+}
+```
+
+## Name Variables
+
+Variables which contained Name values were modified in aggregate.
+
+```{r}
+for (i in c(pt_name_vars, "response_ems_epcr_sig")) {
+  attr(merged_data[[i]], "col_type") <- "Name"
+}
+```
+
+## Address Variables
+
+Variables which contained Address values were modified in aggregate.
+
+```{r}
+for (i in pt_addr_vars) {
+  attr(merged_data[[i]], "col_type") <- "Address"
+}
+```
+
+## Record, Report, or Case Number Number Variables
+
+Variables which contained Record, Report, or Case Number Number values were modified in aggregate.
+
+```{r}
+for (i in c(pt_rec_ids, "ms_epcr_row", "ms_comp_row", "aps_row")) {
+  attr(merged_data[[i]], "col_type") <- "Record Number"
+}
+
+for (i in report_num_vars) {
+  attr(merged_data[[i]], "col_type") <- "Report Number"
+}
+
+attr(merged_data[['aps_case_num']], 'col_type') <- "APS Case Number"
+```
+
+## Subject ID Variables
+
+Variables which referenced a Subject ID were modified in aggregate.
+
+```{r}
+for (i in c('id', 'aps_person_id', 'ms_id')){
+  attr(merged_data[[i]], "col_type") <- "Subject ID"
+}
+```
+
+## Question Types
+
+Variables were grouped based on the type of question/response that a variable represented: "Binary Category" and "Single Choice, Multiple Options"
+
+```{r}
+binary_vars <- merged_data %>%
+  select(all_of(boolean_vars), pt_gender, comp_report_agency,
+         detect_report_made, detect_screened, detect_positive) %>%
+  names()
+
+single_choice <- merged_data %>%
+  select(all_of(detect_q_vars), pt_race, response_complaint, response_dispo,
+         aps_reporter, aps_inv_close_reason) %>%
+  names()
+```
+
+The column types of these variables were modified accordingly.
+
+```{r}
+for (i in binary_vars) {
+  attr(merged_data[[i]], "col_type") <- "Binary Category"
+}
+
+for (i in single_choice) {
+  attr(merged_data[[i]], "col_type") <- "Single Choice, Multiple Options"
+}
+```
+
+## Skip Patterns
+
+### DETECT Comment Variables
+
+The DETECT variables which were generated based on comment data were identified, and skip pattern data applied in aggregate
+
+```{r}
+detect_inf <- merged_data %>%
+  select(detect_report_aps_unable, detect_report_aps_existing, 
+         detect_report_aps_onscene, detect_facility, detect_uta, 
+         detect_other_reporter) %>%
+  names()
+
+for (i in detect_inf) {
+  attr(merged_data[[i]], "skip_pattern") <- "Values were not entered in observations that lacked data in the Report Number field of the ePCR data"
+}
+```
+
+### Compliance Data
+
+All variables in the Compliance data, except for the comment variable, are only absent in the aggregate data if there was not a matched observation found in the compliance data. We added our skip-pattern to these variables accordingly
+
+```{r}
+for (i in comp_vars[comp_vars != "comp_report_comment"]) {
+  attr(merged_data[[i]], "skip_pattern") <- "Missing values indicate that data for a given observation did not match any value in the Compliance data set"
+}
+```
+
+### Determination Variables
+
+The AOS determination variables were isolated.
+
+```{r}
+determination_vars_r <- merged_data %>%
+  select(all_of(contains("rows_abuse")), all_of(contains("rows_neglect"))
+         ) %>%
+  names()
+
+determination_vars_c <- merged_data %>%
+  select(all_of(contains("cases_abuse")), all_of(contains("cases_neglect"))
+         ) %>%
+  names()
+
+determination_vars_s <- merged_data %>%
+  select(all_of(contains("subject_abuse")), all_of(contains("subject_neglect"))
+         ) %>%
+  names() 
+
+exploitation_vars <- merged_data %>%
+  select(all_of(contains("_exploitation"))
+         ) %>%
+  names()
+
+determination_vars <- c(determination_vars_r, determination_vars_c,
+                        determination_vars_s, exploitation_vars)
+```
+
+These variables were already ordered factors. The column type and description were added to each variable
+
+```{r}
+for (i in determination_vars) {
+  attr(merged_data[[i]], "col_type") <- "Single Choice, Multiple Options"
+}
+
+for (i in determination_vars_r) {
+  t_var <- str_match(i, "(aps_rows_)(.*?)(_)(.*)")
+  attr(merged_data[[i]], "description") <- paste("APS Determination of",
+                                         str_to_title(t_var[,5]),
+                                         str_to_title(t_var[,3]),
+                                         "by Intake (Row)",
+                                         sep = " ")
+}
+
+for (i in determination_vars_c) {
+  t_var <- str_match(i, "(aps_cases_)(.*?)(_)(.*)")
+  attr(merged_data[[i]], "description") <- paste("APS Determination of",
+                                         str_to_title(t_var[,5]),
+                                         str_to_title(t_var[,3]),
+                    "by APS Case Number (includes all associated rows/intakes)",
+                                         sep = " ")
+}
+
+for (i in determination_vars_s) {
+  t_var <- str_match(i, "(aps_subject_)(.*?)(_)(.*)")
+  attr(merged_data[[i]], "description") <- paste("APS Determination of",
+                                         str_to_title(t_var[,5]),
+                                         str_to_title(t_var[,3]),
+                      "by Subject (includes all associated rows/intakes)",
+                                         sep = " ")
+}
+
+merged_data <- merged_data %>%
+  cb_add_col_attributes(
+    aps_rows_exploitation,
+    description = "APS Determination of Exploitation by Intake (Row)"
+  ) %>%
+  cb_add_col_attributes(
+    aps_cases_exploitation,
+    description = "APS Determination of Exploitation by APS Case Number (includes all associated rows/intakes)"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_exploitation,
+    description = "APS Determination of Exploitation by Subject (includes all associated rows/intakes)"
+  )
+```
+
+#### Reporter Category `aps_reporter`
+
+There were 13 categories of Reporter in the `aps_reporter` Variable
+
+```{r}
+unique((merged_data$aps_reporter))
+```
+
+These levels were ordered for presentation.
+
+```{r}
+reporter_levels <- c("Health Care Providers/Staff -- EMS/EMT", 
+                     "Health Care Providers/Staff", "Law Enforcement", 
+                     "State Agencies", "Legal and Court-Related Services/Staff",
+                     "Community Agencies/Organizations", "Financial Institution",
+                     "Other Providers", "Family Members and Relatives", 
+                     "Friends and Neighbors", "Victim", "Other", "Anonymous")
+
+merged_data$aps_reporter <- factor(merged_data$aps_reporter, 
+                                   ordered = TRUE, 
+                                   levels = reporter_levels)
+```
+
+The variable's column type and description were added.
+
+```{r}
+merged_data <- merged_data %>%
+cb_add_col_attributes(
+  aps_reporter,
+  col_type = "Single Choice, Multiple Options",
+  source = "Texas Adult Protective Services Data",
+  description = "Reporter Type"
+)
+```
+
+#### Investigation Close Reason `aps_inv_close_reason`
+
+There were 15 categories of Close Reason in the `aps_inv_close_reason` Variable
+
+```{r}
+unique(merged_data$aps_inv_close_reason)
+```
+
+These levels were ordered for presentation.
+
+```{r}
+close_levels <- c("Progress to Maintenance or ICS", 
+                  "Services Needed, But Not Available", 
+                  "Resolved During Investigation with Services", 
+                  "Self-Neglect Resolved Before Face-to-Face",  "Client died", 
+                  "Client Refused Services", "No Services Required", 
+                  "Does not meet definition of APS", "Invalid", 
+                  "Reclassification", "Closed to Merge", 
+                  "Administrative closure", 
+                  "Dupl. Referral/Already Investigated", 
+                  "Moved/Unable to locate", "Other Agency/Out of State", 
+                  "Unable to determine")
+
+merged_data$aps_inv_close_reason <- factor(merged_data$aps_inv_close_reason,
+                                           ordered = TRUE,
+                                           levels = close_levels)
+```
+
+The variable's column type and description were added.
+
+```{r}
+merged_data <- merged_data %>%
+cb_add_col_attributes(
+  aps_inv_close_reason,
+  col_type = "Single Choice, Multiple Options",
+  source = "Texas Adult Protective Services Data",
+  description = "Reason Provided for Closing APS Report"
+)
+```
+
+# Individual Modifications
+
+```{r}
+#| message: false
+
+merged_data <- merged_data %>%
+  cb_add_col_attributes(
+    id,
+    description = "Unique Subject ID shared by both APS and MedStar data sets"
+  ) %>%
+  cb_add_col_attributes(
+    ms_id,
+    col_type = "Unique Subject ID",
+    description = "Unique subject ID created from probabilistic matching using fastLink, manual cleaning"
+  ) %>%
+  cb_add_col_attributes(
+    ms_epcr_row,
+    description = "Identifies row number of the observation in original MedStar ePCR data set"
+  ) %>%
+  cb_add_col_attributes(
+    ms_comp_row,
+    description = "Identifies row number of the observation in the original MedStar Compliance data set"
+  ) %>%
+  cb_add_col_attributes(
+   pt_name_full,
+   description = "Patient's full name (First Middle Last)"
+  ) %>%
+  cb_add_col_attributes(
+    pt_name_first,
+    description = "Patient's first name as entered by EMS or APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_name_middle,
+    description = "Patient's middle name as entered by EMS",
+    skip_pattern = "Variable not present in the APS data set"
+  ) %>%
+  cb_add_col_attributes(
+    pt_name_last,
+    description = "Patient's last name as entered by EMS or APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_age,
+    col_type = "Age",
+    description = "Patient's Age as entered by EMS or APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_dob,
+    col_type = "Date of Birth",
+    description = "Patient's date of birth as entered by EMS or APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_dob_year,
+    col_type = "Year",
+    description = "Patient's year of birth as entered by EMS or APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_dob_month,
+    col_type = "Month",
+    description = "Patient's month of birth as entered by EMS or APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_dob_day,
+    col_type = "Day",
+    description = "Patient's day of birth as entered by EMS or APS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_race,
+    col_type = "Single Choice, Multiple Options",
+    description = "Patient's race as entered by EMS"
+  ) %>%
+  cb_add_col_attributes(
+    pt_hispanic,
+    description = "Patient's ethnic group based on endorsement of Hispanic/Latino heritage in EMS ePCR",
+    skip_pattern = "No value entered if no racial information was provided in EMS ePCR"
+  ) %>%
+  cb_add_col_attributes(
+    pt_gender,
+    description = "Patient's gender as entered by EMS, based on binary 'MALE/FEMALE' classification"
+  ) %>%
+  cb_add_col_attributes(
+    pt_homeless,
+    description = "Indicates if the data in original values for Patient's Address or Comments entered by EMS staff in the Report Number field of the ePCR indicated that patient was 'Homeless' or 'Transient'",
+    skip_pattern = "No value entered if there was not information for patient address or report comments"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_pobox,
+    description = "PO BOX information that was provided as the patient's address"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_num,
+    description = "Street number of Patient Address, contains letters and numbers
+    For an address of 123 Example St #45, City, TX, 77054 the Address Number would be '123'"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_street,
+    description = "Street Name of Patient Address
+    For an address of 123 Example St #45, City, TX, 77054 the Street Name would be 'Example St'",
+    skip_pattern = "Intersections and values relating to either an 'Unknown' address or that the patient was Homeless/Transient were converted to missing values"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_unit,
+    description = "Unit Number of Patient Address
+    For an address of 123 Example St #45, City, TX, 77054 the Unit Number would be '45'"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_city,
+    description = "City of Patient Address
+    For an address of 123 Example St #45, City, TX, 77054 the City would be 'City'"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_state,
+    description = "Two-letter state abbreviation of the State of Patient Address, with two-letter country prefix
+    For an address of 123 Example St #45, City, TX, 77054 the City would be 'US-TX'"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_zip,
+    description = "Zip Code of Patient Address
+    For an address of 123 Example St #45, City, TX, 77054 the City would be '77054'"
+  ) %>%
+  cb_add_col_attributes(
+    detect_cond_anxious,
+    description = "Does the patient or older adult appear depressed, anxious, or emotionally distressed for reasons other than their immediate medical condition?"
+  ) %>%
+  cb_add_col_attributes(
+    detect_cond_hygiene,
+    description = "Does the patient or older adult have poor personal hygiene (including soiled in urine or feces)?"
+  ) %>%
+  cb_add_col_attributes(
+    detect_cond_needs,
+    description = "Does the patient or older adult have unmet needs for assistance with eating, toileting, transferring, dressing, or bathing?"
+  ) %>%
+  cb_add_col_attributes(
+    detect_cond_clothes,
+    description = "Is the patient or older adult inadequately clothed or wearing dirty, torn, or soiled clothing?"
+  ) %>%
+  cb_add_col_attributes(
+    detect_meds_difficulty,
+    description = "Does the patient or older adult have difficulties taking their prescribed medications as directed?"
+  ) %>%
+  cb_add_col_attributes(
+    detect_meds_hoarding,
+    description = "Does the patient or older adult appear to be hoarding or saving old medications?"
+  ) %>%
+  cb_add_col_attributes(
+    detect_caregiver_anxious,
+    description = "If a caregiver is present, they appear overly concerned (eg, anxious, hovering)"
+  ) %>%
+  cb_add_col_attributes(
+    detect_caregiver_frustrated,
+    description = "If a caregiver is present, they appear frustrated, tired, angry, or burdened by the patient or older adult"
+  ) %>%
+  cb_add_col_attributes(
+    detect_caregiver_lack,
+    description = "If caregiver present, they appear to lack knowledge of the patient or older adult's medical needs"
+  ) %>%
+  cb_add_col_attributes(
+    detect_caregiver_inattentive,
+    description = "If a caregiver is present, they appear unengaged and inattentive in caring for the patient or older adult"
+  ) %>%
+  cb_add_col_attributes(
+    detect_env_isolated,
+    description = "Is the patient or older adult isolated in the home?"
+  ) %>%
+  cb_add_col_attributes(
+    detect_env_concern,
+    description = "Living environment poses a health or safety concern (eg, fire hazard, insect or rodent infestation, or urine or feces present)"
+  ) %>%
+  cb_add_col_attributes(
+    detect_env_hoarding,
+    description = "Inside of the home is in extreme disarray or there is hoarding"
+  ) %>%
+  cb_add_col_attributes(
+    detect_env_odor,
+    description = "Unusual odor (eg, urine, feces)"
+  ) %>%
+  cb_add_col_attributes(
+    detect_report_made,
+    description = "Was an APS Report made?"
+  ) %>%
+  cb_add_col_attributes(
+    detect_report_num,
+    description = "APS Report number recorded by EMS in the DETECT Tool",
+    skip_pattern = "Entries which did not have a number, but only a comment, were shifted to another variable and replaced with missing values"
+  ) %>%
+  cb_add_col_attributes(
+    detect_report_comment,
+    col_type = "Comments by EMS personnel",
+    description = "Any content in the Report Number field that was not a report number"
+  ) %>%
+  cb_add_col_attributes(
+    detect_report_aps_unable,
+    description = "Comments by EMS in the Report Number field indicated they were unable to reach APS to file a report"
+  ) %>%
+  cb_add_col_attributes(
+    detect_report_aps_onscene,
+    description = "Comments by EMS in the Report Number field indicated that APS was already on scene with the patient"
+  ) %>%
+  cb_add_col_attributes(
+    detect_report_aps_existing,
+    description = "Comments by EMS in the Report Number field indicated their belief APS was already aware, or they were provided a report number by another party"
+  ) %>%
+  cb_add_col_attributes(
+    detect_facility,
+    description = "Comments by EMS in the Report Number field indicated a report was not filed because the patient was in the care of a facility such as a Nursing Home"
+  ) %>%
+  cb_add_col_attributes(
+    detect_other_reporter,
+    description = "Comments by EMS in the Report Number field indicated a report was not filed by EMS due to the belief another party, such as hospital staff or a social worker, would file a report"
+  ) %>%
+  cb_add_col_attributes(
+    detect_uta,
+    description = "Comments by EMS in the Report Number field indicated they were unable to use the DETECT tool as the patient was in a public location, or lived in a separate location from the encounter"
+  ) %>%
+  cb_add_col_attributes(
+    response_pcr,
+    description = "Unique PCR number for the encounter, identifying the unique patient care record"
+  ) %>%
+  cb_add_col_attributes(
+    response_num,
+    description = "Response number for the incident assigned through EMS dispatch - each dispatch incident potentially has more than one patient"
+  ) %>%
+  cb_add_col_attributes(
+    event_type,
+    col_type = "Binary Category",
+    description = "Event Type (APS Intake or MedStar Response)"
+  ) %>%
+  cb_add_col_attributes(
+    event_dt,
+    col_type = "Date and Time",
+    description = "Date and Time of the event (APS Intake or MedStar Response)"
+  ) %>%
+  cb_add_col_attributes(
+    event_date,
+    col_type = "Date",
+    description = "Date of the event (APS Intake or MedStar Response)"
+  ) %>%
+  cb_add_col_attributes(
+    event_year,
+    col_type = "Year",
+    description = "Year of the event (APS Intake or MedStar Response)"
+  ) %>%
+  cb_add_col_attributes(
+    event_month,
+    col_type = "Month",
+    description = "Month of the event (APS Intake or MedStar Response)"
+  ) %>%
+  cb_add_col_attributes(
+    event_day,
+    col_type = "Day",
+    description = "Day of the event (APS Intake or MedStar Response)"
+  ) %>%
+  cb_add_col_attributes(
+    event_time,
+    col_type = "Time - Hour:Minute:Second",
+    description = "Time of the event (APS Intake or MedStar Response)"
+  ) %>%
+  cb_add_col_attributes(
+    response_complaint,
+    description = "Chief complaint of original incident dispatch"
+  ) %>%
+  cb_add_col_attributes(
+    response_symptoms,
+    description = "Symptoms associated with the incident as entered by EMS"
+  ) %>%
+  cb_add_col_attributes(
+    response_dispo,
+    description = "Disposition/Resolution code of incident"
+  ) %>%
+  cb_add_col_attributes(
+    response_ems_epcr_sig,
+    description = "Name entered into signature box by EMS personnel, intended to capture the name of the EMS provider associated with the call"
+  ) %>%
+  cb_add_col_attributes(
+    comp_report_agency,
+    col_type = "Agency Abbreviation",
+    description = "Agency to which a report was made"
+  ) %>%
+  cb_add_col_attributes(
+    comp_report_date,
+    col_type = "Date",
+    description = "Date of the patient encounter that the report referenced"
+  ) %>%
+  cb_add_col_attributes(
+    comp_report_num,
+    col_type = "Report Number",
+    description = "Report confirmation number provided by the receiving agency"
+  ) %>%
+  cb_add_col_attributes(
+    comp_report_created_dt,
+    col_type = "Date and Time",
+    description = "Date and time the report was made"
+  ) %>%
+  cb_add_col_attributes(
+    comp_report_created_date,
+    col_type = "Date",
+    description = "Date the report was made"
+  ) %>%
+  cb_add_col_attributes(
+    comp_report_created_time,
+    col_type = "Time - Hour:Minute:Second",
+    description = "Time the report was made"
+  ) %>%
+  cb_add_col_attributes(
+    comp_report_comment,
+    col_type = "Comments by Compliance Personnel",
+    description = "Any values in the Report Number field that were not report numbers"
+  ) %>%
+  cb_add_col_attributes(
+    comp_report_num_list,
+    col_type = "List",
+    description = "List of all Report Numbers in the Compliance Data for the same Response Number; codebook summary statistics provided based on the length of the list"
+  ) %>%
+  cb_add_col_attributes(
+    comp_report_created_list,
+    col_type = "List",
+    description = "List of all Report Creation Date/Time values in the Compliance Data for the same Response Number; codebook summary statistics provided based on the length of the list"
+  ) %>%
+  cb_add_col_attributes(
+    detect_screened,
+    description = "Was a DETECT screening performed? DETECT screening defined as an answer to at least one DETECT Tool Question, including 'Was a Report Made?'"
+  ) %>%
+  cb_add_col_attributes(
+    detect_positive,
+    description = "Was there a positive DETECT Screening? Positive screening defined as an answer of 'YES' to at least one DETECT screening item"
+  ) %>%
+  cb_add_col_attributes(
+    ms_subj_num_responses,
+    col_type = "Count",
+    description = "Number of MedStar responses for a Subject within the MedStar data set"
+  ) %>%
+  cb_add_col_attributes(
+    ms_subj_num_paired_intakes,
+    col_type = "Count",
+    description = "Number of responses with a paired APS Intake for the Subject"
+  ) %>%
+  cb_add_col_attributes(
+    ms_subj_num_paired_cases,
+    col_type = "Count",
+    description = "Number of APS Case Numbers associated with the paired APS Intakes for the Subject"
+  ) %>%
+  cb_add_col_attributes(
+    ms_subj_earliest,
+    col_type = "Date/Time",
+    description = "Earliest response for a subject in the MedStar data set"
+  ) %>%
+  cb_add_col_attributes(
+    ms_subj_latest,
+    col_type = "Date/Time",
+    description = "Latest response for a subject in the MedStar data set"
+  ) %>%
+  cb_add_col_attributes(
+    aps_row,
+    description = "Identifies row number of the observation in original APS data set"
+  ) %>%
+  cb_add_col_attributes(
+    aps_person_id,
+    description = "Unique Subject ID originally created by APS and verified in cleaning"
+  ) %>%
+  cb_add_col_attributes(
+    pt_address_county,
+    description = "County listed for Patient Address, as entered by APS",
+    skip_pattern = "Variable not present in MedStar data sets"
+  ) %>%
+  cb_add_col_attributes(
+    aps_case_num,
+    description = "APS Case Number"
+  ) %>%
+  cb_add_col_attributes(
+    aps_intake_num,
+    description = "APS Intake Number - indicates a single reporting event, but may include multiple reporters"
+  ) %>%
+  cb_add_col_attributes(
+    aps_inv_num,
+    description = "APS Investigation Number - automatically generated from Intake Number"
+  ) %>%
+  cb_add_col_attributes(
+    aps_reporter,
+    description = "Relationship of APS reporter to patient"
+  ) %>%
+  cb_add_col_attributes(
+    aps_inv_close_dt,
+    col_type = "Date and Time",
+    description = "Date and Time of the Investigation Close"
+  ) %>%
+    cb_add_col_attributes(
+    aps_inv_close_date,
+    col_type = "Date",
+    description = "Date of the APS Investigation Close"
+  ) %>%
+    cb_add_col_attributes(
+    aps_inv_close_time,
+    col_type = "Time",
+    description = "Time of the APS Investigation Close"
+  ) %>%
+    cb_add_col_attributes(
+    aps_inv_close_year,
+    col_type = "Year",
+    description = "Year of the APS Investigation Close"
+  ) %>%
+    cb_add_col_attributes(
+    aps_inv_close_month,
+    col_type = "Month",
+    description = "Month of the APS Investigation Close"
+  ) %>%
+    cb_add_col_attributes(
+    aps_inv_close_day,
+    col_type = "Day",
+    description = "Day of the APS Investigation Close"
+  ) %>%
+  cb_add_col_attributes(
+    aps_inv_close_reason,
+    description = "Reason for APS Investigation Closure"
+  ) %>%
+  cb_add_col_attributes(
+    aps_rows_any_valid,
+    description = "Were any allegations found to be valid in the APS Intake?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_cases_any_valid,
+    description = "Were any allegations found to be valid in the APS Case Number, across all associated APS Intakes?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_any_valid,
+    description = "Were any allegations found to be valid for the Subject, across all associated APS Intakes?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_rows_none,
+    description = "Were there no allegations with determinations of any kind in the APS Intake?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_cases_none,
+    description = "Were there no allegations with determinations of any kind for the APS Case Number, across all associated Intakes?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_none,
+    description = "Were there no allegations with determinations of any kind for the Subject, across all associated Intakes?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_rows_reporter_ems,
+    description = "Was the reporter for the APS Intake specifically listed as EMS/EMT?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_cases_reporter_ems,
+    description = "Was there at least one intake with an EMS/EMT reporter in the APS Case Number, across all associated Intakes?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_reporter_ems,
+    description = "Was there at least one intake with an EMS/EMT reporter for the Subject, across all associated Intakes?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_rows_reporter_health,
+    description = "Was the reporter for the APS Intake listed as a Health Care Professional, either specifically EMS/EMT or non-specific?"
+  ) %>%
+    cb_add_col_attributes(
+    aps_cases_reporter_health,
+    description = "Was there at least one intake in the APS Case Number with a reporter listed as a Health Care Professional, either specifically EMS/EMT or non-specific, across all associated Intakes?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_reporter_health,
+    description = "Was there at least one intake for the Subject with a reporter listed as a Health Care Professional, either specifically EMS/EMT or non-specific, across all associated Intakes?"
+  ) %>%
+  cb_add_col_attributes(
+    aps_cases_earliest,
+    col_type = "Date/Time",
+    description = "Earliest APS Intake Date/Time associated with the APS Case Number"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_earliest,
+    col_type = "Date/Time",
+    description = "Earliest APS Intake Date/Time associated with the Subject"
+  ) %>%
+  cb_add_col_attributes(
+    aps_cases_latest,
+    col_type = "Date/Time",
+    description = "Latest APS Intake Date/Time associated with the APS Case Number"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_latest,
+    col_type = "Date/Time",
+    description = "Latest APS Intake Date/Time associated with the Subject"
+  ) %>%
+  cb_add_col_attributes(
+    aps_cases_num_intakes,
+    description = "Number of APS Intakes associated with a specific APS Case Number"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_num_intakes,
+    description = "Number of APS Intakes associated with a specific Subject"
+  ) %>%
+  cb_add_col_attributes(
+    aps_subject_num_cases,
+    description = "Number of APS Case Numbers associated with a specific Subject"
+  )
+```
+
+# Codebook Generation
+
+We generated our codebook, with title, subtitle, and description. We blocked summary statistics on our PHI fields.
+
+```{r}
+#| message: false
+
+medstar_aps_merged_01_timeline_all_rows <- merged_data
+
+book <- codebook(
+  df = medstar_aps_merged_01_timeline_all_rows,
+  title = "DETECT 1-Year",
+  subtitle = "All Subject Events in MedStar and APS Data sets",
+  description = "In collaboration with MedStar Mobile Healthcare (https://www.medstar911.org/) and Texas Adult Protective Services.
+  MedStar data was originally collected during the course of MedStar operations from February 2017 - February 2018 as part of the Detection of Elder abuse Through Emergency Care Technicans (DETECT) screening tool pilot project (doi: 10.1080/08946566.2018.1564104). 
+  APS data was originally collected during the course of Adult Protective Services operations, with Intake dates from 12/31/2014 - 2/28/2018 and Closure dates from 1/3/2015 - 6/28/2018.
+  MedStar electronic Patient Care Record (ePCR) data, MedStar Compliance data, and APS Investigation data was utilized for this data set. 
+  The DETECT screening tool, made available on MedStar ePCR systems when MedStar EMS personnel encountered patients 65 years of age or older. MedStar Mobile Healthcare operations covered both 911 and interfacility calls for service within the Dallas-Fort Worth Metroplex in the State of Texas, with primary coverage in the Fort Worth region.",
+
+  no_summary_stats = phi_vars,
+  keep_blank_attributes = FALSE)
+```
+
+# Exporting Codebook to DOCX Format
+
+```{r}
+print(book, here("docs", "codebooks", 
+                 "medstar_aps_merged_codebook_01_timeline_all_rows.docx"))
+```
