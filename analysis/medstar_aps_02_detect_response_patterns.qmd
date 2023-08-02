@@ -374,7 +374,6 @@ get_occurence_pattern <- function(t_df, t_cols, t_response, t_vars = NULL){
 }
 ```
 
-
 # Analysis
 
 ## Consolidation of "Reported" Variable
@@ -404,6 +403,22 @@ outcome_vars <- medstar %>%
   select(reported, valid_case, valid_subj) %>%
   names()
 ```
+
+We also made an alternative version of the data set for sensitivity analysis. This version eliminated any paired APS Intakes which were not explicitly an "EMS/EMT" reporter.
+
+```{r}
+medstar_ems <- medstar %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  mutate(valid_case = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA, 
+    valid_case))
+```
+
 
 ## Selecting Variables
 
@@ -440,6 +455,9 @@ There were 24,007 Observations with a DETECT screening. This included 15,212 Sub
 screened <- medstar %>%
   filter(detect_screened)
 
+screened_ems <- medstar_ems %>%
+  filter(detect_screened)
+
 nrow(screened) 
 
 length(unique(screened$id))
@@ -452,10 +470,16 @@ get_column_pattern(screened, detect_questions, "YES") %>%
   select(-c(contains("NOT_APPLICABLE")))
 ```
 
-We also analyzed the pattern of outcomes co-occuring with an answer of "YES" to the DETECT question variables in the 24,007 responses which contained a screening.  
+We also analyzed the pattern of outcomes co-occurring with an answer of "YES" to the DETECT question variables in the 24,007 responses which contained a screening.
 
 ```{r}
 get_occurence_pattern(screened, detect_questions, "YES", outcome_vars)
+```
+
+This outcome pattern was also assessed for only the explicit "EMS/EMT" reporter type observations, to assess for sensitivity.
+
+```{r}
+get_occurence_pattern(screened_ems, detect_questions, "YES", outcome_vars)
 ```
 
 
@@ -492,6 +516,9 @@ We isolated the 338 screenings that either indicated a report was made, or conta
 checking <- screened %>%
   filter(reported)
 
+checking_ems <- screened_ems %>%
+  filter(reported)
+
 nrow(checking)
 ```
 
@@ -508,6 +535,11 @@ We analyzed the outcome pattern associated with "YES" responses to all DETECT va
 get_occurence_pattern(checking, detect_questions, "YES", outcome_vars)
 ```
 
+This outcome pattern was also assessed for only the explicit "EMS/EMT" reporter type observations, to assess for sensitivity.
+
+```{r}
+get_occurence_pattern(checking_ems, detect_questions, "YES", outcome_vars)
+```
 
 ### No Report Made
 
@@ -515,6 +547,9 @@ We then isolated the 23,647 screenings which indicated no report was made, and l
 
 ```{r}
 checking <- screened %>%
+  filter(!reported)
+
+checking_ems <- screened_ems %>%
   filter(!reported)
 
 nrow(checking)
@@ -531,4 +566,10 @@ We analyzed the outcome pattern associated with "YES" responses to all DETECT va
 
 ```{r}
 get_occurence_pattern(checking, detect_questions, "YES", outcome_vars)
+```
+
+This outcome pattern was also assessed for only the explicit "EMS/EMT" reporter type observations, to assess for sensitivity.
+
+```{r}
+get_occurence_pattern(checking_ems, detect_questions, "YES", outcome_vars)
 ```
