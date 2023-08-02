@@ -1,7 +1,7 @@
 ---
 title: "Merge APS and MedStar"
 format: html
-editor: visual
+#editor: visual
 ---
 
 # Summary
@@ -32,6 +32,8 @@ editor: visual
 
 -   A merged data set containing a single row per subject, containing only subject-wide aggregate data for each subject in the MedStar data set (and associated subject-wide data from the APS data set, if present) was created
 
+-   A merged data set containing additional APS Case Number temporal matching was created
+
 # Imports
 
 ## Library Imports
@@ -50,21 +52,23 @@ library(lubridate)
 We imported the revised MedStar data set for processing.
 
 ```{r}
-medstar <- readRDS(here("data","DETECT Shared GRAs", "medstar_cleaning",
-                        "medstar_03.rds"))
+medstar <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                        "medstar_cleaning", "medstar_03.rds"))
 ```
 
 We imported the revised APS data set for processing.
 
 ```{r}
-aps <- readRDS(here("data","DETECT Shared GRAs", "aps_cleaning", "aps_05.rds"))
+aps <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                    "aps_cleaning", "aps_05.rds"))
 ```
 
 We imported the APS Intake-MedStar Response merge pattern for processing.
 
 ```{r}
-row_pattern <- readRDS(here("data","DETECT Shared GRAs","merge_aps_medstar",
-                              "medstar_aps_full_row_map_01.rds"))
+row_pattern <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs",
+                            "merge_aps_medstar", 
+                            "medstar_aps_full_row_map_01.rds"))
 ```
 
 # Ordering Columns in Original Data Sets
@@ -113,13 +117,14 @@ We ordered the columns of our APS data set to facilitate additional analyses and
 aps_cols <- c(universal_id_vars, aps_event_vars, aps_pt_vars, aps_row_vars, 
               aps_case_vars, aps_subj_vars, aps_inv_vars)
 
-aps <- aps[,aps_cols]
+aps <- aps[,aps_cols]#
 ```
 
 We saved the revised data set for later use.
 
 ```{r}
-saveRDS(aps, here("data","DETECT Shared GRAs", "aps_cleaning", "aps_06.rds"))
+# saveRDS(aps, here("data", "02 Shared Folders", "DETECT Shared GRAs",
+#                   "aps_cleaning", "aps_06.rds"))
 ```
 
 ## MedStar
@@ -230,8 +235,8 @@ medstar <- medstar[,ms_cols]
 We saved the revised data set for later use.
 
 ```{r}
-saveRDS(medstar, here("data","DETECT Shared GRAs", "medstar_cleaning",
-                        "medstar_04.rds"))
+# saveRDS(medstar, here("data", "02 Shared Folders", "DETECT Shared GRAs",
+#                       "medstar_cleaning", "medstar_04.rds"))
 ```
 
 # Modification of Patient Identifier Variables
@@ -356,8 +361,9 @@ merged_set <- merged_set[,timeline_cols]
 We saved and exported this data set.
 
 ```{r}
-saveRDS(merged_set, here("data","DETECT Shared GRAs","merge_aps_medstar",
-                              "medstar_aps_merged_01_timeline_all_rows.rds"))
+# saveRDS(merged_set, here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+#                          "merge_aps_medstar",
+#                          "medstar_aps_merged_01_timeline_all_rows.rds"))
 ```
 
 ## 2. All Responses, Adding Paired Intake Data
@@ -416,14 +422,22 @@ aps_modified <- aps %>%
 We utilized this to update subject-level data across all observations in the merged data set.
 
 ```{r}
-merged_set <- rows_update(merged_set, aps_modified, by=c('id', 'aps_person_id', 'ms_id'))
+merged_set <- rows_update(merged_set, aps_modified, 
+                          by=c('id', 'aps_person_id', 'ms_id'))
+```
+
+We also copied the column order for a later data set.
+
+```{r}
+column_order <- colnames(merged_set)
 ```
 
 We saved and exported this data set.
 
 ```{r}
-saveRDS(merged_set, here("data","DETECT Shared GRAs","merge_aps_medstar",
-                "medstar_aps_merged_02_response_based_row_pairs.rds"))
+# saveRDS(merged_set, here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+#                          "merge_aps_medstar",
+#                 "medstar_aps_merged_02_response_based_row_pairs.rds"))
 ```
 
 ## 3. Subjects in Aggregate, Single Row per Subject
@@ -530,6 +544,198 @@ merged_set <- merged_set[,subj_merged_cols]
 We saved and exported this data set.
 
 ```{r}
-saveRDS(merged_set, here("data","DETECT Shared GRAs","merge_aps_medstar",
-                         "medstar_aps_merged_03_single_subject_per_row.rds"))
+# saveRDS(merged_set, here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+#                          "merge_aps_medstar",
+#                          "medstar_aps_merged_03_single_subject_per_row.rds"))
+```
+
+## 4. Case-Number Association Based
+
+We re-imported our data sets to perform specific filtering and matching in this data set.
+
+```{r}
+medstar <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                      "medstar_cleaning", "medstar_04.rds"))
+
+aps <- readRDS(here("data", "02 Shared Folders","DETECT Shared GRAs", 
+                  "aps_cleaning", "aps_06.rds"))
+```
+
+### Filtering of Source Data Sets
+
+#### IDs in Both Data Sets
+
+We filtered our MedStar and APS data set to only include subjects present in both data sets. This reduced our search space to 1,967 subjects in both data sets, across 5,490 MedStar responses and 4,188 APS Intakes.
+
+```{r}
+medstar_ids <- unique(medstar$id)
+
+aps_ids <- unique(aps$id)
+
+medstar_set <- medstar %>%
+  filter(id %in% aps_ids) %>%
+  mutate(aps_case_num = NA_integer_)
+
+nrow(medstar_set)
+length(unique(medstar_set$id))
+
+aps_set <- aps %>%
+  filter(id %in% medstar_ids)
+
+nrow(aps_set)
+length(unique(aps_set$id))
+```
+
+#### APS Intakes *After* Any Potential MedStar Response
+
+For an APS Intake to have a valid MedStar Response, the MedStar Response must precede the APS Intake. In order to filter by this metric, we isolated the single earliest MedStar Response for each subject within the MedStar data set.
+
+```{r}
+nrow(medstar)
+length(unique(medstar$id))
+
+ms_earliest <- medstar_set %>%
+  group_by(id) %>%
+  slice_min(order_by = response_dt, with_ties = FALSE) 
+
+nrow(ms_earliest)
+length(unique(ms_earliest$id))
+```
+
+We excluded any Intakes that occurred prior to the earliest MedStar Response for each subject. This reduced our APS data set to 1,747 Intakes across 1,376 APS Case Numbers and 1,064 APS Person IDs.
+
+```{r}
+aps_set <- aps_set %>%
+  rowwise() %>% 
+  filter(aps_intake_dt > ms_earliest[ms_earliest$id==id,]$response_dt) %>%
+  ungroup()
+
+nrow(aps_set)
+length(unique(aps_set$aps_case_num))
+length(unique(aps_set$id))
+```
+
+#### Refining to Single APS Intake per Case Number
+
+We removed the Intake specific data from each row, and isolated each row to only contain the APS Case-Number level data. This reduced our APS search space to 1,376 rows, each containing a unique APS Case Number, across 1,064 Subjects.
+
+```{r}
+aps_cases <- aps_set %>%
+  select(-all_of(starts_with("aps_rows_"))
+         ) %>%
+  group_by(aps_case_num) %>%
+  slice_head(n=1) %>%
+  ungroup()
+
+nrow(aps_cases)
+length(unique(aps_cases$id))
+length(unique(aps_cases$aps_case_num))
+```
+
+#### APS Cases Within 30 Days of MedStar Response
+
+We modified the APS case data set to include a calculated Case Window between the earliest and latest intake associated with the APS Case Number. We then assessed for any and all MedStar responses referring to the same subject which were temporally associated with the APS Case Numbers. For an APS Case to be considered temporally associated with a MedStar response, the APS Case Window was required to overlap with the 30 day period that began at the response date and time. If there were multiple APS Cases potentially associated with a single MedStar response for a subject, the earliest (temporally closest) APS Case Number was selected.
+
+```{r}
+aps_cases <- aps_cases %>%
+  mutate(case_window = interval(start = aps_cases_earliest, 
+                                end = aps_cases_latest))
+
+for (i in 1:nrow(medstar_set)){
+  
+  t_row <- medstar_set[i,]
+  t_id <- t_row$id
+  
+  if (t_id %in% aps_cases$id){
+    
+    window <- interval(start = t_row$response_dt, 
+                       end = t_row$response_dt + ddays(30))
+    
+    case_data <- aps_cases %>%
+      filter(id == t_id & int_overlaps(case_window, window))
+    
+
+    if(nrow(case_data) == 1){
+      medstar_set[i,]$aps_case_num <- case_data$aps_case_num
+    }
+    
+    if(nrow(case_data) > 1){
+      case_data <- case_data %>%
+        arrange(aps_cases_earliest) %>%
+        slice_head(n=1)
+      
+      medstar_set[i,]$aps_case_num <- case_data$aps_case_num
+    }
+    
+    
+  }
+  
+}
+
+```
+
+### Merging
+
+#### Adding APS-Case Numbers
+
+We isolated the APS Case Numbers and associated variables into a map. We utilized this map to add APS Case Number values to rows which were missing a value for an APS Case Number.
+
+```{r}
+case_map <- medstar_set %>%
+  select(id, ms_epcr_row, aps_case_num)
+
+medstar_merged <- rows_patch(medstar, case_map, by=c("id","ms_epcr_row"))
+```
+
+We then isolated the values associated with each APS Case Number, and merged these values into the MedStar data set for each matching APS Case Number.
+
+```{r}
+aps_cases <- aps_cases %>%
+  select(aps_case_num, all_of(starts_with("aps_cases_"))) %>%
+  distinct()
+
+medstar_merged <-left_join(medstar_merged, aps_cases, by="aps_case_num")
+```
+
+#### Adding Subject-Level Data
+
+We isolated the values associated with each APS Subject on the aggregate subject level, and merged these values into the MedStar data set.
+
+```{r}
+aps_subject <- aps_set %>%
+  select(aps_person_id, all_of(starts_with("aps_subject_"))) %>%
+  distinct()
+
+medstar_merged <- left_join(medstar_merged, aps_subject, by="aps_person_id")
+```
+
+#### Adding Row-Specific Data
+
+We isolated the APS Intake specific data, and added it to the MedStar data set for each directly paired Intake.
+
+```{r}
+aps_row <- aps %>%
+  select(aps_row, all_of(starts_with("aps_rows_")), all_of(starts_with("aps_inv_")), all_of(starts_with("aps_intake_")),
+         aps_reporter, pt_address_county) %>%
+  distinct()
+
+medstar_merged <- left_join(medstar_merged, aps_row, by="aps_row")
+```
+
+### Ordering Columns
+
+We applied the previously saved column order.
+
+```{r}
+medstar_merged <- medstar_merged[,column_order]
+```
+
+### Save and Export
+
+We exported this merged data set for further analysis.
+
+```{r}
+saveRDS(medstar_merged, here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                             "merge_aps_medstar",
+                         "medstar_aps_merged_04_temporal_case_nums.rds"))
 ```
