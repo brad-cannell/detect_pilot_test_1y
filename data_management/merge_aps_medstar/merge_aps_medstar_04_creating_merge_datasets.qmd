@@ -1,7 +1,7 @@
 ---
 title: "Merge APS and MedStar"
 format: html
-#editor: visual
+editor: visual
 ---
 
 # Summary
@@ -123,8 +123,8 @@ aps <- aps[,aps_cols]#
 We saved the revised data set for later use.
 
 ```{r}
-# saveRDS(aps, here("data", "02 Shared Folders", "DETECT Shared GRAs",
-#                   "aps_cleaning", "aps_06.rds"))
+saveRDS(aps, here("data", "02 Shared Folders", "DETECT Shared GRAs",
+                  "aps_cleaning", "aps_06.rds"))
 ```
 
 ## MedStar
@@ -235,8 +235,8 @@ medstar <- medstar[,ms_cols]
 We saved the revised data set for later use.
 
 ```{r}
-# saveRDS(medstar, here("data", "02 Shared Folders", "DETECT Shared GRAs",
-#                       "medstar_cleaning", "medstar_04.rds"))
+saveRDS(medstar, here("data", "02 Shared Folders", "DETECT Shared GRAs",
+                      "medstar_cleaning", "medstar_04.rds"))
 ```
 
 # Modification of Patient Identifier Variables
@@ -361,9 +361,9 @@ merged_set <- merged_set[,timeline_cols]
 We saved and exported this data set.
 
 ```{r}
-# saveRDS(merged_set, here("data", "02 Shared Folders", "DETECT Shared GRAs", 
-#                          "merge_aps_medstar",
-#                          "medstar_aps_merged_01_timeline_all_rows.rds"))
+saveRDS(merged_set, here("data", "02 Shared Folders", "DETECT Shared GRAs",
+                         "merge_aps_medstar",
+                         "medstar_aps_merged_01_timeline_all_rows.rds"))
 ```
 
 ## 2. All Responses, Adding Paired Intake Data
@@ -435,9 +435,9 @@ column_order <- colnames(merged_set)
 We saved and exported this data set.
 
 ```{r}
-# saveRDS(merged_set, here("data", "02 Shared Folders", "DETECT Shared GRAs", 
-#                          "merge_aps_medstar",
-#                 "medstar_aps_merged_02_response_based_row_pairs.rds"))
+saveRDS(merged_set, here("data", "02 Shared Folders", "DETECT Shared GRAs",
+                         "merge_aps_medstar",
+                "medstar_aps_merged_02_response_based_row_pairs.rds"))
 ```
 
 ## 3. Subjects in Aggregate, Single Row per Subject
@@ -544,9 +544,9 @@ merged_set <- merged_set[,subj_merged_cols]
 We saved and exported this data set.
 
 ```{r}
-# saveRDS(merged_set, here("data", "02 Shared Folders", "DETECT Shared GRAs", 
-#                          "merge_aps_medstar",
-#                          "medstar_aps_merged_03_single_subject_per_row.rds"))
+saveRDS(merged_set, here("data", "02 Shared Folders", "DETECT Shared GRAs",
+                         "merge_aps_medstar",
+                         "medstar_aps_merged_03_single_subject_per_row.rds"))
 ```
 
 ## 4. Case-Number Association Based

@@ -1,7 +1,7 @@
 ---
 title: "medstar_aps_merged_04_temporal_case_nums"
 format: html
-#editor: visual
+editor: visual
 ---
 
 # Summary
@@ -33,16 +33,10 @@ library(stringr)
 The composite MedStar data set was imported.
 
 ```{r}
-merged_data <- readRDS(here("data",
-                         "medstar_aps_merged_04_temporal_case_nums.rds"))
+merged_data <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs",
+                            "merge_aps_medstar",
+                            "medstar_aps_merged_04_temporal_case_nums.rds"))
 ```
-
-```{r}
-# merged_data <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
-#                             "merge_aps_medstar",
-#                             "medstar_aps_merged_04_temporal_case_nums.rds"))
-```
-
 
 # Initial Data Structure
 
