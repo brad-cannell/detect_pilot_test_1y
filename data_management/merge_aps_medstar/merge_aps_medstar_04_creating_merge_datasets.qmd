@@ -702,7 +702,7 @@ medstar_merged <-left_join(medstar_merged, aps_cases, by="aps_case_num")
 We isolated the values associated with each APS Subject on the aggregate subject level, and merged these values into the MedStar data set.
 
 ```{r}
-aps_subject <- aps_set %>%
+aps_subject <- aps %>%
   select(aps_person_id, all_of(starts_with("aps_subject_"))) %>%
   distinct()
 
