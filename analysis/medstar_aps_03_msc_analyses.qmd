@@ -1,0 +1,2568 @@
+---
+title: "DETECT 1-Year Miscellaneous Analyses"
+format: html
+#editor: visual
+---
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(here)
+library(mice)
+```
+
+## Data Imports
+
+We imported the revised MedStar data set for processing.
+
+```{r}
+medstar <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                        "medstar_cleaning", "medstar_04.rds"))
+```
+
+We imported the revised APS data set for processing.
+
+```{r}
+aps <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                    "aps_cleaning", "aps_06.rds"))
+```
+
+We imported the merged data set that included all MedStar responses and any paired data.
+
+```{r}
+paired_df <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                          "merge_aps_medstar",
+                "medstar_aps_merged_02_response_based_row_pairs.rds"))
+```
+
+We imported the merged data set that included the subject-wide aggregate data.
+
+```{r}
+subj_df <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                        "merge_aps_medstar",
+                         "medstar_aps_merged_03_single_subject_per_row.rds"))
+```
+
+We imported the data set which included the case number paired data created from temporal matching of responses to APS case intake windows.
+
+```{r}
+case_data <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs",
+                            "merge_aps_medstar",
+                            "medstar_aps_merged_04_temporal_case_nums.rds"))
+```
+
+## Functions
+
+### Unique Value Summary
+
+A function written in a previous cleaning document was imported. It was written to display counts of each unique observations within a selection of columns.
+
+```{r}
+get_unique_value_summary <- function(df,cols){
+  
+  # Input: 
+  #     df (data frame) - original source data frame
+  #     cols (list) - list of target column names as strings
+  # Output:
+  #     unique_summary (data frame) - summary counts of each unique value in
+  #           each of the target columns
+  
+  # Get list of unique values in all target columns
+  
+  val <- unique(as.factor(as.vector(as.matrix(df[cols]))))
+  
+  # Initialize output data frame with unique value row
+  
+  unique_summary <- data.frame("value"=val)
+  
+  # Get counts of unique values in original data frame
+  
+  for (i in cols){
+    
+    # utilizes table to get summary count of each column
+    
+    table <- as.data.frame(table(df[i]))
+    
+    # sets column names to "value" and "freq"
+    
+  colnames(table) <- c("value","freq")
+  
+    # adds count of missing values in each column
+  
+  table<- add_row(table, value = NA, freq = sum(is.na(df[i])))
+  
+    # readjusts names of columns to "value" and the name of the target column
+  
+  colnames(table) <- c("value",i)
+  
+    # joins table's summary counts to complete the count values
+  
+    unique_summary <- left_join(unique_summary,table, by="value")
+  }
+  
+  # returns completed, but unordered, data frame
+  
+  unique_summary
+  }
+```
+
+
+# Analyses
+
+## Number of Screenings Performed 
+### Individual Level
+
+There were 28,228 potentially eligible calls for service.
+
+```{r}
+n_calls <- nrow(paired_df)
+
+n_calls
+```
+
+Of these, 24,007 (85.05%) received a screening.
+
+```{r}
+n_screens <- nrow(paired_df[paired_df$detect_screened == "TRUE",])
+n_screens
+
+(n_screens * 100) / n_calls
+```
+
+### Subject Level
+
+There were 16,565 subjects that received at least one call for service.
+
+```{r}
+ns_subj <- nrow(subj_df)
+
+ns_subj
+```
+
+Of these, 15,212 (91.83%) received at least one screening. 
+
+```{r}
+ns_screens <- nrow(subj_df[subj_df$detect_screened > 0,])
+
+ns_screens
+
+(ns_screens * 100) / ns_subj
+```
+
+## Proportion of DETECT Items completed
+
+The 14 DETECT screening tool item variables were identified.
+
+```{r}
+detect_items <- paired_df %>%
+  select(starts_with("detect_")
+         ) %>%
+  select(-c(detect_report_num, detect_uta, detect_facility, 
+            detect_report_comment, detect_other_reporter, 
+            detect_report_aps_unable, detect_report_aps_existing, 
+            detect_report_aps_onscene, detect_screened, detect_positive,
+            detect_report_made)
+         ) %>%
+  names()
+
+detect_items
+```
+
+We calculated the number of items that contained a response for each row. We were able to see that the vast majority of screenings had 10, 14, or 0 items used. 
+
+```{r}
+checking <- paired_df %>%
+  mutate(n_items = rowSums(!is.na(.[, detect_items])))
+
+table(checking$n_items)
+```
+
+The histogram of the number of screening items confirmed the lack of normal distribution, with three significant peaks at 0, 10, and 14 items, with drastically reduced frequency at any other level.
+
+```{r}
+hist(checking$n_items)
+```
+
+All 14 items were completed in 13,859 DETECT Screenings (57.73%)
+
+```{r}
+n_comp <- nrow(checking[checking$n_items == 14,])
+
+n_comp
+
+(n_comp * 100) / n_screens
+```
+
+Only 10 items were completed in 10,026 DETECT Screenings (41.76%).
+
+```{r}
+n_comp <- nrow(checking[checking$n_items == 10,])
+
+n_comp
+
+(n_comp * 100) / n_screens
+```
+
+In examining the pattern of missing variables for the observations with only 10 items completed, we find that it was nearly exclusively due to observations missing the four caregiver screening items (10,003, 99.77%).
+
+```{r}
+md.pattern(checking[checking$n_items == 10, detect_items], rotate.names = TRUE)
+```
+
+There were 16 screenings with fewer than 10 items completed (0.07%)
+
+```{r}
+n_comp <- nrow(checking[(checking$n_items < 10 & checking$n_items > 0),])
+
+n_comp
+
+(n_comp * 100) / n_screens
+```
+
+## Fidelity to Reporting
+
+### Positive Screenings
+
+There were 871 positive screenings (3.63%). A positive screening was defined as one or more detect screening items with a "YES" response.
+
+```{r}
+n_positive <- nrow(checking %>% filter(detect_positive))
+
+n_positive
+
+(n_positive * 100) / n_screens
+```
+
+Of these, 328 (37.66%) included either a positive affirmation of a report ("Yes" to "Was an APS report made?") or included an APS report confirmation number.
+
+```{r}
+n_reported <- nrow(checking %>% 
+                    filter(detect_positive) %>%
+                    filter(detect_report_made == "YES" |
+                             !is.na(detect_report_num)
+                           )
+                   )
+
+n_reported
+
+(n_reported * 100) / n_positive
+```
+
+#### All Matched APS Intakes
+
+We were able to match 273 (83.23%) of these positive screenings with an indication of a report to an APS intake. There were 88 of these (32.23%) which were matched to the MedStar Compliance data set.
+
+```{r}
+n_matched <- checking %>% 
+                filter(detect_positive) %>%
+                filter(detect_report_made== "YES" |
+                         !is.na(detect_report_num)
+                       ) %>%
+                filter(!is.na(aps_row))
+
+nrow(n_matched)
+
+(nrow(n_matched) * 100) / n_reported
+
+n_comp <- nrow(n_matched %>% 
+  filter(!is.na(ms_comp_row)))
+
+n_comp
+
+(n_comp * 100) / nrow(n_matched)
+```
+
+We were also able to match 48 (8.84%) of the positive screenings that either denied or failed to indicate if a report was made to an APS Intake. There were 9 of these (18.75%) which were matched to the MedStar Compliance data set.
+
+```{r}
+n_matched <- checking %>% 
+                filter(detect_positive) %>%
+                filter(!(detect_report_made== "YES" |
+                         !is.na(detect_report_num))
+                       ) %>%
+                filter(!is.na(aps_row))
+
+nrow(n_matched)
+
+(nrow(n_matched) * 100) / (n_positive - n_reported)
+
+n_comp <- nrow(n_matched %>% 
+  filter(!is.na(ms_comp_row)))
+
+n_comp
+
+(n_comp * 100) / nrow(n_matched)
+```
+
+Overall, we were able to match 492 responses (1.74%) to an APS Intake. Of these, 28 (5.69%) did not have an associated screening, 321 (65.24%) were associated with positive screenings, 280 (56.91%) had either an endorsement of a report being made or APS report confirmation number, and 101 (20.53%) were also matched within the MedStar Compliance data.
+
+```{r}
+checking_cols <- checking %>%
+  filter(!is.na(aps_row))
+
+n_matched <- nrow(checking_cols)
+
+n_matched
+
+(n_matched * 100) / nrow(checking)
+
+n_noscreen <- sum(is.na(checking_cols$detect_positive))
+
+n_noscreen
+
+(n_noscreen * 100) / n_matched
+
+n_positive <- sum(checking_cols$detect_positive, na.rm = TRUE)
+
+n_positive
+(n_positive * 100) / n_matched
+
+n_reported <- nrow(checking_cols %>% 
+                     filter(!is.na(detect_report_num)|
+                              (detect_report_made == "YES")))
+
+n_reported
+(n_reported * 100) / n_matched
+
+n_compliance <- sum(!is.na(checking_cols$ms_comp_row))
+
+n_compliance
+(n_compliance * 100) / n_matched
+```
+
+#### Explicit "EMS/EMT" Intakes Only
+
+We were able to match 239 (72.87%) of these positive screenings with an indication of a report to an APS Intake that explicitly specified an EMS/EMT reporter. There were 80 of these (33.47%) which were matched to the MedStar Compliance data set.
+
+```{r}
+n_matched <- checking %>%
+                filter(detect_positive) %>%
+                filter(detect_report_made == "YES" | 
+                         !is.na(detect_report_num)) %>%
+                filter(!is.na(aps_row)) %>%
+                filter(aps_reporter == 
+                         "Health Care Providers/Staff -- EMS/EMT")
+
+nrow(n_matched)
+
+(nrow(n_matched) * 100) / n_reported
+
+n_comp <- nrow(n_matched %>% 
+  filter(!is.na(ms_comp_row)))
+
+n_comp
+
+(n_comp * 100) / nrow(n_matched)
+```
+
+We were also able to match 23 (4.24%) of the positive screenings that either denied or failed to indicate if a report was made to an APS Intake that explicitly specified an EMS/EMT reporter. There were 9 of these (39.13%) which were matched to the MedStar Compliance data set.
+
+```{r}
+n_matched <- checking %>%
+                filter(detect_positive) %>%
+                filter(!(detect_report_made == "YES" | 
+                         !is.na(detect_report_num))) %>%
+                filter(!is.na(aps_row)) %>%
+                filter(aps_reporter == 
+                         "Health Care Providers/Staff -- EMS/EMT")
+
+nrow(n_matched)
+
+(nrow(n_matched) * 100) / (n_positive - n_reported)
+
+n_comp <- nrow(n_matched %>% 
+  filter(!is.na(ms_comp_row)))
+
+n_comp
+
+(n_comp * 100) / nrow(n_matched)
+```
+
+Overall, we were able to match 278 responses (0.98%) to an APS Intake. Of these, 7 (2.52%) did not have an associated screening, 262 (94.24%) were associated with positive screenings, 244 (87.77%) had either an endorsement of a report being made or APS report confirmation number, and 93 (33.45%) were also matched within the MedStar Compliance data.
+
+```{r}
+checking_cols <- checking %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)) %>%
+  filter(!is.na(aps_row))
+
+n_matched <- nrow(checking_cols)
+
+n_matched 
+
+(n_matched * 100) / nrow(checking)
+
+n_noscreen <- sum(is.na(checking_cols$detect_positive))
+
+n_noscreen
+
+(n_noscreen * 100) / n_matched
+
+n_positive <- sum(checking_cols$detect_positive, na.rm = TRUE)
+
+n_positive
+(n_positive * 100) / n_matched
+
+n_reported <- nrow(checking_cols %>% 
+                     filter(!is.na(detect_report_num)|
+                              (detect_report_made == "YES")))
+
+n_reported
+(n_reported * 100) / n_matched
+
+n_compliance <- sum(!is.na(checking_cols$ms_comp_row))
+
+n_compliance
+(n_compliance * 100) / n_matched
+```
+
+### Negative Screenings
+
+There were 23,136 negative screenings (96.37%). A positive screening was defined as one or more detect screening items with a "YES" response.
+
+```{r}
+n_negative <- nrow(checking %>% filter(!detect_positive))
+
+n_negative
+
+(n_negative * 100) / n_screens
+```
+
+Of these, 10 (0.04%) included either a positive affirmation of a report ("Yes" to "Was an APS report made?") or included an APS report confirmation number.
+
+```{r}
+n_reported <- nrow(checking %>% 
+                    filter(!detect_positive) %>%
+                    filter(detect_report_made == "YES" |
+                             !is.na(detect_report_num)
+                           )
+                   )
+
+n_reported
+
+(n_reported * 100) / n_negative
+```
+
+#### All Matched APS Intakes
+
+We were able to match 7 (70%) of these negative screenings with an indication of a report to an APS intake. None of these were matched to the MedStar Compliance data set.
+
+```{r}
+n_matched <- checking %>% 
+                filter(!detect_positive) %>%
+                filter(detect_report_made == "YES" |
+                         !is.na(detect_report_num)
+                       ) %>%
+                filter(!is.na(aps_row))
+
+nrow(n_matched)
+
+(nrow(n_matched) * 100) / n_reported
+
+n_comp <- nrow(n_matched %>% 
+  filter(!is.na(ms_comp_row)))
+
+n_comp
+
+(n_comp * 100) / nrow(n_matched)
+```
+
+We were also able to match 136 (0.59%) of the negative screenings that either denied or failed to indicate if a report was made to an APS Intake. None of these were matched to the MedStar Compliance data set.
+
+```{r}
+n_matched <- checking %>% 
+                filter(!detect_positive) %>%
+                filter(!(detect_report_made== "YES" |
+                         !is.na(detect_report_num))
+                       ) %>%
+                filter(!is.na(aps_row))
+
+nrow(n_matched)
+
+(nrow(n_matched) * 100) / (n_negative - n_reported)
+
+n_comp <- nrow(n_matched %>% 
+  filter(!is.na(ms_comp_row)))
+
+n_comp
+
+(n_comp * 100) / nrow(n_matched)
+```
+
+#### Explicit "EMS/EMT" Intakes Only
+
+We were able to match 5 (50%) of these negative screenings with an indication of a report to an APS Intake that explicitly specified an EMS/EMT reporter. None of these were matched to the MedStar Compliance data set.
+
+```{r}
+n_matched <- checking %>%
+                filter(!detect_positive) %>%
+                filter(detect_report_made == "YES" | 
+                         !is.na(detect_report_num)) %>%
+                filter(!is.na(aps_row)) %>%
+                filter(aps_reporter == 
+                         "Health Care Providers/Staff -- EMS/EMT")
+
+nrow(n_matched)
+
+(nrow(n_matched) * 100) / n_reported
+
+n_comp <- nrow(n_matched %>% 
+  filter(!is.na(ms_comp_row)))
+
+n_comp
+
+(n_comp * 100) / nrow(n_matched)
+```
+
+We were also able to match 4 (0.02%) of the negative screenings that either denied or failed to indicate if a report was made to an APS Intake that explicitly specified an EMS/EMT reporter. None of these were matched to the MedStar Compliance data set.
+
+```{r}
+n_matched <- checking %>%
+                filter(!detect_positive) %>%
+                filter(!(detect_report_made == "YES" | 
+                         !is.na(detect_report_num))) %>%
+                filter(!is.na(aps_row)) %>%
+                filter(aps_reporter == 
+                         "Health Care Providers/Staff -- EMS/EMT")
+
+nrow(n_matched)
+
+(nrow(n_matched) * 100) / (n_negative - n_reported)
+
+n_comp <- nrow(n_matched %>% 
+  filter(!is.na(ms_comp_row)))
+
+n_comp
+
+(n_comp * 100) / nrow(n_matched)
+```
+
+## Comment Box
+
+We isolated the variables relating to the use of the DETECT "APS Report Number" field.
+
+```{r}
+comment_vars <- paired_df %>%
+  select(detect_report_num, detect_uta, detect_facility, 
+          detect_report_comment, detect_other_reporter, 
+          detect_report_aps_unable, detect_report_aps_existing, 
+          detect_report_aps_onscene) %>%
+  names()
+
+checking <- paired_df %>%
+  mutate(f_comment = rowSums(is.na(.[,comment_vars])) < length(comment_vars))
+```
+
+There were 63 screenings (0.26%) which had some form of comment in the "APS Report Number" field of the DETECT tool. There were no responses that did not have a screening (no DETECT screening item with a response) that also had a comment. There were 19 of these screenings which had an APS report confirmation number.
+
+```{r}
+n_commented <- checking %>%
+  filter(f_comment)
+
+sum(n_commented$detect_screened == "TRUE") == nrow(n_commented)
+sum(!is.na(n_commented$detect_report_num))
+
+nrow(n_commented)
+
+(nrow(n_commented) * 100)/ n_screens
+```
+
+Of these, 48 (76.19%) were positive screenings.
+
+```{r}
+n_positive <- n_commented %>%
+  filter(detect_positive)
+
+nrow(n_positive)
+
+(nrow(n_positive) * 100) / nrow(n_commented)
+```
+
+### Staff Member Name/ID
+
+Of the commented screenings, 19 had comments (30.16%) that referenced the name and/or ID of the APS staff member spoken to during the intake. 
+
+```{r}
+checking_cols <- n_commented %>%
+  filter(!is.na(detect_report_comment))
+
+#get_unique_value_summary(n_commented,'detect_report_comment')
+
+n_rows <- nrow(checking_cols)
+
+n_rows
+
+(n_rows * 100) / nrow(n_commented)
+```
+
+These observations did not include any of the other comment types.
+
+```{r}
+md.pattern(checking_cols[, comment_vars], rotate.names = TRUE)
+```
+
+Of these, 18 (94.74%) screenings were positive.
+
+```{r}
+sum(checking_cols$detect_positive)
+
+(sum(checking_cols$detect_positive) * 100) / n_rows
+```
+
+All of these responses also had an APS report confirmation number (indicating an endorsement of a report being made), and all had a matching intake in the APS data set.
+
+```{r}
+sum(!is.na(checking_cols$detect_report_num)) == n_rows
+sum(!is.na(checking_cols$aps_row)) == n_rows
+```
+
+Of the matched intakes, 16 (84.21%) were associated with APS Case Numbers with at least one valid allegation of Elder Mistreatment in the APS data set.
+
+```{r}
+n_matched <- sum(!is.na(checking_cols$aps_row))
+
+sum(checking_cols$aps_cases_any_valid)
+
+(sum(checking_cols$aps_cases_any_valid) * 100) / n_matched
+```
+
+There were 19 distinct APS Person IDs, indicating each of the commented observations related to a unique subject. Of these, 18 (94.74%) were associated with individuals that had at least one valid allegation of Elder Mistreatment within the APS data set.
+
+```{r}
+n_aps <- checking_cols %>%
+  filter(!is.na(aps_person_id)) %>%
+  select(aps_person_id, aps_subject_any_valid) %>%
+  distinct
+
+nrow(n_aps)
+
+(nrow(n_aps) * 100) / n_rows
+
+sum(n_aps$aps_subject_any_valid)
+
+(sum(n_aps$aps_subject_any_valid) * 100) / nrow(n_aps)
+```
+
+All 19 of these observations were associated with the "Health Care Providers/Staff -- EMS/EMT" reporter type.
+
+```{r}
+get_unique_value_summary(checking_cols, 'aps_reporter')
+```
+
+### Other Comment Types
+
+The remaining comment types were mutually exclusive.
+
+```{r}
+md.pattern(n_commented[, comment_vars[!(comment_vars %in% 
+                                          c('detect_report_num', 
+                                            'detect_report_comment'))]], 
+           rotate.names = TRUE)
+```
+
+#### Unable to Assess
+
+Of the commented screenings, there were 11 (17.46%) which indicated that no report was made as EMS was unable to assess the DETECT screening items. Reasons included the patient's primary residence being in an entirely different state, encountering the subject at a public place, and urgency of the patient's condition.
+
+```{r}
+checking_cols <- n_commented %>%
+  filter(detect_uta == "TRUE")
+
+n_rows <- nrow(checking_cols)
+
+n_rows
+
+(n_rows * 100) / nrow(n_commented)
+```
+
+Of these, 1 observation (9.09%) had a positive screening
+
+```{r}
+sum(checking_cols$detect_positive)
+
+(sum(checking_cols$detect_positive) * 100) / n_rows
+```
+
+These observations referenced 11 unique subjects, of which 3 (27.27%) were also present in the APS data set.
+
+```{r}
+length(unique(checking_cols$id))
+
+length(unique(na.omit(checking_cols$aps_person_id)))
+
+(length(unique(na.omit(
+  checking_cols$aps_person_id))) * 100) / length(unique(checking_cols$id))
+```
+
+Of these, only 1 (9.09%) contained either an endorsement that a report was made, or an APS report confirmation number. 
+
+```{r}
+n_reported <- checking_cols %>%
+  filter(detect_report_made == "YES" | !is.na(detect_report_num))
+
+nrow(n_reported)
+
+(nrow(n_reported) * 100) / n_rows
+```
+
+Of these, there were 2 observations (18.18%) with a matched APS Intake. One of these was the row with an endorsement of a report.
+
+```{r}
+n_matched <- checking_cols %>%
+  filter(!is.na(aps_row))
+
+nrow(n_matched)
+
+(nrow(n_matched) * 100) / n_rows
+
+nrow(n_reported[!is.na(n_reported$aps_row),])
+```
+
+Of the 2 rows with a matched APS Row (and thus a potential case number), there was 1 (50%) found to have at least one valid allegation of elder mistreatment at the APS Case Number level.
+
+```{r}
+sum(checking_cols$aps_cases_any_valid, na.rm = TRUE)
+
+(sum(checking_cols$aps_cases_any_valid, na.rm = TRUE) * 100) / nrow(n_matched)
+```
+
+Of the 3 subjects also present in the APS data set, there were 2 (66.67%) found to have at least one valid allegation of elder mistreatment at the APS Subject level.
+
+```{r}
+sum(checking_cols$aps_subject_any_valid, na.rm = TRUE)
+
+(sum(checking_cols$aps_subject_any_valid, na.rm = TRUE) * 100) / length(
+  unique(na.omit(checking_cols$aps_person_id)))
+```
+
+On investigation, the single positive screening was also the single screening with an endorsement of a report. This screening had a match in the APS data set, associated with a reporter type of "Anonymous" and at least one valid allegation of elder mistreatment at the APS Case Number and Subject levels. The remaining matching APS intake was associated with a reporter type of "Community Agencies/Organizations", which did not have any valid allegations at the APS Case Number or Subject levels. 
+
+```{r}
+checking_cols[!is.na(checking_cols$aps_row),
+              c('aps_reporter', 'detect_report_made', 'detect_positive', 
+                'aps_cases_any_valid', 'aps_subject_any_valid')]
+```
+
+#### Existing APS Report
+
+Of the commented screenings, there were 9 (14.29%) which indicated that no report was made because there was an existing APS report. All of these screenings were positive and associated with subjects present in the APS data set.
+
+```{r}
+checking_cols <- n_commented %>% 
+  filter(detect_report_aps_existing == "TRUE")
+
+n_rows <- nrow(checking_cols)
+
+sum(!is.na(checking_cols$aps_person_id)) == n_rows
+sum(checking_cols$detect_positive) == n_rows
+
+n_rows
+
+(n_rows * 100) / nrow(n_commented)
+```
+
+These observations referenced 8 unique subjects (88.89% unique), all of which were present in the APS data set.
+
+```{r}
+length(unique(checking_cols$id))
+
+(length(unique(na.omit(checking_cols$id))) * 100) / n_rows
+
+length(unique(na.omit(checking_cols$aps_person_id)))
+
+(length(unique(na.omit(
+  checking_cols$aps_person_id))) * 100) / length(unique(checking_cols$id))
+```
+
+Of these, none contained either an endorsement that a report was made, or an APS report confirmation number. 
+
+```{r}
+n_reported <- checking_cols %>%
+  filter(detect_report_made == "YES" | !is.na(detect_report_num))
+
+nrow(n_reported)
+
+(nrow(n_reported) * 100) / n_rows
+```
+
+There were 2 observations (18.18%) with a matched APS Intake.
+
+```{r}
+n_matched <- checking_cols %>%
+  filter(!is.na(aps_row))
+
+nrow(n_matched)
+
+(nrow(n_matched) * 100) / n_rows
+```
+
+Of the 1 row with a matched APS Row (and thus a potential case number), there was 1 (100%) found to have at least one valid allegation of elder mistreatment at the APS Case Number level.
+
+```{r}
+sum(checking_cols$aps_cases_any_valid, na.rm = TRUE)
+
+(sum(checking_cols$aps_cases_any_valid, na.rm = TRUE) * 100) / nrow(n_matched)
+```
+
+Of the 8 subjects also present in the APS data set, there were 8 (100%) found to have at least one valid allegation of elder mistreatment at the APS Subject level.
+
+```{r}
+n_outcomes <- checking_cols %>%
+  select(id, aps_person_id, aps_subject_any_valid) %>%
+  distinct()
+
+sum(n_outcomes$aps_subject_any_valid, na.rm = TRUE)
+
+(sum(n_outcomes$aps_subject_any_valid, na.rm = TRUE) * 100) / length(
+  unique(na.omit(n_outcomes$aps_person_id)))
+```
+
+On investigation, the single response with a matched APS intake was associated with the reporter type of "Health Care Providers/Staff".
+
+```{r}
+checking_cols[!is.na(checking_cols$aps_row), 'aps_reporter']
+```
+
+#### APS Onscene
+
+Of the commented screenings, there were 7 (11.11%) which indicated that no report was made because they believed APS was on scene. All of these screenings were positive, but not all were also present in the APS data set.
+
+```{r}
+checking_cols <- n_commented %>% 
+  filter(detect_report_aps_onscene == "TRUE")
+
+n_rows <- nrow(checking_cols)
+
+sum(checking_cols$detect_positive) == n_rows
+sum(!is.na(checking_cols$aps_person_id)) == n_rows
+
+n_rows
+
+(n_rows * 100) / nrow(n_commented)
+```
+
+These observations referenced 7 unique subjects (100% unique), of which 6 (85.71%) were also present in the APS data set.
+
+```{r}
+length(unique(checking_cols$id))
+
+(length(unique(na.omit(checking_cols$id))) * 100) / n_rows
+
+length(unique(na.omit(checking_cols$aps_person_id)))
+
+(length(unique(na.omit(
+  checking_cols$aps_person_id))) * 100) / length(unique(checking_cols$id))
+```
+
+Of these, only 1 (14.29%) contained either an endorsement that a report was made, or an APS report confirmation number. 
+
+```{r}
+n_reported <- checking_cols %>%
+  filter(detect_report_made == "YES" | !is.na(detect_report_num))
+
+nrow(n_reported)
+
+(nrow(n_reported) * 100) / n_rows
+```
+
+However, no rows had a matched APS Intake.
+
+```{r}
+n_matched <- checking_cols %>%
+  filter(!is.na(aps_row))
+
+nrow(n_matched)
+
+(nrow(n_matched) * 100) / n_rows
+
+nrow(n_reported[!is.na(n_reported$aps_row),])
+```
+
+Of the 6 subjects also present in the APS data set, there were 6 (100%) found to have at least one valid allegation of elder mistreatment at the APS Subject level.
+
+```{r}
+sum(checking_cols$aps_subject_any_valid, na.rm = TRUE)
+
+(sum(checking_cols$aps_subject_any_valid, na.rm = TRUE) * 100) / length(
+  unique(na.omit(checking_cols$aps_person_id)))
+```
+
+#### Unable to Contact APS
+
+Of the commented screenings, there were 4 (6.35%) which indicated that no report was made because they were unable to reach APS. All of these screenings were positive, but not all were also present in the APS data set.
+
+```{r}
+checking_cols <- n_commented %>% 
+  filter(detect_report_aps_unable == "TRUE")
+
+n_rows <- nrow(checking_cols)
+
+sum(checking_cols$detect_positive) == n_rows
+sum(!is.na(checking_cols$aps_person_id)) == n_rows
+
+n_rows
+
+(n_rows * 100) / nrow(n_commented)
+```
+These observations referenced 4 unique subjects (100% unique), of which 2 (50%) were also present in the APS data set.
+
+```{r}
+length(unique(checking_cols$id))
+
+(length(unique(na.omit(checking_cols$id))) * 100) / n_rows
+
+length(unique(na.omit(checking_cols$aps_person_id)))
+
+(length(unique(na.omit(
+  checking_cols$aps_person_id))) * 100) / length(unique(checking_cols$id))
+```
+
+Of these, none contained either an endorsement that a report was made, or an APS report confirmation number. 
+
+```{r}
+n_reported <- checking_cols %>%
+  filter(detect_report_made == "YES" | !is.na(detect_report_num))
+
+nrow(n_reported)
+
+(nrow(n_reported) * 100) / n_rows
+```
+
+No rows had a matched APS Intake.
+
+```{r}
+n_matched <- checking_cols %>%
+  filter(!is.na(aps_row))
+
+nrow(n_matched)
+
+(nrow(n_matched) * 100) / n_rows
+
+nrow(n_reported[!is.na(n_reported$aps_row),])
+```
+
+Of the 2 subjects also present in the APS data set, there was 1 (50%) found to have at least one valid allegation of elder mistreatment at the APS Subject level.
+
+```{r}
+sum(checking_cols$aps_subject_any_valid, na.rm = TRUE)
+
+(sum(checking_cols$aps_subject_any_valid, na.rm = TRUE) * 100) / length(
+  unique(na.omit(checking_cols$aps_person_id)))
+```
+
+#### Facility
+
+Of the commented screenings, there were 6 (9.52%) which indicated that no report was made because the patient was encountered at a health care facility, not their residence. Not all of these screenings were positive, and not all referenced a subject in the APS data set.
+
+```{r}
+checking_cols <- n_commented %>% 
+  filter(detect_facility == "TRUE")
+
+n_rows <- nrow(checking_cols)
+
+sum(checking_cols$detect_positive) == n_rows
+sum(!is.na(checking_cols$aps_person_id)) == n_rows
+
+n_rows
+
+(n_rows * 100) / nrow(n_commented)
+```
+
+These observations referenced 6 unique subjects (100% unique), of which 2 (33.33%) were also present in the APS data set.
+
+```{r}
+length(unique(checking_cols$id))
+
+(length(unique(na.omit(checking_cols$id))) * 100) / n_rows
+
+length(unique(na.omit(checking_cols$aps_person_id)))
+
+(length(unique(na.omit(
+  checking_cols$aps_person_id))) * 100) / length(unique(checking_cols$id))
+```
+
+Of these, 2 observations (33.33%) had a positive screening. Neither of these were associated with subjects also present in the APS data set.
+
+```{r}
+sum(checking_cols$detect_positive)
+
+(sum(checking_cols$detect_positive) * 100) / n_rows
+
+sum(!is.na(checking_cols[checking_cols$detect_positive,]$aps_person_id))
+```
+
+No rows contained either an endorsement that a report was made, or an APS report confirmation number. 
+
+```{r}
+n_reported <- checking_cols %>%
+  filter(detect_report_made == "YES" | !is.na(detect_report_num))
+
+nrow(n_reported)
+
+(nrow(n_reported) * 100) / n_rows
+```
+
+No rows had a matched APS Intake.
+
+```{r}
+n_matched <- checking_cols %>%
+  filter(!is.na(aps_row))
+
+nrow(n_matched)
+
+(nrow(n_matched) * 100) / n_rows
+
+nrow(n_reported[!is.na(n_reported$aps_row),])
+```
+
+Of the 2 subjects also present in the APS data set, there was 1 (50%) found to have at least one valid allegation of elder mistreatment at the APS Subject level.
+
+```{r}
+sum(checking_cols$aps_subject_any_valid, na.rm = TRUE)
+
+(sum(checking_cols$aps_subject_any_valid, na.rm = TRUE) * 100) / length(
+  unique(na.omit(checking_cols$aps_person_id)))
+```
+
+#### Other Reporter
+
+Of the commented screenings, there were 7 (11.11%) which indicated that no report was made due to the belief that someone else would make the report, such as ER staff or a social worker. While all of these screenings were positive, and not all referenced a subject in the APS data set.
+
+```{r}
+checking_cols <- n_commented %>% 
+  filter(detect_other_reporter == "TRUE")
+
+n_rows <- nrow(checking_cols)
+
+sum(checking_cols$detect_positive) == n_rows
+sum(!is.na(checking_cols$aps_person_id)) == n_rows
+
+n_rows
+
+(n_rows * 100) / nrow(n_commented)
+```
+
+These observations referenced 7 unique subjects (100% unique), of which 4 (57.14%) were also present in the APS data set.
+
+```{r}
+length(unique(checking_cols$id))
+
+(length(unique(na.omit(checking_cols$id))) * 100) / n_rows
+
+length(unique(na.omit(checking_cols$aps_person_id)))
+
+(length(unique(na.omit(
+  checking_cols$aps_person_id))) * 100) / length(unique(checking_cols$id))
+```
+
+There was only 1 row (14.29%) which contained either an endorsement that a report was made, or an APS report confirmation number. 
+
+```{r}
+n_reported <- checking_cols %>%
+  filter(detect_report_made == "YES" | !is.na(detect_report_num))
+
+nrow(n_reported)
+
+(nrow(n_reported) * 100) / n_rows
+```
+
+There was 1 row (14.29%) which had a matched APS intake; this row was not the same row which indicated a report was made.
+
+```{r}
+n_matched <- checking_cols %>%
+  filter(!is.na(aps_row))
+
+nrow(n_matched)
+
+(nrow(n_matched) * 100) / n_rows
+
+nrow(n_reported[!is.na(n_reported$aps_row),])
+```
+
+Of the 1 row with a matched APS Row (and thus a potential case number), there was 1 (100%) found to have at least one valid allegation of elder mistreatment at the APS Case Number level.
+
+```{r}
+sum(checking_cols$aps_cases_any_valid, na.rm = TRUE)
+
+(sum(checking_cols$aps_cases_any_valid, na.rm = TRUE) * 100) / nrow(n_matched)
+```
+
+Of the 4 subjects also present in the APS data set, there were 3 (75%) found to have at least one valid allegation of elder mistreatment at the APS Subject level.
+
+```{r}
+sum(checking_cols$aps_subject_any_valid, na.rm = TRUE)
+
+(sum(checking_cols$aps_subject_any_valid, na.rm = TRUE) * 100) / length(
+  unique(na.omit(checking_cols$aps_person_id)))
+```
+
+The single matched row was associated with a reporter type of "Health Care Providers/Staff". It did not contain a reference of a report being made, was positive, and was associated with at least one valid allegation of elder mistreatment at both the APS Case Number and Subject levels.
+
+```{r}
+checking_cols[!is.na(checking_cols$aps_row),
+              c('aps_reporter', 'detect_report_made', 'detect_positive', 
+                'aps_cases_any_valid', 'aps_subject_any_valid')]
+```
+
+## Agreement of Intent and Matching
+
+### All Paired Intakes
+
+#### Intent to Report
+
+Overall, there were 338 responses (1.408% of the 24,007 screenings) that included an indication of intent to make a report (selecting "YES" for "Was an APS Report Made?" or inclusion of an alphanumeric string in the "APS Report Number" field of the DETECT tool).
+
+```{r}
+screened <- paired_df %>%
+  filter(detect_screened) 
+
+nrow(screened)
+
+checking <- screened %>%
+  filter(detect_report_made == "YES" | !is.na(detect_report_num))
+
+nrow(checking)
+
+(nrow(checking) * 100) / nrow(screened)
+```
+
+Of these, 280 observations (82.840%) had a matching APS Intake, and 58 (17.160%) did not.
+
+```{r}
+matched <- checking %>%
+  filter(!is.na(aps_row))
+
+yes_matched <- nrow(matched)
+
+yes_matched
+(yes_matched * 100) / nrow(checking)
+
+no_match <- checking %>%
+  filter(is.na(aps_row))
+
+yes_unmatched <- nrow(no_match)
+
+yes_unmatched
+(yes_unmatched * 100) / nrow(checking)
+```
+
+Of the matched responses, 231 observations (82.500% of matched observations) were associated with an APS Case Number with at least one valid allegation of elder mistreatment, and 253 observations (90.357%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+
+```{r}
+n_cases <- matched %>%
+  filter(aps_cases_any_valid)
+
+nrow(n_cases)
+
+(nrow(n_cases) * 100) / nrow(matched)
+
+n_subj <- matched %>%
+  filter(aps_subject_any_valid)
+
+nrow(n_subj)
+
+(nrow(n_subj) * 100) / nrow(matched)
+```
+
+Of the unmatched responses, 25 observations (43.103%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+
+```{r}
+n_subj <- no_match %>%
+  filter(aps_subject_any_valid)
+
+nrow(n_subj)
+
+(nrow(n_subj) * 100) / nrow(no_match)
+```
+
+#### No Intent to Report
+
+Overall, there were 23,647 responses (98.500% of the 24,007 screenings) that included an indication of intent to *not* make a report (selecting "NO" for "Was an APS Report Made?" without inclusion of an alphanumeric string in the "APS Report Number" field of the DETECT tool).
+
+```{r}
+screened <- paired_df %>%
+  filter(detect_screened) 
+
+n_screened <- nrow(screened)
+
+checking <- screened %>%
+  filter(detect_report_made == "NO" & is.na(detect_report_num))
+
+nrow(checking)
+
+(nrow(checking) * 100) / n_screened
+```
+
+Of these, 184 observations (0.778%) had a matching APS Intake, and 23,463 (99.222%) did not.
+
+```{r}
+matched <- checking %>%
+  filter(!is.na(aps_row))
+
+no_matched <- nrow(matched)
+
+no_matched
+(no_matched * 100) / nrow(checking)
+
+no_match <- checking %>%
+  filter(is.na(aps_row))
+
+no_unmatched <- nrow(no_match)
+
+no_unmatched
+(no_unmatched * 100) / nrow(checking)
+```
+
+Of the matched responses, 139 observations (75.543% of matched observations) were associated with an APS Case Number with at least one valid allegation of elder mistreatment, and 153 observations (83.152%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+
+```{r}
+n_cases <- matched %>%
+  filter(aps_cases_any_valid)
+
+nrow(n_cases)
+
+(nrow(n_cases) * 100) / nrow(matched)
+
+n_subj <- matched %>%
+  filter(aps_subject_any_valid)
+
+nrow(n_subj)
+
+(nrow(n_subj) * 100) / nrow(matched)
+```
+
+Of the unmatched responses, 2,929 observations (12.483%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+
+```{r}
+n_subj <- no_match %>%
+  filter(aps_subject_any_valid)
+
+nrow(n_subj)
+
+(nrow(n_subj) * 100) / nrow(no_match)
+```
+
+#### Missing Intent
+
+Overall, there were 22 responses (0.0916% of the 24,007 screenings) that lacked an indication of intent to make a report (no value selected for "Was an APS Report Made?", and a lack of an alphanumeric string in the "APS Report Number" field of the DETECT tool).
+
+```{r}
+screened <- paired_df %>%
+  filter(detect_screened) 
+
+nrow(screened)
+
+checking <- screened %>%
+  filter(is.na(detect_report_made) & is.na(detect_report_num))
+
+nrow(checking)
+
+(nrow(checking) * 100) / nrow(screened)
+```
+
+Of these, 0 observations (0%) had a matching APS Intake, and 22 (100%) did not.
+
+```{r}
+matched <- checking %>%
+  filter(!is.na(aps_row))
+
+na_matched <- nrow(matched)
+
+na_matched
+(na_matched * 100) / nrow(checking)
+
+no_match <- checking %>%
+  filter(is.na(aps_row))
+
+na_unmatched <- nrow(no_match)
+
+na_unmatched
+(na_unmatched * 100) / nrow(checking)
+```
+
+Of the unmatched responses, 2 observations (9.091%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+
+```{r}
+n_subj <- no_match %>%
+  filter(aps_subject_any_valid)
+
+nrow(n_subj)
+
+(nrow(n_subj) * 100) / nrow(no_match)
+```
+
+#### Kappa
+
+We combined the observations which either indicated a lack of intent to report, or failed to indicate an intent to report.
+
+```{r}
+no_matched <- no_matched + na_matched
+
+no_matched
+
+no_unmatched <- no_unmatched + na_unmatched
+
+no_unmatched
+
+yes_matched + no_matched + yes_unmatched + no_unmatched == n_screened
+```
+
+We calculated the observed agreement (98.992%).
+
+```{r}
+observed_aggr <- (yes_matched + no_unmatched) / n_screened 
+
+observed_aggr * 100
+```
+
+We calculated our chance-based agreement (96.714%).
+
+```{r}
+expected_y_m <- ((yes_matched + yes_unmatched) * (yes_matched + no_matched)
+                 ) / n_screened
+
+expected_n_um <- ((no_matched + no_unmatched) * (yes_unmatched + no_unmatched)
+                  ) / n_screened
+
+expected_aggr <- (expected_y_m + expected_n_um) / n_screened
+
+expected_aggr * 100
+```
+
+We calculated our kappa as 0.693, indicating substantial agreement between intent and matched reports.
+
+```{r}
+kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+
+kappa
+```
+
+### EMS/EMT Intakes Only
+
+#### Intent to Report
+
+Overall, there were 338 responses (1.408% of the 24,007 screenings) that included an indication of intent to make a report (selecting "YES" for "Was an APS Report Made?" or inclusion of an alphanumeric string in the "APS Report Number" field of the DETECT tool).
+
+```{r}
+screened <- paired_df %>%
+  filter(detect_screened) %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_,
+    aps_row)) %>%
+  mutate(aps_case_num = ifelse(is.na(aps_row), NA, aps_case_num),
+         aps_cases_any_valid = ifelse(is.na(aps_row), NA, aps_cases_any_valid)
+         )
+
+nrow(screened)
+
+checking <- screened %>%
+  filter(detect_report_made == "YES" | !is.na(detect_report_num))
+
+nrow(checking)
+
+(nrow(checking) * 100) / nrow(screened)
+```
+
+Of these, 244 observations (72.189%) had a matching APS Intake, and 94 (27.811%) did not.
+
+```{r}
+matched <- checking %>%
+  filter(!is.na(aps_row))
+
+yes_matched <- nrow(matched)
+
+yes_matched
+(yes_matched * 100) / nrow(checking)
+
+no_match <- checking %>%
+  filter(is.na(aps_row))
+
+yes_unmatched <- nrow(no_match)
+
+yes_unmatched
+(yes_unmatched * 100) / nrow(checking)
+```
+
+Of the matched responses, 231 observations (82.500% of matched observations) were associated with an APS Case Number with at least one valid allegation of elder mistreatment, and 253 observations (90.357%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+
+```{r}
+n_cases <- matched %>%
+  filter(aps_cases_any_valid)
+
+nrow(n_cases)
+
+(nrow(n_cases) * 100) / nrow(matched)
+
+n_subj <- matched %>%
+  filter(aps_subject_any_valid)
+
+nrow(n_subj)
+
+(nrow(n_subj) * 100) / nrow(matched)
+```
+
+Of the unmatched responses, 54 observations (57.447%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+
+```{r}
+n_subj <- no_match %>%
+  filter(aps_subject_any_valid)
+
+nrow(n_subj)
+
+(nrow(n_subj) * 100) / nrow(no_match)
+```
+
+#### No Intent to Report
+
+Overall, there were 23,647 responses (98.500% of the 24,007 screenings) that included an indication of intent to *not* make a report (selecting "NO" for "Was an APS Report Made?" without inclusion of an alphanumeric string in the "APS Report Number" field of the DETECT tool).
+
+```{r}
+checking <- screened %>%
+  filter(detect_report_made == "NO" & is.na(detect_report_num))
+
+nrow(checking)
+
+(nrow(checking) * 100) / n_screened
+```
+
+Of these, 27 observations (0.114%) had a matching APS Intake, and 23,620 (99.886%) did not.
+
+```{r}
+matched <- checking %>%
+  filter(!is.na(aps_row))
+
+no_matched <- nrow(matched)
+
+no_matched
+(no_matched * 100) / nrow(checking)
+
+no_match <- checking %>%
+  filter(is.na(aps_row))
+
+no_unmatched <- nrow(no_match)
+
+no_unmatched
+(no_unmatched * 100) / nrow(checking)
+```
+
+Of the matched responses, 23 observations (85.185% of matched observations) were associated with an APS Case Number with at least one valid allegation of elder mistreatment, and 23 observations (85.185%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+
+```{r}
+n_cases <- matched %>%
+  filter(aps_cases_any_valid)
+
+nrow(n_cases)
+
+(nrow(n_cases) * 100) / nrow(matched)
+
+n_subj <- matched %>%
+  filter(aps_subject_any_valid)
+
+nrow(n_subj)
+
+(nrow(n_subj) * 100) / nrow(matched)
+```
+
+Of the unmatched responses, 3,059 observations (12.951%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+
+```{r}
+n_subj <- no_match %>%
+  filter(aps_subject_any_valid)
+
+nrow(n_subj)
+
+(nrow(n_subj) * 100) / nrow(no_match)
+```
+
+#### Missing Intent
+
+Overall, there were 22 responses (0.0916% of the 24,007 screenings) that lacked an indication of intent to make a report (no value selected for "Was an APS Report Made?", and a lack of an alphanumeric string in the "APS Report Number" field of the DETECT tool).
+
+```{r}
+checking <- screened %>%
+  filter(is.na(detect_report_made) & is.na(detect_report_num))
+
+nrow(checking)
+
+(nrow(checking) * 100) / nrow(screened)
+```
+
+Of these, 0 observations (0%) had a matching APS Intake, and 22 (100%) did not.
+
+```{r}
+matched <- checking %>%
+  filter(!is.na(aps_row))
+
+na_matched <- nrow(matched)
+
+na_matched
+(na_matched * 100) / nrow(checking)
+
+no_match <- checking %>%
+  filter(is.na(aps_row))
+
+na_unmatched <- nrow(no_match)
+
+na_unmatched
+(na_unmatched * 100) / nrow(checking)
+```
+
+Of the unmatched responses, 2 observations (9.091%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+
+```{r}
+n_subj <- no_match %>%
+  filter(aps_subject_any_valid)
+
+nrow(n_subj)
+
+(nrow(n_subj) * 100) / nrow(no_match)
+```
+
+#### Kappa
+
+We combined the observations which either indicated a lack of intent to report, or failed to indicate an intent to report.
+
+```{r}
+no_matched <- no_matched + na_matched
+
+no_matched
+
+no_unmatched <- no_unmatched + na_unmatched
+
+no_unmatched
+
+yes_matched + no_matched + yes_unmatched + no_unmatched == n_screened
+```
+
+We calculated the observed agreement (99.496%).
+
+```{r}
+observed_aggr <- (yes_matched + no_unmatched) / n_screened 
+
+observed_aggr * 100
+```
+
+We calculated our chance-based agreement (97.495%).
+
+```{r}
+expected_y_m <- ((yes_matched + yes_unmatched) * (yes_matched + no_matched)
+                 ) / n_screened
+
+expected_n_um <- ((no_matched + no_unmatched) * (yes_unmatched + no_unmatched)
+                  ) / n_screened
+
+expected_aggr <- (expected_y_m + expected_n_um) / n_screened
+
+expected_aggr * 100
+```
+
+We calculated our kappa as 0.799, indicating substantial agreement between intent and matched reports.
+
+```{r}
+kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+
+kappa
+```
+
+## Agreement of DETECT Screening and APS Determination
+
+### Overall Checks
+
+Overall, there were 871 responses (3.6278% of the 24,007 screenings) with a positive DETECT Screening (a response of "YES" to at least one DETECT screening item), and 23,136 responses (96.372% of the 24,007 screenings) that were not positive.
+
+```{r}
+screened <- case_data %>%
+  filter(detect_screened) 
+
+nrow(screened)
+
+screened_pos <- screened %>%
+  filter(detect_positive)
+
+nrow(screened_pos)
+
+(nrow(screened_pos) * 100) / nrow(screened)
+
+screened_neg <- screened %>%
+  filter(!detect_positive)
+
+nrow(screened_neg)
+
+(nrow(screened_neg) * 100) / nrow(screened)
+```
+ 
+Of the 871 positive screenings, 354 (40.643%) were associated with a subject that was not present in the APS data set, 460 (52.813%) were associated with a subject with at least one valid allegation of elder mistreatment across the APS data set (regardless of temporal or direct linkage between intake and response), and 57 (6.544%) were not.
+ 
+```{r}
+pos_subj_none <- screened_pos %>%
+  filter(is.na(aps_subject_any_valid))
+
+pos_subj_na <- nrow(pos_subj_none)
+
+pos_subj_na
+(pos_subj_na * 100) / nrow(screened_pos)
+
+pos_subj_pos <- screened_pos %>%
+  filter(!is.na(aps_subject_any_valid) & aps_subject_any_valid)
+
+pos_subj_yes <- nrow(pos_subj_pos)
+
+pos_subj_yes
+(pos_subj_yes * 100) / nrow(screened_pos)
+
+pos_subj_neg <- screened_pos %>%
+  filter(!is.na(aps_subject_any_valid) & !aps_subject_any_valid)
+
+pos_subj_no <- nrow(pos_subj_neg)
+
+pos_subj_no
+(pos_subj_no * 100) / nrow(screened_pos)
+```
+ 
+Of the 23,136 positive screenings, 19,084 (82.486%) were associated with a subject that was not present in the APS data set, 2,902 (12.543%) were associated with a subject with at least one valid allegation of elder mistreatment across the APS data set (regardless of temporal or direct linkage between intake and response), and 1,150 (4.971%) were not.
+ 
+```{r}
+neg_subj_none <- screened_neg %>%
+  filter(is.na(aps_subject_any_valid))
+
+neg_subj_na <- nrow(neg_subj_none)
+
+neg_subj_na
+(neg_subj_na * 100) / nrow(screened_neg)
+
+neg_subj_pos <- screened_neg %>%
+  filter(!is.na(aps_subject_any_valid) & aps_subject_any_valid)
+
+neg_subj_yes <- nrow(neg_subj_pos)
+
+neg_subj_yes
+(neg_subj_yes * 100) / nrow(screened_neg)
+
+neg_subj_neg <- screened_neg %>%
+  filter(!is.na(aps_subject_any_valid) & !aps_subject_any_valid)
+
+neg_subj_no <- nrow(neg_subj_neg)
+
+neg_subj_no
+(neg_subj_no * 100) / nrow(screened_neg)
+```
+
+Of the 871 positive screenings, 321 (36.854%) had a directly paired APS Intake. Of the 23,136 negative screenings, 143 (0.618%) had a directly paired APS Intake.
+
+```{r}
+pos_paired <- screened_pos %>%
+  filter(!is.na(aps_row))
+
+nrow(pos_paired)
+(nrow(pos_paired)*100) / nrow(screened_pos)
+
+neg_paired <- screened_neg %>%
+  filter(!is.na(aps_row))
+
+nrow(neg_paired)
+(nrow(neg_paired)*100) / nrow(screened_neg)
+```
+
+Of the 321 positive screenings with a directly paired APS Intake, 268 (83.489%) were associated with an APS Case with at least one valid allegation of elder mistreatment. Of the 143 negative screenings with a directly paired APS Intake, 102 (71.329%) were associated with an APS Case with at least one valid allegation of elder mistreatment. 
+
+```{r}
+pos_paired_pos <- pos_paired %>%
+  filter(aps_cases_any_valid)
+
+nrow(pos_paired_pos)
+
+(nrow(pos_paired_pos) * 100) / nrow(pos_paired)
+
+neg_paired_pos <- neg_paired %>%
+  filter(aps_cases_any_valid)
+
+nrow(neg_paired_pos)
+
+(nrow(neg_paired_pos) * 100) / nrow(neg_paired)
+```
+
+Of the 871 positive screenings, 392 (45.006%) had a temporally associated APS Case Number. Of the 23,136 negative screenings, 1,096 (4.737%) had a temporally associated APS Case Number.
+
+```{r}
+pos_cases <- screened_pos %>%
+  filter(!is.na(aps_case_num))
+
+nrow(pos_cases)
+(nrow(pos_cases)*100) / nrow(screened_pos)
+
+neg_cases <- screened_neg %>%
+  filter(!is.na(aps_case_num))
+
+nrow(neg_cases)
+(nrow(neg_cases)*100) / nrow(screened_neg)
+```
+
+Of the 392 positive screenings with a temporally associated case number, 330 (84.184%) were associated with an APS case number with at least one valid allegation of elder mistreatment. Of the 1,096 positive screenings with a temporally associated case number, 756 (68.978%) were associated with an APS case number with at least one valid allegation of elder mistreatment. 
+```{r}
+pos_cases_pos <- pos_cases %>%
+  filter(aps_cases_any_valid)
+
+nrow(pos_cases_pos)
+
+(nrow(pos_cases_pos) * 100) / nrow(pos_cases)
+
+neg_cases_pos <- neg_cases %>%
+  filter(aps_cases_any_valid)
+
+nrow(neg_cases_pos)
+
+(nrow(neg_cases_pos) * 100) / nrow(neg_cases)
+```
+### EMS/EMT Direct Pairs
+
+Of the 871 positive DETECT Screenings, 609 (69.919%) were not linked to an intake with case-level determinations, 221 (25.373%) were directly paired with an APS Case Number with at least one valid allegation of elder mistreatment, and 41 (4.707%) were not. A total of 650 (74.627%) were either associated with an APS Case Number without a valid allegation of elder mistreatment, or failed to be linked to an APS Case Number with determinations through direct pairing.
+
+```{r}
+paired_ems <- paired_df %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  mutate(aps_case_num = ifelse(is.na(aps_row), NA_integer_, aps_case_num),
+         aps_cases_any_valid = ifelse(is.na(aps_row), NA, aps_cases_any_valid))
+
+screened <- paired_ems %>%
+  filter(detect_screened)
+
+n_screened <- nrow(screened)
+
+screened_pos <- screened %>%
+  filter(detect_positive)
+
+screened_neg <- screened %>%
+  filter(!detect_positive)
+
+nrow(screened_pos)
+
+pos_cases_na <- screened_pos %>%
+  filter(is.na(aps_cases_any_valid))
+
+nrow(pos_cases_na)
+(nrow(pos_cases_na) *100) / nrow(screened_pos)
+
+pos_cases_yes <- screened_pos %>%
+  filter(!is.na(aps_cases_any_valid) & aps_cases_any_valid)
+
+nrow(pos_cases_yes)
+(nrow(pos_cases_yes) *100) / nrow(screened_pos)
+
+pos_cases_no <- screened_pos %>%
+  filter(!is.na(aps_cases_any_valid) & !aps_cases_any_valid)
+
+nrow(pos_cases_no)
+(nrow(pos_cases_no) *100) / nrow(screened_pos)
+
+sum_pos_cases_no <- nrow(pos_cases_no) + nrow(pos_cases_na)
+
+sum_pos_cases_no
+(sum_pos_cases_no * 100) / nrow(screened_pos)
+```
+
+Of the 23,136 negative DETECT Screenings, 23,127 (99.961%) were not linked to an intake with case-level determinations, 6 (0.026%) were directly paired with an APS Case Number with at least one valid allegation of elder mistreatment, and 3 (0.026%) were not. A total of 23,130 (99.974%) were either associated with an APS Case Number without a valid allegation of elder mistreatment, or failed to be linked to an APS Case Number with determinations through direct pairing.
+
+```{r}
+nrow(screened_neg)
+
+neg_cases_na <- screened_neg %>%
+  filter(is.na(aps_cases_any_valid))
+
+nrow(neg_cases_na)
+(nrow(neg_cases_na) *100) / nrow(screened_neg)
+
+neg_cases_yes <- screened_neg %>%
+  filter(!is.na(aps_cases_any_valid) & aps_cases_any_valid)
+
+nrow(neg_cases_yes)
+(nrow(neg_cases_yes) *100) / nrow(screened_neg)
+
+neg_cases_no <- screened_neg %>%
+  filter(!is.na(aps_cases_any_valid) & !aps_cases_any_valid)
+
+nrow(neg_cases_no)
+(nrow(neg_cases_no) *100) / nrow(screened_neg)
+
+sum_neg_cases_no <- nrow(neg_cases_no) + nrow(neg_cases_na)
+
+sum_neg_cases_no
+(sum_neg_cases_no * 100) / nrow(screened_neg)
+```
+
+#### Kappas
+
+##### Including Unmatched as Negatives
+
+For simplicity, we set our variable names and values.
+
+```{r}
+pos_yes <- nrow(pos_cases_yes)
+
+pos_no <- sum_pos_cases_no
+
+neg_yes <- nrow(neg_cases_yes)
+
+neg_no <- sum_neg_cases_no
+```
+
+We calculated the observed agreement (97.267%).
+
+```{r}
+observed_aggr <- (pos_yes + neg_no) / n_screened 
+
+observed_aggr * 100
+```
+
+We calculated our chance-based agreement (95.495%).
+
+```{r}
+expected_p_y <- ((pos_yes + pos_no) * (pos_yes + neg_yes)) / n_screened
+
+expected_n_n <- ((neg_yes + neg_no) * (pos_no + neg_no)) / n_screened
+
+expected_aggr <- (expected_p_y + expected_n_n) / n_screened
+
+expected_aggr * 100
+```
+
+We calculated our kappa as 0.393, indicating moderate agreement between the DETECT screening tool determination and APS Case determination.
+
+```{r}
+kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+
+kappa
+```
+
+##### Excluding Unmatched
+
+For simplicity, we set our variable names and values.
+
+```{r}
+pos_yes <- nrow(pos_cases_yes)
+
+pos_no <- nrow(pos_cases_no)
+
+neg_yes <- nrow(neg_cases_yes)
+
+neg_no <- nrow(neg_cases_no)
+
+n_rows <- nrow(screened %>%
+                 filter(!is.na(aps_row)))
+
+n_rows
+```
+
+We calculated the observed agreement (82.658%).
+
+```{r}
+observed_aggr <- (pos_yes + neg_no) / n_rows
+
+observed_aggr * 100
+```
+
+We calculated our chance-based agreement (81.521%).
+
+```{r}
+expected_p_y <- ((pos_yes + pos_no) * (pos_yes + neg_yes)) / n_rows
+
+expected_n_n <- ((neg_yes + neg_no) * (pos_no + neg_no)) / n_rows
+
+expected_aggr <- (expected_p_y + expected_n_n) / n_rows
+
+expected_aggr * 100
+```
+
+We calculated our kappa as 0.061, indicating slight agreement between the DETECT screening tool determination and APS Case determination.
+
+```{r}
+kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+
+kappa
+```
+
+### Broader Direct-Pairs
+
+Of the 871 positive DETECT Screenings, 550 (63.146%) were not linked to an intake with case-level determinations, 268 (30.769%) were directly paired with an APS Case Number with at least one valid allegation of elder mistreatment, and 53 (6.0850%) were not. A total of 603 (69.231%) were either associated with an APS Case Number without a valid allegation of elder mistreatment, or failed to be linked to an APS Case Number with determinations through direct pairing.
+
+```{r}
+screened <- paired_df %>%
+  filter(detect_screened)
+
+n_screened <- nrow(screened)
+
+screened_pos <- screened %>%
+  filter(detect_positive)
+
+screened_neg <- screened %>%
+  filter(!detect_positive)
+
+nrow(screened_pos)
+
+pos_cases_na <- screened_pos %>%
+  filter(is.na(aps_cases_any_valid))
+
+nrow(pos_cases_na)
+(nrow(pos_cases_na) *100) / nrow(screened_pos)
+
+pos_cases_yes <- screened_pos %>%
+  filter(!is.na(aps_cases_any_valid) & aps_cases_any_valid)
+
+nrow(pos_cases_yes)
+(nrow(pos_cases_yes) *100) / nrow(screened_pos)
+
+pos_cases_no <- screened_pos %>%
+  filter(!is.na(aps_cases_any_valid) & !aps_cases_any_valid)
+
+nrow(pos_cases_no)
+(nrow(pos_cases_no) *100) / nrow(screened_pos)
+
+sum_pos_cases_no <- nrow(pos_cases_no) + nrow(pos_cases_na)
+
+sum_pos_cases_no
+(sum_pos_cases_no * 100) / nrow(screened_pos)
+```
+
+Of the 23,136 negative DETECT Screenings, 22,993 (99.382%) were not linked to an intake with case-level determinations, 102 (0.441%) were directly paired with an APS Case Number with at least one valid allegation of elder mistreatment, and 41 (0.177%) were not. A total of 23,034 (99.559%) were either associated with an APS Case Number without a valid allegation of elder mistreatment, or failed to be linked to an APS Case Number with determinations through direct pairing.
+
+```{r}
+nrow(screened_neg)
+
+neg_cases_na <- screened_neg %>%
+  filter(is.na(aps_cases_any_valid))
+
+nrow(neg_cases_na)
+(nrow(neg_cases_na) *100) / nrow(screened_neg)
+
+neg_cases_yes <- screened_neg %>%
+  filter(!is.na(aps_cases_any_valid) & aps_cases_any_valid)
+
+nrow(neg_cases_yes)
+(nrow(neg_cases_yes) *100) / nrow(screened_neg)
+
+neg_cases_no <- screened_neg %>%
+  filter(!is.na(aps_cases_any_valid) & !aps_cases_any_valid)
+
+nrow(neg_cases_no)
+(nrow(neg_cases_no) *100) / nrow(screened_neg)
+
+sum_neg_cases_no <- nrow(neg_cases_no) + nrow(neg_cases_na)
+
+sum_neg_cases_no
+(sum_neg_cases_no * 100) / nrow(screened_neg)
+```
+
+#### Kappas
+
+##### Including Unmatched as Negatives
+
+For simplicity, we set our variable names and values.
+
+```{r}
+pos_yes <- nrow(pos_cases_yes)
+
+pos_no <- sum_pos_cases_no
+
+neg_yes <- nrow(neg_cases_yes)
+
+neg_no <- sum_neg_cases_no
+```
+
+We calculated the observed agreement (97.063%).
+
+```{r}
+observed_aggr <- (pos_yes + neg_no) / n_screened 
+
+observed_aggr * 100
+```
+
+We calculated our chance-based agreement (94.943%).
+
+```{r}
+expected_p_y <- ((pos_yes + pos_no) * (pos_yes + neg_yes)) / n_screened
+
+expected_n_n <- ((neg_yes + neg_no) * (pos_no + neg_no)) / n_screened
+
+expected_aggr <- (expected_p_y + expected_n_n) / n_screened
+
+expected_aggr * 100
+```
+
+We calculated our kappa as 0.419, indicating moderate agreement between the DETECT screening tool determination and APS Case determination.
+
+```{r}
+kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+
+kappa
+```
+
+##### Excluding Unmatched
+
+For simplicity, we set our variable names and values.
+
+```{r}
+pos_yes <- nrow(pos_cases_yes)
+
+pos_no <- nrow(pos_cases_no)
+
+neg_yes <- nrow(neg_cases_yes)
+
+neg_no <- nrow(neg_cases_no)
+
+n_rows <- nrow(screened %>%
+                 filter(!is.na(aps_row)))
+
+n_rows
+```
+
+We calculated the observed agreement (66.595%).
+
+```{r}
+observed_aggr <- (pos_yes + neg_no) / n_rows
+
+observed_aggr * 100
+```
+
+We calculated our chance-based agreement (61.409%).
+
+```{r}
+expected_p_y <- ((pos_yes + pos_no) * (pos_yes + neg_yes)) / n_rows
+
+expected_n_n <- ((neg_yes + neg_no) * (pos_no + neg_no)) / n_rows
+
+expected_aggr <- (expected_p_y + expected_n_n) / n_rows
+
+expected_aggr * 100
+```
+
+We calculated our kappa as 0.134, indicating slight agreement between the DETECT screening tool determination and APS Case determination.
+
+```{r}
+kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+
+kappa
+```
+
+
+### Temporally Linked Case Numbers
+ 
+Of the 871 positive DETECT Screenings, 479 (54.994%) were not temporally linked to any APS Case Number, 330 (37.887%) were temporally linked to an APS Case Number with at least one valid allegation of elder mistreatment, and 62 (7.118%) were not. A total of 541 (62.113%) were either associated with an APS Case Number without a valid allegation of elder mistreatment, or failed to be temporally linked to an APS Case Number.
+
+```{r}
+nrow(screened_pos)
+
+pos_cases_na <- screened_pos %>%
+  filter(is.na(aps_cases_any_valid))
+
+nrow(pos_cases_na)
+(nrow(pos_cases_na) *100) / nrow(screened_pos)
+
+pos_cases_yes <- screened_pos %>%
+  filter(!is.na(aps_cases_any_valid) & aps_cases_any_valid)
+
+nrow(pos_cases_yes)
+(nrow(pos_cases_yes) *100) / nrow(screened_pos)
+
+pos_cases_no <- screened_pos %>%
+  filter(!is.na(aps_cases_any_valid) & !aps_cases_any_valid)
+
+nrow(pos_cases_no)
+(nrow(pos_cases_no) *100) / nrow(screened_pos)
+
+sum_pos_cases_no <- nrow(pos_cases_no) + nrow(pos_cases_na)
+
+sum_pos_cases_no
+(sum_pos_cases_no * 100) / nrow(screened_pos)
+```
+
+Of the 23,136 negative DETECT Screenings, 22,040 (95.263%) were not temporally linked to any APS Case Number, 756 (3.268%) were temporally linked to an APS Case Number with at least one valid allegation of elder mistreatment, and 340 (1.470%) were not. A total of 22,380 (96.732%) were either associated with an APS Case Number without a valid allegation of elder mistreatment, or failed to be temporally linked to an APS Case Number.
+
+```{r}
+nrow(screened_neg)
+
+neg_cases_na <- screened_neg %>%
+  filter(is.na(aps_cases_any_valid))
+
+nrow(neg_cases_na)
+(nrow(neg_cases_na) *100) / nrow(screened_neg)
+
+neg_cases_yes <- screened_neg %>%
+  filter(!is.na(aps_cases_any_valid) & aps_cases_any_valid)
+
+nrow(neg_cases_yes)
+(nrow(neg_cases_yes) *100) / nrow(screened_neg)
+
+neg_cases_no <- screened_neg %>%
+  filter(!is.na(aps_cases_any_valid) & !aps_cases_any_valid)
+
+nrow(neg_cases_no)
+(nrow(neg_cases_no) *100) / nrow(screened_neg)
+
+sum_neg_cases_no <- nrow(neg_cases_no) + nrow(neg_cases_na)
+
+sum_neg_cases_no
+(sum_neg_cases_no * 100) / nrow(screened_neg)
+```
+
+#### Kappas
+
+##### Including Unmatched as Negatives
+
+For simplicity, we set our variable names and values.
+
+```{r}
+pos_yes <- nrow(pos_cases_yes)
+
+pos_no <- sum_pos_cases_no
+
+neg_yes <- nrow(neg_cases_yes)
+
+neg_no <- sum_neg_cases_no
+```
+
+We calculated the observed agreement (94.597%).
+
+```{r}
+observed_aggr <- (pos_yes + neg_no) / n_screened 
+
+observed_aggr * 100
+```
+
+We calculated our chance-based agreement (92.176%).
+
+```{r}
+expected_p_y <- ((pos_yes + pos_no) * (pos_yes + neg_yes)) / n_screened
+
+expected_n_n <- ((neg_yes + neg_no) * (pos_no + neg_no)) / n_screened
+
+expected_aggr <- (expected_p_y + expected_n_n) / n_screened
+
+expected_aggr * 100
+```
+
+We calculated our kappa as 0.309, indicating fair agreement between the DETECT screening tool determination and APS Case determination.
+
+```{r}
+kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+
+kappa
+```
+
+##### Excluding Unmatched
+
+For simplicity, we set our variable names and values.
+
+```{r}
+pos_yes <- nrow(pos_cases_yes)
+
+pos_no <- nrow(pos_cases_no)
+
+neg_yes <- nrow(neg_cases_yes)
+
+neg_no <- nrow(neg_cases_no)
+
+n_rows <- nrow(screened %>%
+                 filter(!is.na(aps_case_num)))
+
+n_rows
+```
+
+We calculated the observed agreement (45.027%).
+
+```{r}
+observed_aggr <- (pos_yes + neg_no) / n_rows
+
+observed_aggr * 100
+```
+
+We calculated our chance-based agreement (39.126%).
+
+```{r}
+expected_p_y <- ((pos_yes + pos_no) * (pos_yes + neg_yes)) / n_rows
+
+expected_n_n <- ((neg_yes + neg_no) * (pos_no + neg_no)) / n_rows
+
+expected_aggr <- (expected_p_y + expected_n_n) / n_rows
+
+expected_aggr * 100
+```
+
+We calculated our kappa as 0.097, indicating slight agreement between the DETECT screening tool determination and APS Case determination.
+
+```{r}
+kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+
+kappa
+```
+
+### Subject-Level
+ 
+Of the 871 positive DETECT Screenings, 354 (40.643%) were not linked to a subject with determination data in the APS data set, 460 (52.813%) were associated with a subject with at least one valid allegation of elder mistreatment, and 57 (6.544%) were not. A total of 411 (47.187%) were either associated with a subject without a valid allegation of elder mistreatment, or failed to be associated with a subject in the APS data set.
+
+```{r}
+nrow(screened_pos)
+
+pos_subject_na <- screened_pos %>%
+  filter(is.na(aps_subject_any_valid))
+
+nrow(pos_subject_na)
+(nrow(pos_subject_na) *100) / nrow(screened_pos)
+
+pos_subject_yes <- screened_pos %>%
+  filter(!is.na(aps_subject_any_valid) & aps_subject_any_valid)
+
+nrow(pos_subject_yes)
+(nrow(pos_subject_yes) *100) / nrow(screened_pos)
+
+pos_subject_no <- screened_pos %>%
+  filter(!is.na(aps_subject_any_valid) & !aps_subject_any_valid)
+
+nrow(pos_subject_no)
+(nrow(pos_subject_no) *100) / nrow(screened_pos)
+
+sum_pos_subject_no <- nrow(pos_subject_no) + nrow(pos_subject_na)
+
+sum_pos_subject_no
+(sum_pos_subject_no * 100) / nrow(screened_pos)
+```
+
+Of the 23,136 negative DETECT Screenings, 19,084 (82.486%) were not linked to a subject with determination data in the APS data set, 2,902 (12.543%) were associated with a subject with at least one valid allegation of elder mistreatment, and 1,150 (4.971%) were not. A total of 20,234 (87.457%) were either associated with a subject without a valid allegation of elder mistreatment, or failed to be associated with a subject in the APS data set.
+
+```{r}
+nrow(screened_neg)
+
+neg_subject_na <- screened_neg %>%
+  filter(is.na(aps_subject_any_valid))
+
+nrow(neg_subject_na)
+(nrow(neg_subject_na) *100) / nrow(screened_neg)
+
+neg_subject_yes <- screened_neg %>%
+  filter(!is.na(aps_subject_any_valid) & aps_subject_any_valid)
+
+nrow(neg_subject_yes)
+(nrow(neg_subject_yes) *100) / nrow(screened_neg)
+
+neg_subject_no <- screened_neg %>%
+  filter(!is.na(aps_subject_any_valid) & !aps_subject_any_valid)
+
+nrow(neg_subject_no)
+(nrow(neg_subject_no) *100) / nrow(screened_neg)
+
+sum_neg_subject_no <- nrow(neg_subject_no) + nrow(neg_subject_na)
+
+sum_neg_subject_no
+(sum_neg_subject_no * 100) / nrow(screened_neg)
+```
+
+#### Kappas
+
+##### Including Unmatched as Negatives
+
+For simplicity, we set our variable names and values.
+
+```{r}
+pos_yes <- nrow(pos_subject_yes)
+
+pos_no <- sum_pos_subject_no
+
+neg_yes <- nrow(neg_subject_yes)
+
+neg_no <- sum_neg_subject_no
+```
+
+We calculated the observed agreement (86.200%).
+
+```{r}
+observed_aggr <- (pos_yes + neg_no) / n_screened 
+
+observed_aggr * 100
+```
+
+We calculated our chance-based agreement (83.384%).
+
+```{r}
+expected_p_y <- ((pos_yes + pos_no) * (pos_yes + neg_yes)) / n_screened
+
+expected_n_n <- ((neg_yes + neg_no) * (pos_no + neg_no)) / n_screened
+
+expected_aggr <- (expected_p_y + expected_n_n) / n_screened
+
+expected_aggr * 100
+```
+
+We calculated our kappa as 0.169, indicating slight agreement between the DETECT screening tool determination and APS Case determination.
+
+```{r}
+kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+
+kappa
+```
+
+##### Excluding Unmatched
+
+For simplicity, we set our variable names and values.
+
+```{r}
+pos_yes <- nrow(pos_subject_yes)
+
+pos_no <- nrow(pos_subject_no)
+
+neg_yes <- nrow(neg_subject_yes)
+
+neg_no <- nrow(neg_subject_no)
+
+n_rows <- nrow(screened %>%
+                 filter(!is.na(aps_subject_any_valid)))
+
+n_rows
+```
+
+We calculated the observed agreement (35.237%).
+
+```{r}
+observed_aggr <- (pos_yes + neg_no) / n_rows
+
+observed_aggr * 100
+```
+
+We calculated our chance-based agreement (31.754%).
+
+```{r}
+expected_p_y <- ((pos_yes + pos_no) * (pos_yes + neg_yes)) / n_rows
+
+expected_n_n <- ((neg_yes + neg_no) * (pos_no + neg_no)) / n_rows
+
+expected_aggr <- (expected_p_y + expected_n_n) / n_rows
+
+expected_aggr * 100
+```
+
+We calculated our kappa as 0.051, indicating slight agreement between the DETECT screening tool determination and APS Case determination.
+
+```{r}
+kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+
+kappa
+```
+
+## Agreement: DETECT Result and Reporting
+
+### Broader Intake-Response Pairing
+
+Of the 24,007 screenings, 871 (3.628%) were positive and 23,126 (96.372%) were negative.
+
+```{r}
+screened <- paired_df %>%
+  filter(detect_screened)
+
+n_screened <- nrow(screened)
+
+n_screened
+
+screened_pos <- screened %>%
+  filter(detect_positive)
+
+n_pos <- nrow(screened_pos)
+
+n_pos
+(n_pos * 100) / n_screened
+
+screened_neg <- screened %>%
+  filter(!detect_positive)
+
+n_neg <- nrow(screened_neg)
+
+n_neg
+(n_neg * 100) / n_screened
+
+```
+Of the 871 positive screenings, 321 (33.854%) were matched to an intake within the APS data set (indicating they were reported) and 550 (63.145%) were not.
+
+```{r}
+pos_reported <- screened_pos %>%
+  filter(!is.na(aps_row))
+
+pos_yes <- nrow(pos_reported)
+
+pos_yes
+(pos_yes * 100) / n_pos
+
+pos_unreported <- screened_pos %>%
+  filter(is.na(aps_row))
+
+pos_no <- nrow(pos_unreported)
+
+pos_no
+(pos_no * 100) / n_pos
+```
+
+Of the 23,136 negative screenings, 143 (0.618%) were matched to an intake within the APS data set (indicating they were reported) and 22,993 (99.382%) were not.
+
+```{r}
+neg_reported <- screened_neg %>%
+  filter(!is.na(aps_row))
+
+neg_yes <- nrow(neg_reported)
+
+neg_yes
+(neg_yes * 100) / n_neg
+
+neg_unreported <- screened_neg %>%
+  filter(is.na(aps_row))
+
+neg_no <- nrow(neg_unreported)
+
+neg_no
+(neg_no * 100) / n_neg
+```
+
+We calculated the observed agreement (97.113%).
+
+```{r}
+observed_aggr <- (pos_yes + neg_no) / n_screened 
+
+observed_aggr * 100
+```
+
+We calculated our chance-based agreement (94.579%).
+
+```{r}
+expected_p_y <- ((pos_yes + pos_no) * (pos_yes + neg_yes)) / n_screened
+
+expected_n_n <- ((neg_yes + neg_no) * (pos_no + neg_no)) / n_screened
+
+expected_aggr <- (expected_p_y + expected_n_n) / n_screened
+
+expected_aggr * 100
+```
+
+We calculated our kappa as 0.467, indicating moderate agreement between the DETECT screening tool determination and APS Case determination.
+
+```{r}
+kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+
+kappa
+```
+
+### EMS/EMT Pairing Only
+
+Of the 24,007 screenings, 871 (3.628%) were positive and 23,126 (96.372%) were negative.
+
+```{r}
+paired_ems <- paired_df %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  mutate(aps_case_num = ifelse(is.na(aps_row), NA_integer_, aps_case_num),
+         aps_cases_any_valid = ifelse(is.na(aps_row), NA, aps_cases_any_valid))
+
+screened <- paired_ems %>%
+  filter(detect_screened)
+
+n_screened <- nrow(screened)
+
+n_screened
+
+screened_pos <- screened %>%
+  filter(detect_positive)
+
+n_pos <- nrow(screened_pos)
+
+n_pos
+(n_pos * 100) / n_screened
+
+screened_neg <- screened %>%
+  filter(!detect_positive)
+
+n_neg <- nrow(screened_neg)
+
+n_neg
+(n_neg * 100) / n_screened
+
+```
+
+Of the 871 positive screenings, 262 (30.080%) were matched to an intake within the APS data set (indicating they were reported) and 609 (69.919%) were not.
+
+```{r}
+pos_reported <- screened_pos %>%
+  filter(!is.na(aps_row))
+
+pos_yes <- nrow(pos_reported)
+
+pos_yes
+(pos_yes * 100) / n_pos
+
+pos_unreported <- screened_pos %>%
+  filter(is.na(aps_row))
+
+pos_no <- nrow(pos_unreported)
+
+pos_no
+(pos_no * 100) / n_pos
+```
+
+Of the 23,136 negative screenings, 9 (0.039%) were matched to an intake within the APS data set (indicating they were reported) and 23,127 (99.961%) were not.
+
+```{r}
+neg_reported <- screened_neg %>%
+  filter(!is.na(aps_row))
+
+neg_yes <- nrow(neg_reported)
+
+neg_yes
+(neg_yes * 100) / n_neg
+
+neg_unreported <- screened_neg %>%
+  filter(is.na(aps_row))
+
+neg_no <- nrow(neg_unreported)
+
+neg_no
+(neg_no * 100) / n_neg
+```
+
+We calculated the observed agreement (97.426%).
+
+```{r}
+observed_aggr <- (pos_yes + neg_no) / n_screened 
+
+observed_aggr * 100
+```
+
+We calculated our chance-based agreement (95.325%).
+
+```{r}
+expected_p_y <- ((pos_yes + pos_no) * (pos_yes + neg_yes)) / n_screened
+
+expected_n_n <- ((neg_yes + neg_no) * (pos_no + neg_no)) / n_screened
+
+expected_aggr <- (expected_p_y + expected_n_n) / n_screened
+
+expected_aggr * 100
+```
+
+We calculated our kappa as 0.449, indicating moderate agreement between the DETECT screening tool determination and APS Case determination.
+
+```{r}
+kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+
+kappa
+```
+
+
+# BOTTOM
