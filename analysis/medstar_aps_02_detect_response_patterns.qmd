@@ -1,7 +1,7 @@
 ---
 title: "Response Patterns"
 format: html
-editor: visual
+#editor: visual
 ---
 
 # Summary
@@ -25,11 +25,20 @@ library(lubridate)
 
 ## Data Imports
 
-We imported the revised MedStar data set for processing.
+We imported the revised MedStar data set, with individual pair data, for processing.
 
 ```{r}
-medstar <- readRDS(here("data","DETECT Shared GRAs","merge_aps_medstar",
+medstar <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                        "merge_aps_medstar",
                 "medstar_aps_merged_02_response_based_row_pairs.rds"))
+```
+
+We imported the data set which included the case number paired data created from temporal matching of responses to APS case intake windows.
+
+```{r}
+case_data <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs",
+                            "merge_aps_medstar",
+                            "medstar_aps_merged_04_temporal_case_nums.rds"))
 ```
 
 ## Functions
@@ -388,6 +397,13 @@ medstar <- medstar %>%
     !is.na(detect_report_num) ~ TRUE)
          )
 
+case_data <- case_data %>%
+  mutate(detect_report_made = case_when(
+    detect_report_made == "YES" ~ TRUE,
+    detect_report_made == "NO" & is.na(detect_report_num) ~ FALSE,
+    !is.na(detect_report_num) ~ TRUE)
+         )
+
 get_unique_value_summary(medstar, 'detect_report_made')
 ```
 
@@ -399,12 +415,17 @@ medstar <- medstar %>%
          valid_case = aps_cases_any_valid,
          valid_subj = aps_subject_any_valid)
 
+case_data <- case_data %>%
+  rename(reported = detect_report_made,
+         valid_case = aps_cases_any_valid,
+         valid_subj = aps_subject_any_valid)
+
 outcome_vars <- medstar %>%
   select(reported, valid_case, valid_subj) %>%
   names()
 ```
 
-We also made an alternative version of the data set for sensitivity analysis. This version eliminated any paired APS Intakes which were not explicitly an "EMS/EMT" reporter.
+We also made an alternative version of the paired data set for sensitivity analysis. This version eliminated any paired APS Intakes which were not explicitly an "EMS/EMT" reporter.
 
 ```{r}
 medstar_ems <- medstar %>%
@@ -418,7 +439,6 @@ medstar_ems <- medstar %>%
     NA, 
     valid_case))
 ```
-
 
 ## Selecting Variables
 
@@ -455,6 +475,9 @@ There were 24,007 Observations with a DETECT screening. This included 15,212 Sub
 screened <- medstar %>%
   filter(detect_screened)
 
+screened_case <- case_data %>%
+  filter(detect_screened)
+
 screened_ems <- medstar_ems %>%
   filter(detect_screened)
 
@@ -476,12 +499,18 @@ We also analyzed the pattern of outcomes co-occurring with an answer of "YES" to
 get_occurence_pattern(screened, detect_questions, "YES", outcome_vars)
 ```
 
+This pattern was also assessed for the data set with temporally-matched APS Case Numbers.
+
+```{r}
+get_occurence_pattern(screened_case, detect_questions, "YES", outcome_vars)
+```
+
+
 This outcome pattern was also assessed for only the explicit "EMS/EMT" reporter type observations, to assess for sensitivity.
 
 ```{r}
 get_occurence_pattern(screened_ems, detect_questions, "YES", outcome_vars)
 ```
-
 
 ## Single-Item Screenings
 
@@ -516,6 +545,9 @@ We isolated the 338 screenings that either indicated a report was made, or conta
 checking <- screened %>%
   filter(reported)
 
+checking_case <- screened_case %>%
+  filter(reported)
+
 checking_ems <- screened_ems %>%
   filter(reported)
 
@@ -535,6 +567,12 @@ We analyzed the outcome pattern associated with "YES" responses to all DETECT va
 get_occurence_pattern(checking, detect_questions, "YES", outcome_vars)
 ```
 
+This pattern was also assessed for the data set with temporally-matched APS Case Numbers.
+
+```{r}
+get_occurence_pattern(checking_case, detect_questions, "YES", outcome_vars)
+```
+
 This outcome pattern was also assessed for only the explicit "EMS/EMT" reporter type observations, to assess for sensitivity.
 
 ```{r}
@@ -547,6 +585,9 @@ We then isolated the 23,647 screenings which indicated no report was made, and l
 
 ```{r}
 checking <- screened %>%
+  filter(!reported)
+
+checking_case <- screened_case %>%
   filter(!reported)
 
 checking_ems <- screened_ems %>%
@@ -566,6 +607,12 @@ We analyzed the outcome pattern associated with "YES" responses to all DETECT va
 
 ```{r}
 get_occurence_pattern(checking, detect_questions, "YES", outcome_vars)
+```
+
+This pattern was also assessed for the data set with temporally-matched APS Case Numbers.
+
+```{r}
+get_occurence_pattern(checking_case, detect_questions, "YES", outcome_vars)
 ```
 
 This outcome pattern was also assessed for only the explicit "EMS/EMT" reporter type observations, to assess for sensitivity.
