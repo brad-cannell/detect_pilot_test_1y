@@ -115,20 +115,22 @@ library(lubridate)
 We imported the revised MedStar data set for processing.
 
 ```{r}
-medstar <- readRDS(here("data","DETECT Shared GRAs", "medstar_cleaning",
-                        "medstar_02.rds"))
+medstar <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                        "medstar_cleaning", "medstar_02.rds"))
 ```
 
 We imported the revised APS data set for processing.
 
 ```{r}
-aps <- readRDS(here("data","DETECT Shared GRAs", "aps_cleaning", "aps_04.rds"))
+aps <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                    "aps_cleaning", "aps_04.rds"))
 ```
 
 We imported the Group ID merge pattern for processing.
 
 ```{r}
-merge_pattern <- readRDS(here("data","DETECT Shared GRAs","merge_aps_medstar",
+merge_pattern <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                              "merge_aps_medstar",
                               "aps_medstar_full_subjid_map_01.rds"))
 ```
 
@@ -2137,14 +2139,15 @@ intake_response_pairs <- rows_update(intake_response_pairs, medstar,
 We re-imported the revised MedStar data set, without any filtering or trimming, for processing.
 
 ```{r}
-medstar <- readRDS(here("data","DETECT Shared GRAs", "medstar_cleaning",
+medstar <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", "medstar_cleaning",
                         "medstar_02.rds"))
 ```
 
 We re-imported the revised APS data set, without any filtering or trimming, for processing.
 
 ```{r}
-aps <- readRDS(here("data","DETECT Shared GRAs", "aps_cleaning", "aps_04.rds"))
+aps <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                    "aps_cleaning", "aps_04.rds"))
 ```
 
 We added values for all within-set identifiers to both data sets.
@@ -2179,19 +2182,20 @@ We saved and exported our map for later use.
 
 ```{r}
 saveRDS(intake_response_pairs, 
-        here("data","DETECT Shared GRAs", "merge_aps_medstar", 
-             "medstar_aps_full_row_map_01.rds"))
+        here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+             "merge_aps_medstar", "medstar_aps_full_row_map_01.rds"))
 ```
 
 We saved the updated MedStar data set for later use.
 
 ```{r}
-saveRDS(medstar, here("data","DETECT Shared GRAs", "medstar_cleaning",
-                        "medstar_03.rds"))
+saveRDS(medstar, here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                      "medstar_cleaning", "medstar_03.rds"))
 ```
 
 We saved the updated APS data set for later use.
 
 ```{r}
-saveRDS(aps, here("data","DETECT Shared GRAs", "aps_cleaning", "aps_05.rds"))
+saveRDS(aps, here("data", "02 Shared Folders","DETECT Shared GRAs", 
+                  "aps_cleaning", "aps_05.rds"))
 ```

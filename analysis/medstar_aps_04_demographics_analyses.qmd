@@ -1,0 +1,1256 @@
+---
+title: "DETECT 1-Year Demographics Analyses"
+format: html
+#editor: visual
+---
+
+# Imports
+
+## Library Imports
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(here)
+library(mice)
+library(ggplot2)
+```
+
+## Data Imports
+
+We imported the revised MedStar data set for processing.
+
+```{r}
+medstar <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                        "medstar_cleaning", "medstar_04.rds"))
+```
+
+We imported the revised APS data set for processing.
+
+```{r}
+aps <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                    "aps_cleaning", "aps_06.rds"))
+```
+
+We imported the merged data set that included all MedStar responses and any paired data.
+
+```{r}
+paired_df <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                          "merge_aps_medstar",
+                "medstar_aps_merged_02_response_based_row_pairs.rds"))
+```
+
+We imported the merged data set that included the subject-wide aggregate data.
+
+```{r}
+subj_df <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                        "merge_aps_medstar",
+                         "medstar_aps_merged_03_single_subject_per_row.rds"))
+```
+
+We imported the data set which included the case number paired data created from temporal matching of responses to APS case intake windows.
+
+```{r}
+case_data <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs",
+                            "merge_aps_medstar",
+                            "medstar_aps_merged_04_temporal_case_nums.rds"))
+```
+
+## Functions
+
+### Unique Value Summary
+
+A function written in a previous cleaning document was imported. It was written to display counts of each unique observations within a selection of columns.
+
+```{r}
+get_unique_value_summary <- function(df,cols){
+  
+  # Input: 
+  #     df (data frame) - original source data frame
+  #     cols (list) - list of target column names as strings
+  # Output:
+  #     unique_summary (data frame) - summary counts of each unique value in
+  #           each of the target columns
+  
+  # Get list of unique values in all target columns
+  
+  val <- unique(as.factor(as.vector(as.matrix(df[cols]))))
+  
+  # Initialize output data frame with unique value row
+  
+  unique_summary <- data.frame("value"=val)
+  
+  # Get counts of unique values in original data frame
+  
+  for (i in cols){
+    
+    # utilizes table to get summary count of each column
+    
+    table <- as.data.frame(table(df[i]))
+    
+    # sets column names to "value" and "freq"
+    
+  colnames(table) <- c("value","freq")
+  
+    # adds count of missing values in each column
+  
+  table<- add_row(table, value = NA, freq = sum(is.na(df[i])))
+  
+    # readjusts names of columns to "value" and the name of the target column
+  
+  colnames(table) <- c("value",i)
+  
+    # joins table's summary counts to complete the count values
+  
+    unique_summary <- left_join(unique_summary,table, by="value")
+  }
+  
+  # returns completed, but unordered, data frame
+  
+  unique_summary
+  }
+```
+
+
+# Analyses
+
+# Subject Demographics
+
+## Race and Ethnicity
+
+We isolated race and ethnicity data for each subject. All 16,565 subjects were represented in the subset, though several subjects had multiple values listed for race/ethnicity resulting in 17,018 distinct values.
+
+```{r}
+race_data <- case_data %>%
+  select(id, pt_race, pt_hispanic) %>%
+  distinct()
+
+nrow(race_data)
+length(unique(race_data$id))
+```
+
+There were 440 subjects were duplicated into 893 rows. There were 16,125 subjects that were given consistent values for race and ethnicity. These subjects with consistent values were separated.
+
+```{r}
+duplicates <- race_data[duplicated(race_data$id)|
+                         duplicated(race_data$id, fromLast = TRUE),]
+
+nrow(duplicates)
+length(unique(duplicates$id))
+
+race_data <- race_data %>%
+  filter(!(id %in% duplicates$id)) %>%
+  add_column(multi_ethn = FALSE, multi_race = FALSE)
+
+nrow(race_data)
+length(unique(race_data$id))
+```
+
+All subjects with one value for race, that were listed both as Hispanic and not Hispanic, were manually reviewed. These subjects were listed as "Hispanic" for all entries.
+
+```{r}
+checking <- case_data %>%
+  filter(!(id %in% race_data$id)
+         ) %>%
+  select(id, pt_race, pt_hispanic) %>%
+  group_by(id) %>%
+  mutate(count = n_distinct(pt_race)
+         ) %>%
+  mutate(pt_hispanic = ifelse(count == 1 & any(pt_hispanic), TRUE, pt_hispanic)
+         ) %>%
+  ungroup()
+
+resolved <- checking %>%
+  filter(count == 1) %>%
+  distinct () %>%
+  select(-count) %>%
+  add_column(multi_ethn = TRUE, multi_race = FALSE)
+
+nrow(resolved) == length(unique(resolved$id))
+length(unique(resolved$id))
+```
+
+These 9 subjects were re-added to the race data set.
+
+```{r}
+nrow(race_data)
+race_data <- rbind(race_data, resolved)
+nrow(race_data)
+```
+
+Subjects with two values for race, where one of these possibilities was a missing value, had the non-missing value made primary. There was a single subject within this group which also had multiple values for Hispanic ethnicity. Upon removal of the missing values for race and conversion of ethnicity values to a consistent "TRUE" if ever "TRUE" for a subject, the values were reduced to a single combination.
+
+```{r}
+checking <- checking %>%
+  filter(!(id %in% race_data$id)
+         ) %>%
+  filter(!is.na(pt_race)
+         ) %>%
+  group_by(id) %>%
+  mutate(count = n_distinct(pt_race)
+         ) %>%
+  ungroup()
+  
+
+resolved <- checking %>%
+  filter(count == 1) %>%
+  select(-count) %>%
+  distinct () %>%
+  add_column(multi_ethn = FALSE, multi_race = FALSE)
+
+nrow(resolved) == length(unique(resolved$id))
+
+resolved[resolved$id == 
+           resolved[duplicated(resolved$id),
+                    ]$id,]$pt_hispanic <- TRUE
+
+resolved[resolved$id == 
+           resolved[duplicated(resolved$id),
+                    ]$id,]$multi_ethn <- TRUE
+
+resolved <- distinct(resolved)
+
+nrow(resolved) == length(unique(resolved$id))
+length(unique(resolved$id))
+```
+
+These 183 subjects were re-added to the race data set.
+
+```{r}
+nrow(race_data)
+race_data <- rbind(race_data, resolved)
+nrow(race_data)
+```
+There were 248 remaining subjects, which represented 504 combinations of race, ethnic, and ID data.
+
+```{r}
+checking <- checking %>%
+  filter(!(id %in% race_data$id)
+         ) %>%
+  group_by(id) %>%
+  mutate(count = n_distinct(pt_race)
+         ) %>%
+  ungroup() %>%
+  group_by(id, pt_race, pt_hispanic) %>%
+  summarise(count = n()) %>%
+  ungroup() %>%
+  add_column(multi_ethn = FALSE, multi_race = FALSE)
+
+nrow(checking)
+length(unique(checking$id))
+```
+
+These 248 subjects were manually checked and sorted based on frequencies of occurence.
+
+```{r}
+m_racial <- c(43, 194, 218, 431, 533, 972, 1022, 1418, 1458, 1460, 1598, 1670, 
+              1696, 1782, 1892, 1920, 2084, 11337, 11402, 11564, 11952, 12012, 
+              12236, 12369, 12560, 12592, 12924, 13008, 13079, 13664, 13854, 
+              13942, 13978, 14175, 14338, 14526, 14536, 14872, 15030, 15139, 
+              15279, 15419, 15421, 15599, 15801, 16929, 17298, 17373, 17887, 
+              18146, 18421, 18780, 18903, 19084, 19133, 19329, 19411, 19656, 
+              20000, 20196, 20934, 23813)
+
+checking[checking$id %in% m_racial,]$pt_race <- "Multiracial"
+checking[checking$id %in% m_racial,]$multi_race <- TRUE
+
+
+black_racial <- c(53,145,208, 425, 711, 721, 732, 783, 906, 1408, 1479, 1524, 
+                  1762, 1839, 11122, 11128, 11262, 11289, 11549, 11611, 11660, 
+                  11693, 11719, 12100, 12288, 12290, 12537, 12629, 12984, 12996, 
+                  13062, 13324, 13782, 14095, 14299, 14697, 15418, 16077, 16447, 
+                  16564, 17615, 17969, 19199, 19675, 20352)
+
+checking[checking$id %in% black_racial,]$pt_race <- "Black or African American"
+checking[checking$id %in% black_racial,]$multi_race <- TRUE
+
+
+white_racial <- c(151, 311, 477, 563, 759, 778, 801, 814, 862, 902, 1006, 1013, 
+                  1021, 1050, 1109, 1228, 1248, 1254, 1371, 1414, 1477, 1500, 
+                  1517, 1537, 1575, 1639, 1748, 1750, 1928, 11132, 11214, 11258, 
+                  11480, 11613, 11617, 11656, 11808, 11841, 11937, 11964, 12009, 
+                  12082, 12153, 12201, 12265, 12382, 12539, 12570, 12641, 12664, 
+                  12744, 12745, 12952, 12962, 12991, 13088, 13106, 13142, 13186, 
+                  13246, 13443, 13477, 13621, 13650, 13770, 13809, 13861, 14211, 
+                  14298, 14316, 14328, 14353, 14517, 14623, 14643, 14933, 14993, 
+                  15089, 15372, 15419, 15856, 15879, 15921, 15958, 16079, 16107, 
+                  16217, 16381, 16408, 16618, 16751, 16999, 17150, 17265, 17327, 
+                  17485, 17665, 17775, 18035, 18089, 18127, 18387, 18510, 18628, 
+                  19042, 19116, 19206, 19337, 19574, 19782, 19913, 19947, 20015, 
+                  20248, 20371, 20377, 20506, 20601, 21925, 22028, 22078, 23526, 
+                  24454)
+
+checking[checking$id %in% white_racial,]$pt_race <- "White"
+checking[checking$id %in% white_racial,]$multi_race <- TRUE
+
+
+asian_racial <- c(417, 567, 1571, 12055, 13862, 14822, 14848, 15271, 16895, 
+                  17179, 17733, 17778, 18643, 19580, 22729)
+
+checking[checking$id %in% asian_racial,]$pt_race <- "Asian"
+checking[checking$id %in% asian_racial,]$multi_race <- TRUE
+
+
+pi_racial <- c(418, 1478, 11489, 13477, 16124, 21234)
+
+checking[checking$id %in% pi_racial,]$pt_race <- "Native Hawaiian or Other Pacific Islander"
+checking[checking$id %in% pi_racial,]$multi_race <- TRUE
+
+
+hispanic_ethn <- c(208, 311, 418, 477, 711, 862, 906, 972, 1013, 1109, 1228, 
+                   1248, 1408, 1477, 1478, 1639, 1748, 1892, 11122, 11214, 
+                   11258, 11480, 11489, 11549, 11613, 11656, 11808, 11937, 
+                   11964, 12082, 12153, 12265, 12288, 12382, 12539, 12570, 
+                   12991, 13062, 13142, 13186, 13246, 13650, 13770, 13809, 
+                   14211, 14298, 14299, 14316, 14328, 14353, 14933, 15089, 
+                   15372, 15958, 16079, 16217, 16381, 16447, 16564, 16618, 
+                   17665, 17775, 17969, 18035, 18089, 18387, 18510, 18628, 
+                   19206, 19574, 19782, 19947, 20248, 20371, 20377, 21234)
+
+checking[checking$id %in% hispanic_ethn,]$pt_hispanic <- TRUE
+checking[checking$id %in% hispanic_ethn,]$multi_ethn <- TRUE
+
+
+nonhisp_ethn <- c(151, 425, 759, 902, 1021, 1050, 1782, 11289, 12537, 12962, 
+                  13088, 13324, 13477, 13862, 14623, 15879, 19199)
+
+checking[checking$id %in% nonhisp_ethn,]$pt_hispanic <- FALSE
+checking[checking$id %in% nonhisp_ethn,]$multi_ethn <- TRUE
+```
+
+These 248 subjects were verified to be resolved to a single combination of race and ethnicity.
+
+```{r}
+checking <- checking %>%
+  select(-count) %>%
+  distinct()
+
+nrow(checking) == length(unique(checking$id))
+```
+These 248 subjects were re-added to the race data set, resulting in resolution of race/ethnicity data for all 16,565 subjects.
+
+```{r}
+nrow(race_data)
+race_data <- rbind(race_data, checking)
+nrow(race_data)
+```
+
+## Sex
+
+We isolated subject sex/gender for all subjects. All 16,565 subjects were represented in the subset, though several subjects had multiple values listed for race/ethnicity resulting in 17,018 distinct values.
+
+```{r}
+sex_data <- case_data %>%
+  select(id, pt_gender) %>%
+  distinct()
+
+nrow(sex_data)
+length(unique(sex_data$id))
+```
+
+There were 437 subjects were duplicated into 219 rows. There were 16,347 subjects that were given consistent values for sex/gender. These subjects with consistent values were separated.
+
+```{r}
+duplicates <- sex_data[duplicated(sex_data$id)|
+                         duplicated(sex_data$id, fromLast = TRUE),]
+
+nrow(duplicates)
+length(unique(duplicates$id))
+
+sex_data <- sex_data %>%
+  filter(!(id %in% duplicates$id)) %>%
+  add_column(multi_sex = FALSE)
+
+nrow(sex_data)
+length(unique(sex_data$id))
+```
+
+Subjects with two values for sex/gender, where one of these possibilities was a missing value, had the non-missing value made primary. 
+
+```{r}
+checking <- case_data %>%
+  filter(!(id %in% sex_data$id)
+         ) %>%
+  select(id, pt_gender) %>%
+  filter(!is.na(pt_gender)
+         ) %>%
+  group_by(id) %>%
+  mutate(count = n_distinct(pt_gender)
+         ) %>%
+  ungroup()
+  
+
+resolved <- checking %>%
+  filter(count == 1) %>%
+  select(-count) %>%
+  distinct () %>%
+  add_column(multi_sex = FALSE)
+
+nrow(resolved) == length(unique(resolved$id))
+
+resolved <- distinct(resolved)
+
+nrow(resolved) == length(unique(resolved$id))
+length(unique(resolved$id))
+```
+
+These 113 subjects were re-added to the sex/gender data set.
+
+```{r}
+nrow(sex_data)
+sex_data <- rbind(sex_data, resolved)
+nrow(sex_data)
+```
+The remaining 105 subjects each had observations listing them as "Male" and "Female", resulting in 210 possibilities.
+
+```{r}
+checking <- case_data %>%
+  filter(!(id %in% sex_data$id)
+         ) %>%
+  select(id, pt_gender) %>%
+  filter(!is.na(pt_gender)
+         ) %>%
+  group_by(id, pt_gender) %>%
+  summarise(count=n()
+            ) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(names = paste(case_data[case_data$id == id,]$pt_name_full, collapse = "', '")
+         ) %>%
+  ungroup() %>%
+  add_column(multi_sex = TRUE)
+
+nrow(checking)
+length(unique(checking$id))
+```
+
+These 105 subjects were manually checked and sorted into "Male" and "Female" based on the frequency of each assignment in the MedStar data set, and other identifiers present in the data set such as name.
+
+```{r}
+male_sex <- c(11, 145, 877, 961, 1099, 1209, 1231, 1716, 1772, 1809, 2107, 
+              11200, 11245, 11324, 11507, 12390, 12548, 12887, 13153, 13218,
+              13666, 14136, 15089, 15147, 15214, 15578, 15687, 16192, 16623,
+              16977, 17076, 17983, 18059, 19333, 19580, 19799, 19842, 20454,
+              20469, 20506, 22020, 22344, 22547, 24275)
+
+checking[checking$id %in% male_sex,]$pt_gender <- "Male"
+
+female_sex <- c(143, 153, 158, 194, 366, 450, 550, 699, 725, 938, 1104, 1138,
+                1158, 1488, 1589, 11128, 11298, 11436, 11518, 11871, 12160, 
+                12256, 12288, 12290, 12401, 12451, 12454, 12680, 12786, 12917,
+                12990, 13321, 13589, 13791, 14216, 14489, 14555, 15030, 15396,
+                15453, 15510, 15717, 15720, 15758, 16130, 16247, 16365, 16376,
+                16592, 16599, 17154, 17264, 17362, 17586, 19564, 19856, 20448,
+                21061, 22720, 23602, 24588)
+
+checking[checking$id %in% female_sex,]$pt_gender <- "Female"
+```
+
+The results of cleaning were verified.
+
+```{r}
+checking <- checking %>%
+  select(-c('names', 'count')
+         ) %>%
+  distinct()
+
+nrow(checking) == length(unique(checking$id))
+length(unique(checking$id))
+```
+
+These 113 subjects were re-added to the sex/gender data set.
+
+```{r}
+nrow(sex_data)
+sex_data <- rbind(sex_data, checking)
+nrow(sex_data)
+```
+
+## Sex/Gender & Race Demographics
+
+The two demographic data sets were then joined.
+
+```{r}
+demo_data <- left_join(race_data, sex_data, by="id")
+```
+
+This merged data set contained 16,565 subjects, each represented by a single row.
+
+```{r}
+nrow(demo_data)
+nrow(demo_data) == length(unique(demo_data$id))
+```
+
+This map was saved to facilitate different analyses, if needed.
+
+```{r}
+saveRDS(demo_data, here(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                          "merge_aps_medstar",
+                "merged_aps_medstar_00_demographics_by_subject.rds")))
+```
+
+We isolated the subject-level data from our data sets, then merged the subject-level demographic data.
+
+```{r}
+subj_lvl_data <- case_data %>%
+  group_by(id) %>%
+  mutate(detect_ever_screened = ifelse(sum(detect_screened) > 0, TRUE, FALSE)
+         ) %>%
+  mutate(detect_ever_positive = case_when(
+    !detect_ever_screened ~ NA,
+    detect_ever_screened & sum(detect_positive, na.rm = TRUE) > 0 ~ TRUE,
+    detect_ever_screened & sum(detect_positive, na.rm = TRUE) == 0 ~ FALSE)
+    ) %>%
+  ungroup() %>%
+  select(id, aps_person_id, ms_id, all_of(starts_with("aps_subject_")),
+         detect_ever_screened, detect_ever_positive,
+         all_of(starts_with("ms_subj_"))
+         ) %>%
+  distinct()
+
+nrow(subj_lvl_data)
+length(unique(subj_lvl_data$id))
+
+subj_lvl_data <- left_join(subj_lvl_data, demo_data, by = "id") %>%
+  relocate(id, aps_person_id, ms_id, pt_race, pt_hispanic, pt_gender)
+```
+
+### General Demographic Homogeniety
+
+We utilized this data in order to determine our exact observed counts:
+
+```{r}
+table(subj_lvl_data$pt_gender)
+table(subj_lvl_data$pt_race)
+table(subj_lvl_data$pt_hispanic)
+```
+
+Expected counts were manually calculated utilizing [US Census data for Fort Worth](https://www.census.gov/quickfacts/fact/table/fortworthcitytexas/POP060210). The tables with expected and observed counts were created as CSV files and imported. The table of sex/gender values was transformed as required to be in the appropriate format for a chi-square test of homogeneity. The p-value of < 2.2e-16 indicated significant deviation from the expected population.
+
+```{r}
+demo_tab_sex <- read.csv(here("data", "02 Shared Folders", 
+                               "DETECT Shared GRAs", "analysis", "demographic_counts_sex.csv"))
+
+demo_tab_sex <- as.data.frame(t(demo_tab_sex))
+colnames(demo_tab_sex) <- demo_tab_sex['value',]
+rownames(demo_tab_sex) <- NULL
+demo_tab_sex <- demo_tab_sex[2-3,] %>%
+   mutate(across(everything(), .fns = ~as.numeric(.x)))
+
+chisq.test(demo_tab_sex)
+```
+
+This continued to be true even after the missing values were omitted.
+
+```{r}
+chisq.test(demo_tab_sex %>% select(-Missing))
+```
+
+The table of race values was transformed as required to be in the appropriate format for a chi-square test of homogeneity. The p-value of < 2.2e-16 indicated significant deviation from the expected population.
+
+```{r}
+demo_tab_race <- read.csv(here("data", "02 Shared Folders", 
+                               "DETECT Shared GRAs", "analysis", "demographic_counts_race.csv"))
+
+demo_tab_race <- as.data.frame(t(demo_tab_race))
+colnames(demo_tab_race) <- demo_tab_race['value',]
+rownames(demo_tab_race) <- NULL
+demo_tab_race <- demo_tab_race[2-3,] %>%
+   mutate(across(everything(), .fns = ~as.numeric(.x)))
+
+chisq.test(demo_tab_race)
+```
+
+This continued to be true even after the missing values were omitted.
+
+```{r}
+chisq.test(demo_tab_race %>% select(-Missing, -`Other Race`))
+```
+
+
+The table of ethnicity values was transformed as required to be in the appropriate format for a chi-square test of homogeneity. The p-value of < 2.2e-16 indicated significant deviation from the expected population.
+
+```{r}
+demo_tab_ethnicity <- read.csv(here("data", "02 Shared Folders", 
+                               "DETECT Shared GRAs", "analysis", "demographic_counts_ethnicity.csv"))
+
+demo_tab_ethnicity <- as.data.frame(t(demo_tab_ethnicity))
+colnames(demo_tab_ethnicity) <- demo_tab_ethnicity['value',]
+rownames(demo_tab_ethnicity) <- NULL
+demo_tab_ethnicity <- demo_tab_ethnicity[2-3,] %>%
+   mutate(across(everything(), .fns = ~as.numeric(.x)))
+
+chisq.test(demo_tab_ethnicity)
+```
+
+This continued to be true even after the missing values were omitted.
+
+```{r}
+chisq.test(demo_tab_ethnicity %>% select(-Missing))
+```
+
+### Independence for Screening Status
+
+We tested for independence of sex/gender and screening status (if a screening was ever performed). The p-value was < 0.001 for both Chi-Square and Fishers, which indicated significant association between sex/gender and if a screening was ever performed.
+
+```{r}
+screening_sex <- subj_lvl_data %>%
+  group_by(pt_gender, detect_ever_screened) %>%
+  tally() %>%
+  spread(pt_gender, n)
+
+screening_sex
+chisq.test(screening_sex)
+fisher.test(screening_sex)
+```
+
+The p-value rose to 0.07299 after the exclusion of the subjects missing values for sex/gender.
+
+```{r}
+screening_sex %>% select(-'<NA>')
+
+chisq.test(screening_sex %>% select(-'<NA>'))
+fisher.test(screening_sex %>% select(-'<NA>'))
+```
+
+
+We tested for independence of race and screening status (if a screening was ever performed). The p-value of < 0.001 indicated significant association between race and if a screening was ever performed.
+
+```{r}
+screening_race <- subj_lvl_data %>%
+  group_by(pt_race, detect_ever_screened) %>%
+  tally() %>%
+  spread(pt_race, n) %>%
+  replace(is.na(.),0)
+
+screening_race
+chisq.test(screening_race)
+fisher.test(screening_race, simulate.p.value = TRUE)
+```
+
+This p-value rose to 0.1039 after exclusion of subjects missing a value for race.
+
+```{r}
+screening_race %>% select(-'<NA>')
+
+chisq.test(screening_race %>% select(-'<NA>'))
+fisher.test(screening_race %>% select(-'<NA>'),
+           simulate.p.value = TRUE)
+```
+
+We tested for independence of ethnicity and screening status (if a screening was ever performed). The p-value of < 0.001 indicated significant association between ethnicity and if a screening was ever performed.
+
+```{r}
+screening_ethnicity <- subj_lvl_data %>%
+  group_by(pt_hispanic, detect_ever_screened) %>%
+  tally() %>%
+  spread(pt_hispanic, n) %>%
+  replace(is.na(.),0)
+
+screening_ethnicity
+fisher.test(screening_ethnicity)
+chisq.test(screening_ethnicity)
+```
+
+The p-value rose to 0.5984 (Chi-Squared) or 0.3996 (Fisher's Exact) after the exclusion of subjects that lacked value for race or ethnicity.
+
+```{r}
+screening_ethnicity %>% select(-'<NA>')
+
+chisq.test(screening_ethnicity %>% select(-'<NA>'))
+fisher.test(screening_ethnicity %>% select(-'<NA>'))
+```
+
+### Independence for Screening Outcomes
+
+We tested for independence of sex/gender and screening result among screened subjects. The p-value was < 0.001 for both Chi-Square and Fishers, which indicated significant association between sex/gender and screening result.
+
+```{r}
+screened_subjs <- subj_lvl_data %>%
+  filter(detect_ever_screened)
+
+nrow(screened_subjs)
+
+screening_sex <- screened_subjs %>%
+  group_by(pt_gender, detect_ever_positive) %>%
+  tally() %>%
+  spread(pt_gender, n)
+
+screening_sex
+chisq.test(screening_sex)
+fisher.test(screening_sex)
+```
+
+The p-value rose to 0.03223 after the exclusion of the subjects missing values for sex/gender.
+
+```{r}
+screening_sex %>% select(-'<NA>')
+
+chisq.test(screening_sex %>% select(-'<NA>'))
+fisher.test(screening_sex %>% select(-'<NA>'))
+```
+
+We tested for independence of race and screening result. The p-value of < 0.001 indicated significant association between race and screening results.
+
+```{r}
+screening_race <- screened_subjs %>%
+  group_by(pt_race, detect_ever_positive) %>%
+  tally() %>%
+  spread(pt_race, n) %>%
+  replace(is.na(.),0)
+
+screening_race
+chisq.test(screening_race)
+fisher.test(screening_race, simulate.p.value = TRUE)
+```
+
+This p-value rose to 0.005497 after exclusion of subjects missing a value for race.
+
+```{r}
+screening_race %>% select(-'<NA>')
+
+chisq.test(screening_race %>% select(-'<NA>'))
+fisher.test(screening_race %>% select(-'<NA>'),
+           simulate.p.value = TRUE)
+```
+
+We tested for independence of ethnicity and screening result. The p-value of < 0.001 indicated significant association between ethnicity and screening result.
+
+```{r}
+screening_ethnicity <- screened_subjs %>%
+  group_by(pt_hispanic, detect_ever_positive) %>%
+  tally() %>%
+  spread(pt_hispanic, n) %>%
+  replace(is.na(.),0)
+
+screening_ethnicity
+fisher.test(screening_ethnicity)
+chisq.test(screening_ethnicity)
+```
+
+The p-value rose to 0.003708 after the exclusion of subjects that lacked value for race or ethnicity.
+
+```{r}
+screening_ethnicity %>% select(-'<NA>')
+
+chisq.test(screening_ethnicity %>% select(-'<NA>'))
+fisher.test(screening_ethnicity %>% select(-'<NA>'))
+```
+
+### Independence for APS Determinations
+
+#### Counting Subjects Missing from APS Data as "No Valid Allegations"
+
+We tested for independence of sex/gender and the presence of at least one valid allegation of EM for the subject anywhere across the data set. When counting any subject that was missing in the APS data set as "no valid allegation" rather than omitting, the p-value was < 0.001 for both Chi-Square and Fishers, which indicated significant association between sex/gender and the presence of at least one valid APS determination.
+
+```{r}
+screening_sex <- subj_lvl_data %>%
+  mutate(aps_subject_any_valid = ifelse(is.na(aps_subject_any_valid), FALSE, aps_subject_any_valid)
+         ) %>%
+  group_by(pt_gender, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_gender, n) %>%
+  replace(is.na(.),0)
+
+screening_sex
+chisq.test(screening_sex)
+fisher.test(screening_sex, simulate.p.value = TRUE)
+```
+
+The p-value rose to 0.001751 after the exclusion of the subjects missing values for sex/gender.
+
+```{r}
+screening_sex %>% select(-'<NA>')
+
+chisq.test(screening_sex %>% select(-'<NA>'))
+fisher.test(screening_sex %>% select(-'<NA>'))
+```
+
+We tested for independence of race and the presence of at least one valid EM allegation determination in the APS data set. The p-value of < 0.001 indicated significant association between race and the presence of at least one valid EM allegation determination in the APS data set.
+
+```{r}
+screening_race <- subj_lvl_data %>%
+  mutate(aps_subject_any_valid = ifelse(is.na(aps_subject_any_valid), FALSE, aps_subject_any_valid)
+         ) %>%
+  group_by(pt_race, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_race, n) %>%
+  replace(is.na(.),0)
+
+screening_race
+chisq.test(screening_race)
+fisher.test(screening_race, simulate.p.value = TRUE)
+```
+
+This p-value remained the same after exclusion of subjects missing a value for race.
+
+```{r}
+screening_race %>% select(-'<NA>')
+
+chisq.test(screening_race %>% select(-'<NA>'))
+fisher.test(screening_race %>% select(-'<NA>'),
+           simulate.p.value = TRUE)
+```
+
+We tested for independence of ethnicity and the presence of at least one valid EM allegation determination in the APS data set. The p-value of < 0.001 indicated significant association between ethnicity and the presence of at least one valid EM allegation determination in the APS data set.
+
+```{r}
+screening_ethnicity <- subj_lvl_data %>%
+  mutate(aps_subject_any_valid = ifelse(is.na(aps_subject_any_valid), FALSE, aps_subject_any_valid)
+         ) %>%
+  group_by(pt_hispanic, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_hispanic, n) %>%
+  replace(is.na(.),0)
+
+screening_ethnicity
+fisher.test(screening_ethnicity)
+chisq.test(screening_ethnicity)
+```
+
+The p-value remained persistent after the exclusion of subjects that lacked value for race or ethnicity.
+
+```{r}
+screening_ethnicity %>% select(-'<NA>')
+
+chisq.test(screening_ethnicity %>% select(-'<NA>'))
+fisher.test(screening_ethnicity %>% select(-'<NA>'))
+```
+
+#### Excluding Subjects Missing from APS Data
+
+We tested for independence of sex/gender and the presence of at least one valid allegation of EM for the subject anywhere across the data set. When omitting any subject that was missing in the APS data set, the p-value was 0.091 for Fisher's, which did not indicate a significant association between sex/gender and the presence of any valid APS allegations.
+
+```{r}
+screening_sex <- subj_lvl_data %>%
+  filter(!is.na(aps_subject_any_valid)
+         ) %>%
+  group_by(pt_gender, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_gender, n)
+
+screening_sex
+chisq.test(screening_sex)
+fisher.test(screening_sex, simulate.p.value = TRUE)
+```
+
+The p-value rose to 0.1289 after the exclusion of the subjects missing values for sex/gender.
+
+```{r}
+screening_sex %>% select(-'<NA>')
+
+chisq.test(screening_sex %>% select(-'<NA>'))
+fisher.test(screening_sex %>% select(-'<NA>'))
+```
+
+We tested for independence of race and the presence of at least one valid EM allegation determination in the APS data set. The p-value of 0.758 indicated no significant association between race and the presence of at least one valid EM allegation determination in the APS data set.
+
+```{r}
+screening_race <- subj_lvl_data %>%
+  filter(!is.na(aps_subject_any_valid)
+         ) %>%
+  group_by(pt_race, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_race, n) %>%
+  replace(is.na(.),0)
+
+screening_race
+chisq.test(screening_race)
+fisher.test(screening_race, simulate.p.value = TRUE)
+```
+
+This p-value dropped to 0.6492 after exclusion of subjects missing a value for race.
+
+```{r}
+screening_race %>% select(-'<NA>')
+
+chisq.test(screening_race %>% select(-'<NA>'))
+fisher.test(screening_race %>% select(-'<NA>'),
+           simulate.p.value = TRUE)
+```
+
+We tested for independence of ethnicity and the presence of at least one valid EM allegation determination in the APS data set. The p-value of 0.790 indicated no significant association between ethnicity and the presence of at least one valid EM allegation determination in the APS data set.
+
+```{r}
+screening_ethnicity <- subj_lvl_data %>%
+  filter(!is.na(aps_subject_any_valid)
+         ) %>%
+  group_by(pt_hispanic, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_hispanic, n) %>%
+  replace(is.na(.),0)
+
+screening_ethnicity
+fisher.test(screening_ethnicity)
+chisq.test(screening_ethnicity)
+```
+
+The p-value reduced to 0.653 after the exclusion of subjects that lacked value for race or ethnicity.
+
+```{r}
+screening_ethnicity %>% select(-'<NA>')
+
+chisq.test(screening_ethnicity %>% select(-'<NA>'))
+fisher.test(screening_ethnicity %>% select(-'<NA>'))
+```
+
+#### Subjects Missing from APS as Third Category
+
+We tested for independence of sex/gender and the presence of at least one valid allegation of EM for the subject anywhere across the data set. When counting any subject that was missing in the APS data set as a separate category, the p-value was < 0.001 for both Chi-Square and Fishers, which indicated significant association between sex/gender and the presence of at least one valid APS determination.
+
+```{r}
+screening_sex <- subj_lvl_data %>%
+  mutate(aps_subject_any_valid = as.character(aps_subject_any_valid)
+         ) %>%
+  mutate(aps_subject_any_valid = ifelse(is.na(aps_subject_any_valid), "MISSING", aps_subject_any_valid)
+         ) %>%
+  mutate(aps_subject_any_valid = case_when(
+    aps_subject_any_valid == "MISSNG" ~ 0,
+    aps_subject_any_valid == "FALSE" ~ 1,
+    aps_subject_any_valid == "TRUE" ~2
+  )) %>%
+  group_by(pt_gender, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_gender, n) %>%
+  replace(is.na(.),0)
+
+screening_sex
+chisq.test(screening_sex)
+fisher.test(screening_sex, simulate.p.value = TRUE)
+```
+
+The p-value remained < 0.001 after the exclusion of the subjects missing values for sex/gender.
+
+```{r}
+screening_sex %>% select(-'<NA>')
+
+chisq.test(screening_sex %>% select(-'<NA>'))
+fisher.test(screening_sex %>% select(-'<NA>'), simulate.p.value = TRUE)
+```
+
+We tested for independence of race and the presence of at least one valid EM allegation determination in the APS data set. The p-value of < 0.001 indicated significant association between race and the presence of at least one valid EM allegation determination in the APS data set.
+
+```{r}
+screening_race <- subj_lvl_data %>%
+  mutate(aps_subject_any_valid = as.character(aps_subject_any_valid)
+         ) %>%
+  mutate(aps_subject_any_valid = ifelse(is.na(aps_subject_any_valid), "MISSING", aps_subject_any_valid)
+         ) %>%
+  mutate(aps_subject_any_valid = case_when(
+    aps_subject_any_valid == "MISSNG" ~ 0,
+    aps_subject_any_valid == "FALSE" ~ 1,
+    aps_subject_any_valid == "TRUE" ~2
+  )) %>%
+  group_by(pt_race, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_race, n) %>%
+  replace(is.na(.),0)
+
+screening_race
+chisq.test(screening_race)
+fisher.test(screening_race, simulate.p.value = TRUE)
+```
+
+This p-value remained the same after exclusion of subjects missing a value for race.
+
+```{r}
+screening_race %>% select(-'<NA>')
+
+chisq.test(screening_race %>% select(-'<NA>'))
+fisher.test(screening_race %>% select(-'<NA>'),
+           simulate.p.value = TRUE)
+```
+
+We tested for independence of ethnicity and the presence of at least one valid EM allegation determination in the APS data set. The p-value of < 0.001 indicated significant association between ethnicity and the presence of at least one valid EM allegation determination in the APS data set.
+
+```{r}
+screening_ethnicity <- subj_lvl_data %>%
+  mutate(aps_subject_any_valid = as.character(aps_subject_any_valid)
+         ) %>%
+  mutate(aps_subject_any_valid = ifelse(is.na(aps_subject_any_valid), "MISSING", aps_subject_any_valid)
+         ) %>%
+  mutate(aps_subject_any_valid = case_when(
+    aps_subject_any_valid == "MISSNG" ~ 0,
+    aps_subject_any_valid == "FALSE" ~ 1,
+    aps_subject_any_valid == "TRUE" ~2
+  )) %>%
+  group_by(pt_hispanic, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_hispanic, n) %>%
+  replace(is.na(.),0)
+
+screening_ethnicity
+fisher.test(screening_ethnicity, simulate.p.value = TRUE)
+chisq.test(screening_ethnicity)
+```
+
+The p-value remained persistent after the exclusion of subjects that lacked value for race or ethnicity.
+
+```{r}
+screening_ethnicity %>% select(-'<NA>')
+
+chisq.test(screening_ethnicity %>% select(-'<NA>'))
+fisher.test(screening_ethnicity %>% select(-'<NA>'), 
+            simulate.p.value = TRUE)
+```
+
+# Response Pattern Demographics
+
+We created a sample data set which reflected our consolidated demographic data for each subject.
+
+```{r}
+demo_updater <- subj_lvl_data %>%
+  select(id, pt_race, pt_hispanic, pt_gender, multi_sex, multi_race, multi_ethn, 
+         detect_ever_screened, detect_ever_positive)
+
+updated_subj_cases <- case_data %>%
+  add_column(multi_sex = NA, multi_race = NA, multi_ethn = NA, 
+             detect_ever_screened = NA, detect_ever_positive = NA)
+
+updated_subj_cases <- rows_update(updated_subj_cases, demo_updater, by="id")
+```
+
+We had 9,682 screenings performed on a "Male" subject and 14,145 screenings performed on a "Female" subject, of which 401 screenings were performed on subjects that had multiple values listed for sex/gender. There were 180 screenings that lacked a subject sex/gender value.
+
+```{r}
+updated_subj_cases %>% 
+  group_by(pt_gender, detect_screened) %>%
+  tally() %>%
+  spread(pt_gender, n) %>%
+  replace(is.na(.),0)
+
+updated_subj_cases %>% 
+  group_by(multi_sex, detect_screened) %>%
+  tally() %>%
+  spread(multi_sex, n) %>%
+  replace(is.na(.),0)
+```
+
+We had 15,084 screenings performed on a "White" subject, 5,602 on a "Black or African American" subject, 307 on an "Asian" subject, 42 on a "Native Hawaiian or Other Pacific Islander" subject, 8 on an "American Indian or Alaska Native" subject, 2,473 on an "Other Race" subject, and 206 on a "Multiracial" subject, of which 860 screenings were performed on subjects with multiple values listed for race. There were 285 screenings performed on subjects missing a race value.
+
+```{r}
+updated_subj_cases %>% 
+  group_by(pt_race, detect_screened) %>%
+  tally() %>%
+  spread(pt_race, n) %>%
+  replace(is.na(.),0)
+
+updated_subj_cases %>% 
+  group_by(multi_race, detect_screened) %>%
+  tally() %>%
+  spread(multi_race, n) %>%
+  replace(is.na(.),0)
+```
+
+We had 9,682 screenings performed on a "Male" subject and 14,145 screenings performed on a "Female" subject, of which 401 screenings were performed on subjects that had multiple values listed for sex/gender. There were 180 screenings that lacked a subject sex/gender value.
+
+```{r}
+updated_subj_cases %>% 
+  group_by(pt_hispanic, detect_screened) %>%
+  tally() %>%
+  spread(pt_hispanic, n) %>%
+  replace(is.na(.),0)
+
+updated_subj_cases %>% 
+  group_by(multi_ethn, detect_screened) %>%
+  tally() %>%
+  spread(multi_ethn, n) %>%
+  replace(is.na(.),0)
+```
+
+We calculated the total number of times any specific DETECT screening item was completed, broken down by demographics.
+
+```{r}
+completed_demos <- tibble::tibble(!!!c('screening_item', 'total_completed'), 
+                                  .rows = 0, 
+                                  .name_repair = ~c('screening_item', 
+                                                    'total_completed'))
+
+for (i in 1:length(detect_items)){
+
+  subset <- updated_subj_cases %>%
+    select(id, pt_gender, multi_sex, pt_race, multi_race, pt_hispanic, multi_ethn, 
+           detect_items[i])
+  
+  colnames(subset)[colnames(subset) == detect_items[i]] <- 'screening_item'
+  
+  total_completed <- sum(!is.na(subset$screening_item))
+  
+  completed_row <- cbind('screening_item' = detect_items[i],
+                         'total_completed' = total_completed)
+  
+  t_subset <- subset %>%
+    mutate(screening_item = ifelse(!is.na(screening_item), TRUE, FALSE))
+  
+  
+  sex_demo <- t_subset %>%
+    group_by(pt_gender, screening_item) %>%
+    tally() %>%
+    spread(pt_gender, n) %>%
+    replace(is.na(.),0) %>%
+    filter(screening_item == TRUE) %>%
+    select(-screening_item)
+  
+  sex_multi <- t_subset %>%
+    group_by(multi_sex, screening_item) %>%
+    tally() %>%
+    spread(multi_sex, n) %>%
+    replace(is.na(.),0) %>%
+    filter(screening_item == TRUE) %>%
+    select(-screening_item)
+  
+  sex_multi <- sex_multi[,'TRUE']
+  colnames(sex_multi) <- 'Multi_Sex'
+  
+  completed_row <- cbind(completed_row, sex_demo, sex_multi)
+  
+  race_demo <- t_subset %>%
+    group_by(pt_race, screening_item) %>%
+    tally() %>%
+    spread(pt_race, n) %>%
+    replace(is.na(.),0) %>%
+    filter(screening_item == TRUE) %>%
+    select(-screening_item)
+  
+  race_multi <- t_subset %>%
+    group_by(multi_race, screening_item) %>%
+    tally() %>%
+    spread(multi_race, n) %>%
+    replace(is.na(.),0) %>%
+    filter(screening_item == TRUE) %>%
+    select(-screening_item)
+  
+  race_multi <- race_multi[,'TRUE']
+  colnames(race_multi) <- 'Multi_Race'
+  
+  completed_row <- cbind(completed_row, race_demo, race_multi)
+  
+  ethn_demo <- t_subset %>%
+    group_by(pt_hispanic, screening_item) %>%
+    tally() %>%
+    spread(pt_hispanic, n) %>%
+    replace(is.na(.),0) %>%
+    filter(screening_item == TRUE) %>%
+    select(-screening_item)
+  
+  ethn_multi <- t_subset %>%
+    group_by(multi_ethn, screening_item) %>%
+    tally() %>%
+    spread(multi_ethn, n) %>%
+    replace(is.na(.),0) %>%
+    filter(screening_item == TRUE) %>%
+    select(-screening_item)
+  
+  ethn_multi <- ethn_multi[,'TRUE']
+  colnames(ethn_multi) <- 'Multi_Ethnicity'
+  
+  completed_row <- cbind(completed_row, ethn_demo, ethn_multi)
+  
+  completed_demos <- rbind(completed_demos, completed_row)
+
+}
+
+```
+
+We calculated the total number of times any specific DETECT screening item was completed with "YES", broken down by demographics.
+
+```{r}
+yes_demos <- tibble::tibble(!!!c('screening_item', 'total_yes'), 
+                                  .rows = 0, 
+                                  .name_repair = ~c('screening_item', 
+                                                    'total_yes'))
+
+
+for (i in 1:length(detect_items)){
+  
+  subset <- updated_subj_cases %>%
+    select(id, pt_gender, multi_sex, pt_race, multi_race, pt_hispanic, multi_ethn, 
+           detect_items[i])
+  
+  colnames(subset)[colnames(subset) == detect_items[i]] <- 'screening_item'
+  
+  total_yes <- sum(subset$screening_item == "YES", na.rm = TRUE)
+  
+  yes_row <- cbind('screening_item' = detect_items[i],
+                   'total_yes' = total_yes)
+  
+  t_subset <- subset %>%
+    mutate(screening_item = ifelse(screening_item == "YES", TRUE, FALSE))
+  
+  
+  sex_demo <- t_subset %>%
+    group_by(pt_gender, screening_item) %>%
+    tally() %>%
+    spread(pt_gender, n) %>%
+    replace(is.na(.),0) %>%
+    filter(screening_item == TRUE) %>%
+    select(-screening_item)
+  
+  sex_multi <- t_subset %>%
+    group_by(multi_sex, screening_item) %>%
+    tally() %>%
+    spread(multi_sex, n) %>%
+    replace(is.na(.),0) %>%
+    filter(screening_item == TRUE) %>%
+    select(-screening_item)
+  
+  sex_multi <- sex_multi[,'TRUE']
+  colnames(sex_multi) <- 'Multi_Sex'
+  
+  yes_row <- cbind(yes_row, sex_demo, sex_multi)
+  
+  race_demo <- t_subset %>%
+    group_by(pt_race, screening_item) %>%
+    tally() %>%
+    spread(pt_race, n) %>%
+    replace(is.na(.),0) %>%
+    filter(screening_item == TRUE) %>%
+    select(-screening_item)
+  
+  race_multi <- t_subset %>%
+    group_by(multi_race, screening_item) %>%
+    tally() %>%
+    spread(multi_race, n) %>%
+    replace(is.na(.),0) %>%
+    filter(screening_item == TRUE) %>%
+    select(-screening_item)
+  
+  race_multi <- race_multi[,'TRUE']
+  colnames(race_multi) <- 'Multi_Race'
+  
+  yes_row <- cbind(yes_row, race_demo, race_multi)
+  
+  ethn_demo <- t_subset %>%
+    group_by(pt_hispanic, screening_item) %>%
+    tally() %>%
+    spread(pt_hispanic, n) %>%
+    replace(is.na(.),0) %>%
+    filter(screening_item == TRUE) %>%
+    select(-screening_item)
+  
+  ethn_multi <- t_subset %>%
+    group_by(multi_ethn, screening_item) %>%
+    tally() %>%
+    spread(multi_ethn, n) %>%
+    replace(is.na(.),0) %>%
+    filter(screening_item == TRUE) %>%
+    select(-screening_item)
+  
+  ethn_multi <- ethn_multi[,'TRUE']
+  colnames(ethn_multi) <- 'Multi_Ethnicity'
+  
+  yes_row <- cbind(yes_row, ethn_demo, ethn_multi)
+  
+  yes_demos <- rbind(yes_demos, yes_row)
+
+}
+```
+
+```{r}
+yes_demos
+```
+
+
+# BOTTOM

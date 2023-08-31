@@ -1,7 +1,7 @@
 ---
 title: "Response Patterns"
 format: html
-editor: visual
+#editor: visual
 ---
 
 # Summary
@@ -9,6 +9,12 @@ editor: visual
 -   We generated simple frequency statistics of the response patterns for the DETECT tool
 
 -   We generated simple frequency statistics of the co-occurrence of "YES" responses in the DETECT tool variables against the outcome of at least one valid APS allegation at the APS Case Number and Subject level.
+
+-   Comparison of "YES" proportions for each item indicated a statistically significant decrease in "YES" proportion for all DETECT screening items in comparison to the 5-week pilot testing data
+
+-   Over time, the number of screenings increased, but the number of positive screenings remained fairly constant. This resulted in a decrease in the percentage of positive screenings over time in the study period
+
+    -   Most notable increase in completion noted in the four caregiver specific questions, which also appeared to have the most significant decrease in "YES" percentage; next most drastic appeared to be patient condition questions
 
 # Imports
 
@@ -21,15 +27,32 @@ editor: visual
 library(tidyverse)
 library(here)
 library(lubridate)
+library(ggplot2)
 ```
 
 ## Data Imports
 
-We imported the revised MedStar data set for processing.
+We imported the revised MedStar data set, with individual pair data, for processing.
 
 ```{r}
-medstar <- readRDS(here("data","DETECT Shared GRAs","merge_aps_medstar",
+medstar <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs", 
+                        "merge_aps_medstar",
                 "medstar_aps_merged_02_response_based_row_pairs.rds"))
+```
+
+We imported the data set which included the case number paired data created from temporal matching of responses to APS case intake windows.
+
+```{r}
+case_data <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs",
+                            "merge_aps_medstar",
+                            "medstar_aps_merged_04_temporal_case_nums.rds"))
+```
+
+The proportion of times each item was completed, and the proportion of times each item was completed as "YES" were tabulated in a CSV file for both the 5-week pilot and 1-year follow up. We imported this file.
+
+```{r}
+pilot_pattern <- read.csv(here("data", "02 Shared Folders", 
+                               "DETECT Shared GRAs", "analysis", "response_patterns_pilot.csv"))
 ```
 
 ## Functions
@@ -374,7 +397,6 @@ get_occurence_pattern <- function(t_df, t_cols, t_response, t_vars = NULL){
 }
 ```
 
-
 # Analysis
 
 ## Consolidation of "Reported" Variable
@@ -383,6 +405,13 @@ We consolidated our "detect_report_made" variable into a logical variable, where
 
 ```{r}
 medstar <- medstar %>%
+  mutate(detect_report_made = case_when(
+    detect_report_made == "YES" ~ TRUE,
+    detect_report_made == "NO" & is.na(detect_report_num) ~ FALSE,
+    !is.na(detect_report_num) ~ TRUE)
+         )
+
+case_data <- case_data %>%
   mutate(detect_report_made = case_when(
     detect_report_made == "YES" ~ TRUE,
     detect_report_made == "NO" & is.na(detect_report_num) ~ FALSE,
@@ -400,9 +429,29 @@ medstar <- medstar %>%
          valid_case = aps_cases_any_valid,
          valid_subj = aps_subject_any_valid)
 
+case_data <- case_data %>%
+  rename(reported = detect_report_made,
+         valid_case = aps_cases_any_valid,
+         valid_subj = aps_subject_any_valid)
+
 outcome_vars <- medstar %>%
   select(reported, valid_case, valid_subj) %>%
   names()
+```
+
+We also made an alternative version of the paired data set for sensitivity analysis. This version eliminated any paired APS Intakes which were not explicitly an "EMS/EMT" reporter.
+
+```{r}
+medstar_ems <- medstar %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  mutate(valid_case = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA, 
+    valid_case))
 ```
 
 ## Selecting Variables
@@ -440,6 +489,12 @@ There were 24,007 Observations with a DETECT screening. This included 15,212 Sub
 screened <- medstar %>%
   filter(detect_screened)
 
+screened_case <- case_data %>%
+  filter(detect_screened)
+
+screened_ems <- medstar_ems %>%
+  filter(detect_screened)
+
 nrow(screened) 
 
 length(unique(screened$id))
@@ -452,12 +507,23 @@ get_column_pattern(screened, detect_questions, "YES") %>%
   select(-c(contains("NOT_APPLICABLE")))
 ```
 
-We also analyzed the pattern of outcomes co-occuring with an answer of "YES" to the DETECT question variables in the 24,007 responses which contained a screening.  
+We also analyzed the pattern of outcomes co-occurring with an answer of "YES" to the DETECT question variables in the 24,007 responses which contained a screening.
 
 ```{r}
 get_occurence_pattern(screened, detect_questions, "YES", outcome_vars)
 ```
 
+This pattern was also assessed for the data set with temporally-matched APS Case Numbers.
+
+```{r}
+get_occurence_pattern(screened_case, detect_questions, "YES", outcome_vars)
+```
+
+This outcome pattern was also assessed for only the explicit "EMS/EMT" reporter type observations, to assess for sensitivity.
+
+```{r}
+get_occurence_pattern(screened_ems, detect_questions, "YES", outcome_vars)
+```
 
 ## Single-Item Screenings
 
@@ -492,6 +558,12 @@ We isolated the 338 screenings that either indicated a report was made, or conta
 checking <- screened %>%
   filter(reported)
 
+checking_case <- screened_case %>%
+  filter(reported)
+
+checking_ems <- screened_ems %>%
+  filter(reported)
+
 nrow(checking)
 ```
 
@@ -508,6 +580,17 @@ We analyzed the outcome pattern associated with "YES" responses to all DETECT va
 get_occurence_pattern(checking, detect_questions, "YES", outcome_vars)
 ```
 
+This pattern was also assessed for the data set with temporally-matched APS Case Numbers.
+
+```{r}
+get_occurence_pattern(checking_case, detect_questions, "YES", outcome_vars)
+```
+
+This outcome pattern was also assessed for only the explicit "EMS/EMT" reporter type observations, to assess for sensitivity.
+
+```{r}
+get_occurence_pattern(checking_ems, detect_questions, "YES", outcome_vars)
+```
 
 ### No Report Made
 
@@ -515,6 +598,12 @@ We then isolated the 23,647 screenings which indicated no report was made, and l
 
 ```{r}
 checking <- screened %>%
+  filter(!reported)
+
+checking_case <- screened_case %>%
+  filter(!reported)
+
+checking_ems <- screened_ems %>%
   filter(!reported)
 
 nrow(checking)
@@ -531,4 +620,327 @@ We analyzed the outcome pattern associated with "YES" responses to all DETECT va
 
 ```{r}
 get_occurence_pattern(checking, detect_questions, "YES", outcome_vars)
+```
+
+This pattern was also assessed for the data set with temporally-matched APS Case Numbers.
+
+```{r}
+get_occurence_pattern(checking_case, detect_questions, "YES", outcome_vars)
+```
+
+This outcome pattern was also assessed for only the explicit "EMS/EMT" reporter type observations, to assess for sensitivity.
+
+```{r}
+get_occurence_pattern(checking_ems, detect_questions, "YES", outcome_vars)
+```
+
+## Comparison to 2019 5-Week Pilot Study Paper Results
+
+The response patterns were examined in comparison to the response patterns originally identified in the 5-week pilot study, from the 2019 paper. We isolated data relating to the completion status of each item. Proportions were multiplied to generate sufficient cell counts. Chi-square testing for the proportion of times each item was completed in any form yielded p \< 0.001 for all items.
+
+```{r}
+completion_pattern <- pilot_pattern %>%
+  select(item, all_of(ends_with("_completed"))
+         ) %>%
+  mutate(pilot_no = 1 - pilot_completed,
+         follow_no = 1 - follow_completed) %>%
+  mutate(across(where(is.numeric), .fns = ~.x*100000))
+
+
+for(i in 1:nrow(completion_pattern)){
+
+  # Print DETECT Item
+  print(completion_pattern$item[i])
+  
+  # Separate rows
+  pilot_row <- cbind("Completed" = completion_pattern[i,]$pilot_completed,
+                 "Not Completed" = completion_pattern[i,]$pilot_no)
+  follow_row <- cbind("Completed" = completion_pattern[i,]$follow_completed,
+                 "Not Completed" = completion_pattern[i,]$follow_no)
+  
+  # Make 2x2 table
+  contingency_tab <- rbind("Pilot" = pilot_row, "Follow-up" = follow_row)
+  
+  print(chisq.test(contingency_tab))
+}
+
+```
+
+We isolated data relating to times each item was completed as "YES" when it was completed in any form. Proportions were multiplied to generate sufficient cell counts. Chi-square testing for the proportion of times each item was completed with a "YES" yielded p \< 0.001 for all items.
+
+```{r}
+yes_pattern <- pilot_pattern %>%
+  select(item, all_of(ends_with("_yes"))
+         ) %>%
+  mutate(pilot_no = 1 - pilot_yes,
+         follow_no = 1 - follow_yes) %>%
+  mutate(across(where(is.numeric), .fns = ~.x*100000))
+
+
+for(i in 1:nrow(yes_pattern)){
+
+  # Print DETECT Item
+  print(yes_pattern$item[i])
+  
+  # Separate rows
+  pilot_row <- cbind("YES" = yes_pattern[i,]$pilot_yes,
+                 "Other Answer" = yes_pattern[i,]$pilot_no)
+  follow_row <- cbind("YES" = yes_pattern[i,]$follow_yes,
+                 "Other Answer" = yes_pattern[i,]$follow_no)
+  
+  # Make 2x2 table
+  contingency_tab <- rbind("Pilot" = pilot_row, "Follow-up" = follow_row)
+  
+  print(chisq.test(contingency_tab))
+}
+
+```
+
+## Study-Month Trends
+
+We modified our data set to include designation of study month, the number of screenings in each month, and the number of positive screenings in each month.
+
+```{r}
+month_trend_data <- case_data %>%
+  mutate(study_month = case_when(
+    response_dt %within% interval(start = date('2017-02-01'),
+                                  end = date('2017-03-01')-dseconds(x=1)) ~ 1,
+    response_dt %within% interval(start = date('2017-03-01'),
+                                  end = date('2017-04-01')-dseconds(x=1)) ~ 2,
+    response_dt %within% interval(start = date('2017-04-01'),
+                                  end = date('2017-05-01')-dseconds(x=1)) ~ 3,
+    response_dt %within% interval(start = date('2017-05-01'),
+                                  end = date('2017-06-01')-dseconds(x=1)) ~ 4,
+    response_dt %within% interval(start = date('2017-06-01'),
+                                  end = date('2017-07-01')-dseconds(x=1)) ~ 5,
+    response_dt %within% interval(start = date('2017-07-01'),
+                                  end = date('2017-08-01')-dseconds(x=1)) ~ 6,
+    response_dt %within% interval(start = date('2017-08-01'),
+                                  end = date('2017-09-01')-dseconds(x=1)) ~ 7,
+    response_dt %within% interval(start = date('2017-09-01'),
+                                  end = date('2017-10-01')-dseconds(x=1)) ~ 8,
+    response_dt %within% interval(start = date('2017-10-01'),
+                                  end = date('2017-11-01')-dseconds(x=1)) ~ 9,
+    response_dt %within% interval(start = date('2017-11-01'),
+                                  end = date('2017-12-01')-dseconds(x=1)) ~ 10,
+    response_dt %within% interval(start = date('2017-12-01'),
+                                  end = date('2018-01-01')-dseconds(x=1)) ~ 11,
+    response_dt %within% interval(start = date('2018-01-01'),
+                                  end = date('2018-02-01')-dseconds(x=1)) ~ 12,
+    response_dt %within% interval(start = date('2018-02-01'),
+                                  end = date('2018-03-01')-dseconds(x=1)) ~ 13
+    )) %>%
+  group_by(study_month) %>%
+  mutate(month_screenings = sum(detect_screened),
+         month_positives = sum(detect_positive, na.rm=TRUE)
+         ) %>%
+  ungroup()
+```
+
+We initiated our completion trend data frame, and added the overall month-by-month data.
+
+```{r}
+trend_cols <- c("study_month", "completed_num", 
+                          "completed_per", "yes_num", "yes_per", "detect_item")
+
+completed_trends <- tibble::tibble(!!!trend_cols, .rows = 0, 
+                               .name_repair = ~trend_cols)
+
+base_trend <- month_trend_data %>%
+  select(study_month, month_screenings) %>%
+  distinct() %>%
+  add_column(completed_per = 1, yes_num = NA, yes_per = NA, 
+             detect_item = "total screenings")
+
+colnames(base_trend)[2] <- "completed_num"
+
+completed_trends <- rbind(completed_trends, base_trend)
+
+base_trend <- month_trend_data %>%
+  select(study_month, month_screenings, month_positives) %>%
+  distinct() %>%
+  mutate(completed_per = month_positives/month_screenings) %>%
+  add_column(yes_num = NA, yes_per = NA, detect_item = "positive screenings") %>%
+  select(-month_screenings)
+
+colnames(base_trend)[2] <- "completed_num"
+
+completed_trends <- rbind(completed_trends, base_trend)
+```
+
+We completed the additional rows for each DETECT screening item.
+
+```{r}
+for (i in 1:length(detect_questions)){
+
+  item_trend <- month_trend_data %>%
+    select(study_month, month_screenings, detect_questions[i])
+  
+  colnames(item_trend)[3] <- "detect_item" 
+  
+  item_trend <- item_trend %>% 
+    group_by(study_month) %>%
+    mutate(completed_num = sum(!is.na(detect_item)),
+           yes_num = sum(detect_item == "YES", na.rm = TRUE)
+           ) %>%
+    mutate(completed_per = completed_num / month_screenings,
+           yes_per = yes_num / completed_num) %>%
+    ungroup() %>%
+    select(-detect_item) %>%
+    distinct()
+  
+  colnames(item_trend)[3] <- "completed_num"
+  
+  item_trend <- item_trend %>%
+    select(-month_screenings) %>%
+    add_column(detect_item = detect_questions[i])
+
+  completed_trends <- rbind(completed_trends, item_trend)
+}
+```
+
+The number of screenings performed appeared to increase over the study period, while the number of positive screenings appeared to remain fairly constant, though the percentage of positive screenings appeared to decrease over the study period.
+
+```{r}
+completed_trends %>%
+  filter(detect_item %in% c("total screenings", "positive screenings")) %>%
+  relocate(study_month, detect_item) %>%
+  arrange(detect_item, study_month)
+```
+
+Completion percentages appear to increase while "YES" percentages appear to decrease over the study months for each DETECT Item.
+
+```{r}
+completed_trends %>% 
+  relocate(study_month, detect_item) %>%
+  arrange(detect_item,study_month)
+```
+
+### Plots
+
+#### Overall Completion and "YES" Percentage
+
+We plotted the trend in the number of screenings, and the trend in the number of positive screenings. We saw that the number of screenings completed increased over time, though the number of positive screenings remained fairly constant.
+
+```{r}
+plotting_data <- completed_trends %>%
+  filter(detect_item %in% c("total screenings", "positive screenings"))
+
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=completed_num)) + geom_line(aes(colour=detect_item))
+```
+
+We plotted the trend in the percentage of positive screenings. We saw that the percentage of positive screenings experienced a negative trend over time.
+
+```{r}
+plotting_data <- completed_trends %>%
+  filter(detect_item %in% c("positive screenings"))
+
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=completed_per)) + geom_line(aes(colour=detect_item))
+```
+
+We plotted the completion percentage rates. We see that the most commonly completed items were fairly constant in their completion rates, while the less frequently completed items (primarily caregiver related questions) increased over time.
+
+```{r}
+plotting_data <- completed_trends %>%
+  filter(!(detect_item %in% c("positive screenings", "total screenings")))
+
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=completed_per)) + geom_line(aes(colour=detect_item))
+```
+
+We plotted the "YES" percentage rates. We see that the most commonly completed items wildly fluctuated in their "YES" rates, though overall trends appeared to indicate a decrease in "YES" response frequencies.
+
+```{r}
+plotting_data <- completed_trends %>%
+  filter(!(detect_item %in% c("positive screenings", "total screenings")))
+
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=yes_per)) + geom_line(aes(colour=detect_item))
+```
+
+#### Plots for Specific Questions
+
+##### Caregiver Questions
+
+The completion rate of the caregiver DETECT items appeared to have a notable increase at the 5-month mark.
+
+```{r}
+plotting_data <- completed_trends %>%
+  filter((detect_item %in% 
+            c("detect_caregiver_inattentive", "detect_caregiver_lack",
+              "detect_caregiver_frustrated", "detect_caregiver_anxious")))
+
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=completed_per)) + geom_line(aes(colour=detect_item))
+```
+
+The decline in the "YES" percentage for the caregiver DETECT screening items had a consistent negative trend, most notably in the "If caregiver is present, they appear to lack knowledge of the patient or older adult's medical needs" item.
+
+```{r}
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=yes_per)) + geom_line(aes(colour=detect_item))
+```
+
+##### Environment Questions
+
+The completion rate of the environment DETECT items appeared to be fairly consistent, and nearly absolute across screenings.
+
+```{r}
+plotting_data <- completed_trends %>%
+  filter((detect_item %in% 
+            c("detect_env_odor", "detect_env_hoarding", "detect_env_concern",
+              "detect_env_isolated")))
+
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=completed_per)) + geom_line(aes(colour=detect_item))
+```
+
+The decline in the "YES" percentage for the environment DETECT screening items appeared to be fairly consistent, with "Unusual odor (e.g., urine, feces)" consistently having the highest rate of "YES" responses and "Is the patient or older adult isolated in the home?" the least. There was a notable down-tick in "YES" responses to all of these items in the 11th study month.
+
+```{r}
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=yes_per)) + geom_line(aes(colour=detect_item))
+```
+
+##### Medication Questions
+
+The completion rate of the medication DETECT items appeared to have nearly identical completion rates, a positive trend in completion percentage, and notable down-tick in completion in the 4th study month.
+
+```{r}
+plotting_data <- completed_trends %>%
+  filter((detect_item %in% 
+            c("detect_meds_difficulty", "detect_meds_hoarding")))
+
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=completed_per)) + geom_line(aes(colour=detect_item))
+```
+
+The decline in the "YES" percentage for the medication DETECT screening items appeared to be fairly consistent, with "Does the patient or older adult have difficulties taking their prescribed medications as directed?" consistently having the highest rate of "YES" responses and "Does the patient or older adult appear to be hoarding or saving old medications?" the least. There was a notable down-tick in "YES" responses to both of these items in the 9th and 11th study month, and up-tick in "YES" responses to both of these items around the 5th study month.
+
+```{r}
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=yes_per)) + geom_line(aes(colour=detect_item))
+```
+
+##### Patient Condition Questions
+
+The completion rate of the patient condition DETECT items appeared to fairly consistent completion rates, a positive trend in completion percentage, nearly identical completion rates after the 5th study month, and notable down-tick in completion in the 5th and 8th study month.
+
+```{r}
+plotting_data <- completed_trends %>%
+  filter((detect_item %in% 
+            c("detect_cond_needs", "detect_cond_hygiene", 
+              "detect_cond_clothes", "detct_cond_anxious")))
+
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=completed_per)) + geom_line(aes(colour=detect_item))
+```
+
+The decline in the "YES" percentage for the patient condition DETECT screening items appeared to have a general downtrend, with "Does the patient or older adult have poor personal hygiene (including soiled in urine or feces)?" consistently having the highest rate of "YES" responses and "Is the patient or older adult inadequately clothed or wearing dirty, torn, or soiled clothing?" the least. There was a notable down-tick in "YES" responses to both of these items in the 8th and 11th study month.
+
+```{r}
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=yes_per)) + geom_line(aes(colour=detect_item))
 ```
