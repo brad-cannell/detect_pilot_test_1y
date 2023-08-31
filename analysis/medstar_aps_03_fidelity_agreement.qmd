@@ -1,8 +1,236 @@
 ---
-title: "DETECT 1-Year Miscellaneous Analyses"
+title: "DETECT 1-Year Fidelity and Agreement"
 format: html
 #editor: visual
 ---
+
+# Summary
+
+-   General Performance
+
+    -   85.05% of potentially eligible calls received a DETECT Screening (N = 24,007)
+
+    -   91.93% of potentially eligible subjects received a DETECT Screening (N = 15,212)
+
+-   Item Completion
+
+    -   All 14 items were completed in 13,859 DETECT Screenings (57.73%)
+
+    -   10 items were completed in 10,026 DETECT Screenings (41.76%) (almost exclusively due to missing caregiver questions)
+
+    -   Less than 10 items were completed in only 16 DETECT Screenings (0.07%)
+
+-   Fidelity to Reporting
+
+    -   Overall, 1.74% of responses had a matching APS Intake (N=492)
+
+        -   Reduced to 0.98% when only taking EMS/EMT specific intakes (N=278)
+
+        -   Of these, 5.69% did not have an associated DETECT screening (N=28)
+
+            -   Reduced to 2.52% when only taking EMS/EMT specific intakes (N=7)
+
+        -   Of these, 65.24% were associated with a \*positive\* DETECT screening (N=321)
+
+            -   Increased to 94.24% when only taking EMS/EMT specific intakes (N=262)
+
+            -   Of these, 56.91% had an indication of intent to report (N=280)
+
+                -   Increased to 87.77% when only taking EMS/EMT specific intakes (N=244)
+
+            -   Of these, 20.53% were also matched within MedStar Compliance Data (N=101)
+
+                -   Increased to 33.45% when only taking EMS/EMT specific intakes (N=93)
+
+    -   3.63% of screenings were positive (N=871)
+
+        -   Of these, 37.66% indicated an intent to report (N=328)
+
+            -   Of these, 83.22% were matched to an APS Intake (N=273)
+
+                -   Reduced to 72.87% when only taking EMS/EMT specific Intakes (N=239)
+
+                -   Of these, 32.23% were matched to MedStar Compliance Data (N=88)
+
+                    -   Increased to 33.47% when only taking EMS/EMT specific Intakes (N=80)
+
+        -   Of the records that either denied or failed to indicate if a report to APS was made...
+
+            -   8.84% were matched to an APS intake (N=48)
+
+                -   Reduced to 4.24% when only taking EMS/EMT specific intakes (N=23)
+
+                -   18.75% were matched to MedStar Compliance Data (N=9)
+
+                    -   Increased to 39.13% when only taking EMS/EMT specific Intakes (N=9)
+
+    -   96.37% of screenings were negative (N=23,136)
+
+        -   Of these, 0.04% indicated an intent to report (N=10)
+
+            -   Of these, 70% were matched to an APS Intake (N=7)
+
+                -   Reduced to 50% when only taking EMS/EMT specific Intakes (N=5)
+
+                -   Of these, 0% were matched to MedStar Compliance Data (N=0)
+
+        -   Of the records that either denied or failed to indicate if a report to APS was made...
+
+            -   0.59% were matched to an APS intake (N=136)
+
+                -   Reduced to 0.02% when only taking EMS/EMT specific intakes (N=4)
+
+                -   0% were matched to MedStar Compliance Data (N=0)
+
+    -   Agreement of Intent to Report and Successful APS Matching
+
+        -   Kappa of 0.693 (substantial agreement) when including missing intent as a lack of intent
+
+            -   Decreased to 0.799 (substantial agreement) when only using EMS/EMT specific intakes
+
+        -   1.408% of screenings included intent to report (N=338)
+
+            -   Of these, 82.840% were matched with an APS Intake(N=280)
+
+                -   Decreased to 72.189% when only using EMS/EMT specific intakes (N=244)
+
+        -   98.500% of screenings included a lack of intent to report (N=23,647)
+
+            -   Of these, 0.778% were matched with an APS Intake (N=184)
+
+                -   Decreased to 0.114% when only using EMS/EMT specific intakes (N=27)
+
+        -   0.0916% of screenings lacked an indication of intent to report (N=22)
+
+            -   Of these, 0% were matched with an APS Intake (N=0)
+
+    -   Agreement of DETECT Screening and APS Determination
+
+        -   Subject-level Kappa of 0.169 (slight agreement) when including subjects unmatched with the APS data set as "negative" for EM determination status
+
+            -   Decreased to 0.051 (slight agreement) when excluding subjects that were unmatched with the APS data set
+
+        -   Temporally-Matched APS Case level Kappa of 0.309 (fair agreement) when including responses lacking a temporally-linked APS Case Number as "negative" for EM determination status
+
+            -   Decreased to 0.097 (slight agreement) when excluding responses lacking a temporally-linked APS Case Number
+
+        -   Direct-Paired APS Intake level Kappa of 0.419 (moderate agreement) when including responses lacking a directly-paired APS Intake as "negative" for EM determination status
+
+            -   Decreased to 0.134 (slight agreement) when excluding responses lacking a directly-paired APS Intake
+
+        -   Direct-Paired EMS/EMT specific APS Intake level Kappa of 0.393 (moderate agreement) when including responses lacking a directly-paired EMS/EMT specific APS intake as "negative" for EM determination status
+
+            -   Decreased to 0.061 (slight agreement) when excluding responses lacking a directly-paired EMS/EMT specific intake
+
+        -   3.628% of screenings were positive (N=871)
+
+            -   Subject-level:
+
+                -   63.280% were associated with a subject that was present in the APS data set (N=517)
+
+                    -   52.813% were associated with a subject with at least one valid allegation of EM (N=460)
+
+                    -   6.544% were associated with a subject with no valid allegations of EM (N=57)
+
+                    -   40.643% were not associated with a subject in the APS Data set (N=354)
+
+            -   Temporally-Matched APS Case Level:
+
+                -   45.006% were associated with a temporally-linked APS Case Number that was present in the APS data set (N=392)
+
+                    -   37.887% were associated with a temporally-linked APS Case Number with at least one valid allegation of EM (N=330)
+
+                    -   7.118% were associated with a temporally-linked APS Case Number with no valid allegations of EM (N=62)
+
+                -   54.994% were not associated with a temporally-linked APS Case Number in the APS Data set (N=479)
+
+            -   Direct-Paired APS Intake level:
+
+                -   36.854% were associated with a direct-pair APS Intake that was present in the APS data set (N=321)
+
+                    -   30.769% were associated with a direct-pair APS Intake with at least one valid allegation of EM (N=268)
+
+                    -   6.085% were associated with a direct-pair APS Intake with no valid allegations of EM (N=53)
+
+                -   63.146% were not associated with a direct-pair APS Intake in the APS Data set (N=550)
+
+            -   Direct-Paired EMS/EMT specific APS Intake level:
+
+                -   30.080% were associated with a direct-pair EMS/EMT specific APS Intake that was present in the APS data set (N=262)
+
+                    -   25.373% were associated with a direct-pair EMS/EMT specific APS Intake with at least one valid allegation of EM (N=221)
+
+                    -   4.705% were associated with a direct-pair EMS/EMT specific APS Intake with no valid allegations of EM (N=41)
+
+                -   69.920% were not associated with a direct-pair EMS/EMT specific APS Intake in the APS Data set (N=609)
+
+        -   96.372% of screenings were negative (N=23,136)
+
+            -   Subject-level:
+
+                -   17.514% were associated with a subject that was present in the APS data set (N=4,052)
+
+                    -   12.543% were associated with a subject with at least one valid allegation of EM (N=2,902)
+
+                    -   4.971% were associated with a subject with no valid allegations of EM (N=1,150)
+
+                    -   82.468% were not associated with a subject in the APS Data set (N=19,084)
+
+            -   Temporally-Matched APS Case Level:
+
+                -   4.737% were associated with a temporally-linked APS Case Number that was present in the APS data set (N=1096)
+
+                    -   3.268% were associated with a temporally-linked APS Case Number with at least one valid allegation of EM (N=756)
+
+                    -   1.470% were associated with a temporally-linked APS Case Number with no valid allegations of EM (N=340)
+
+                -   95.263% were not associated with a temporally-linked APS Case Number in the APS Data set (N=22,040)
+
+            -   Direct-Paired APS Intake level:
+
+                -   0.618% were associated with a direct-pair APS Intake that was present in the APS data set (N=143)
+
+                    -   0.441% were associated with a direct-pair APS Intake with at least one valid allegation of EM (N=102)
+
+                    -   0.177% were associated with a direct-pair APS Intake with no valid allegations of EM (N=41)
+
+                -   99.382% were not associated with a direct-pair APS Intake in the APS Data set (N=22,993)
+
+            -   Direct-Paired EMS/EMT specific APS Intake level:
+
+                -   0.039% were associated with a direct-pair EMS/EMT specific APS Intake that was present in the APS data set (N=9)
+
+                    -   0.026% were associated with a direct-pair EMS/EMT specific APS Intake with at least one valid allegation of EM (N=6)
+
+                    -   0.013% were associated with a direct-pair EMS/EMT specific APS Intake with no valid allegations of EM (N=3)
+
+                -   99.961% were not associated with a direct-pair EMS/EMT specific APS Intake in the APS Data set (N=23,127)
+
+    -   Agreement of DETECT Screening Result and Reporting
+
+        -   Kappa of 0.467 (moderate agreement) between DETECT screening result and presence of a matched APS Intake/Report
+
+            -   Decreased to 0.449 (moderate agreement) when only including EMS/EMT specific APS Intakes
+
+        -   3.628% of screenings were positive (N=871)
+
+            -   33.854% were matched to an APS Intake (N=321)
+
+                -   Reduced to 30.080% when only including EMS/EMT specific APS Intakes (N=262)
+
+            -   63.145% were not matched to an APS Intake (N=550)
+
+                -   Increased to 69.919% when only including EMS/EMT specific APS Intakes (N=609)
+
+        -   96.372% of screenings were negative (N=23,136)
+
+            -   0.618% were matched to an APS Intake (N=143)
+
+                -   Reduced to 0.039% when only including EMS/EMT specific APS Intakes (N=9)
+
+            -   99.382% were not matched to an APS Intake (N=22,993)
+
+                -   Increased to 99.961% when only including EMS/EMT specific APS Intakes (N=23,127)
 
 # Imports
 
@@ -15,6 +243,7 @@ format: html
 library(tidyverse)
 library(here)
 library(mice)
+library(ggplot2)
 ```
 
 ## Data Imports
@@ -112,10 +341,10 @@ get_unique_value_summary <- function(df,cols){
   }
 ```
 
-
 # Analyses
 
-## Number of Screenings Performed 
+## Number of Screenings Performed
+
 ### Individual Level
 
 There were 28,228 potentially eligible calls for service.
@@ -145,7 +374,7 @@ ns_subj <- nrow(subj_df)
 ns_subj
 ```
 
-Of these, 15,212 (91.83%) received at least one screening. 
+Of these, 15,212 (91.83%) received at least one screening.
 
 ```{r}
 ns_screens <- nrow(subj_df[subj_df$detect_screened > 0,])
@@ -174,7 +403,7 @@ detect_items <- paired_df %>%
 detect_items
 ```
 
-We calculated the number of items that contained a response for each row. We were able to see that the vast majority of screenings had 10, 14, or 0 items used. 
+We calculated the number of items that contained a response for each row. We were able to see that the vast majority of screenings had 10, 14, or 0 items used.
 
 ```{r}
 checking <- paired_df %>%
@@ -226,6 +455,88 @@ n_comp
 ```
 
 ## Fidelity to Reporting
+
+### Overall
+
+#### All Matched APS Intakes
+
+Overall, we were able to match 492 responses (1.74%) to an APS Intake. Of these, 28 (5.69%) did not have an associated screening, 321 (65.24%) were associated with positive screenings, 280 (56.91%) had either an endorsement of a report being made or APS report confirmation number, and 101 (20.53%) were also matched within the MedStar Compliance data.
+
+```{r}
+checking_cols <- checking %>%
+  filter(!is.na(aps_row))
+
+n_matched <- nrow(checking_cols)
+
+n_matched
+
+(n_matched * 100) / nrow(checking)
+
+n_noscreen <- sum(is.na(checking_cols$detect_positive))
+
+n_noscreen
+
+(n_noscreen * 100) / n_matched
+
+n_positive <- sum(checking_cols$detect_positive, na.rm = TRUE)
+
+n_positive
+(n_positive * 100) / n_matched
+
+n_reported <- nrow(checking_cols %>% 
+                     filter(!is.na(detect_report_num)|
+                              (detect_report_made == "YES")))
+
+n_reported
+(n_reported * 100) / n_matched
+
+n_compliance <- sum(!is.na(checking_cols$ms_comp_row))
+
+n_compliance
+(n_compliance * 100) / n_matched
+```
+
+#### Explicit "EMS/EMT" Intakes Only
+
+Overall, we were able to match 278 responses (0.98%) to an APS Intake. Of these, 7 (2.52%) did not have an associated screening, 262 (94.24%) were associated with positive screenings, 244 (87.77%) had either an endorsement of a report being made or APS report confirmation number, and 93 (33.45%) were also matched within the MedStar Compliance data.
+
+```{r}
+checking_cols <- checking %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)) %>%
+  filter(!is.na(aps_row))
+
+n_matched <- nrow(checking_cols)
+
+n_matched 
+
+(n_matched * 100) / nrow(checking)
+
+n_noscreen <- sum(is.na(checking_cols$detect_positive))
+
+n_noscreen
+
+(n_noscreen * 100) / n_matched
+
+n_positive <- sum(checking_cols$detect_positive, na.rm = TRUE)
+
+n_positive
+(n_positive * 100) / n_matched
+
+n_reported <- nrow(checking_cols %>% 
+                     filter(!is.na(detect_report_num)|
+                              (detect_report_made == "YES")))
+
+n_reported
+(n_reported * 100) / n_matched
+
+n_compliance <- sum(!is.na(checking_cols$ms_comp_row))
+
+n_compliance
+(n_compliance * 100) / n_matched
+```
 
 ### Positive Screenings
 
@@ -300,42 +611,6 @@ n_comp
 (n_comp * 100) / nrow(n_matched)
 ```
 
-Overall, we were able to match 492 responses (1.74%) to an APS Intake. Of these, 28 (5.69%) did not have an associated screening, 321 (65.24%) were associated with positive screenings, 280 (56.91%) had either an endorsement of a report being made or APS report confirmation number, and 101 (20.53%) were also matched within the MedStar Compliance data.
-
-```{r}
-checking_cols <- checking %>%
-  filter(!is.na(aps_row))
-
-n_matched <- nrow(checking_cols)
-
-n_matched
-
-(n_matched * 100) / nrow(checking)
-
-n_noscreen <- sum(is.na(checking_cols$detect_positive))
-
-n_noscreen
-
-(n_noscreen * 100) / n_matched
-
-n_positive <- sum(checking_cols$detect_positive, na.rm = TRUE)
-
-n_positive
-(n_positive * 100) / n_matched
-
-n_reported <- nrow(checking_cols %>% 
-                     filter(!is.na(detect_report_num)|
-                              (detect_report_made == "YES")))
-
-n_reported
-(n_reported * 100) / n_matched
-
-n_compliance <- sum(!is.na(checking_cols$ms_comp_row))
-
-n_compliance
-(n_compliance * 100) / n_matched
-```
-
 #### Explicit "EMS/EMT" Intakes Only
 
 We were able to match 239 (72.87%) of these positive screenings with an indication of a report to an APS Intake that explicitly specified an EMS/EMT reporter. There were 80 of these (33.47%) which were matched to the MedStar Compliance data set.
@@ -382,46 +657,6 @@ n_comp <- nrow(n_matched %>%
 n_comp
 
 (n_comp * 100) / nrow(n_matched)
-```
-
-Overall, we were able to match 278 responses (0.98%) to an APS Intake. Of these, 7 (2.52%) did not have an associated screening, 262 (94.24%) were associated with positive screenings, 244 (87.77%) had either an endorsement of a report being made or APS report confirmation number, and 93 (33.45%) were also matched within the MedStar Compliance data.
-
-```{r}
-checking_cols <- checking %>%
-  mutate(aps_row = ifelse(
-    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
-    NA_integer_, 
-    aps_row)) %>%
-  filter(!is.na(aps_row))
-
-n_matched <- nrow(checking_cols)
-
-n_matched 
-
-(n_matched * 100) / nrow(checking)
-
-n_noscreen <- sum(is.na(checking_cols$detect_positive))
-
-n_noscreen
-
-(n_noscreen * 100) / n_matched
-
-n_positive <- sum(checking_cols$detect_positive, na.rm = TRUE)
-
-n_positive
-(n_positive * 100) / n_matched
-
-n_reported <- nrow(checking_cols %>% 
-                     filter(!is.na(detect_report_num)|
-                              (detect_report_made == "YES")))
-
-n_reported
-(n_reported * 100) / n_matched
-
-n_compliance <- sum(!is.na(checking_cols$ms_comp_row))
-
-n_compliance
-(n_compliance * 100) / n_matched
 ```
 
 ### Negative Screenings
@@ -588,7 +823,7 @@ nrow(n_positive)
 
 ### Staff Member Name/ID
 
-Of the commented screenings, 19 had comments (30.16%) that referenced the name and/or ID of the APS staff member spoken to during the intake. 
+Of the commented screenings, 19 had comments (30.16%) that referenced the name and/or ID of the APS staff member spoken to during the intake.
 
 ```{r}
 checking_cols <- n_commented %>%
@@ -702,7 +937,7 @@ length(unique(na.omit(checking_cols$aps_person_id)))
   checking_cols$aps_person_id))) * 100) / length(unique(checking_cols$id))
 ```
 
-Of these, only 1 (9.09%) contained either an endorsement that a report was made, or an APS report confirmation number. 
+Of these, only 1 (9.09%) contained either an endorsement that a report was made, or an APS report confirmation number.
 
 ```{r}
 n_reported <- checking_cols %>%
@@ -743,7 +978,7 @@ sum(checking_cols$aps_subject_any_valid, na.rm = TRUE)
   unique(na.omit(checking_cols$aps_person_id)))
 ```
 
-On investigation, the single positive screening was also the single screening with an endorsement of a report. This screening had a match in the APS data set, associated with a reporter type of "Anonymous" and at least one valid allegation of elder mistreatment at the APS Case Number and Subject levels. The remaining matching APS intake was associated with a reporter type of "Community Agencies/Organizations", which did not have any valid allegations at the APS Case Number or Subject levels. 
+On investigation, the single positive screening was also the single screening with an endorsement of a report. This screening had a match in the APS data set, associated with a reporter type of "Anonymous" and at least one valid allegation of elder mistreatment at the APS Case Number and Subject levels. The remaining matching APS intake was associated with a reporter type of "Community Agencies/Organizations", which did not have any valid allegations at the APS Case Number or Subject levels.
 
 ```{r}
 checking_cols[!is.na(checking_cols$aps_row),
@@ -782,7 +1017,7 @@ length(unique(na.omit(checking_cols$aps_person_id)))
   checking_cols$aps_person_id))) * 100) / length(unique(checking_cols$id))
 ```
 
-Of these, none contained either an endorsement that a report was made, or an APS report confirmation number. 
+Of these, none contained either an endorsement that a report was made, or an APS report confirmation number.
 
 ```{r}
 n_reported <- checking_cols %>%
@@ -862,7 +1097,7 @@ length(unique(na.omit(checking_cols$aps_person_id)))
   checking_cols$aps_person_id))) * 100) / length(unique(checking_cols$id))
 ```
 
-Of these, only 1 (14.29%) contained either an endorsement that a report was made, or an APS report confirmation number. 
+Of these, only 1 (14.29%) contained either an endorsement that a report was made, or an APS report confirmation number.
 
 ```{r}
 n_reported <- checking_cols %>%
@@ -912,6 +1147,7 @@ n_rows
 
 (n_rows * 100) / nrow(n_commented)
 ```
+
 These observations referenced 4 unique subjects (100% unique), of which 2 (50%) were also present in the APS data set.
 
 ```{r}
@@ -925,7 +1161,7 @@ length(unique(na.omit(checking_cols$aps_person_id)))
   checking_cols$aps_person_id))) * 100) / length(unique(checking_cols$id))
 ```
 
-Of these, none contained either an endorsement that a report was made, or an APS report confirmation number. 
+Of these, none contained either an endorsement that a report was made, or an APS report confirmation number.
 
 ```{r}
 n_reported <- checking_cols %>%
@@ -999,7 +1235,7 @@ sum(checking_cols$detect_positive)
 sum(!is.na(checking_cols[checking_cols$detect_positive,]$aps_person_id))
 ```
 
-No rows contained either an endorsement that a report was made, or an APS report confirmation number. 
+No rows contained either an endorsement that a report was made, or an APS report confirmation number.
 
 ```{r}
 n_reported <- checking_cols %>%
@@ -1063,7 +1299,7 @@ length(unique(na.omit(checking_cols$aps_person_id)))
   checking_cols$aps_person_id))) * 100) / length(unique(checking_cols$id))
 ```
 
-There was only 1 row (14.29%) which contained either an endorsement that a report was made, or an APS report confirmation number. 
+There was only 1 row (14.29%) which contained either an endorsement that a report was made, or an APS report confirmation number.
 
 ```{r}
 n_reported <- checking_cols %>%
@@ -1154,7 +1390,7 @@ yes_unmatched
 (yes_unmatched * 100) / nrow(checking)
 ```
 
-Of the matched responses, 231 observations (82.500% of matched observations) were associated with an APS Case Number with at least one valid allegation of elder mistreatment, and 253 observations (90.357%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+Of the matched responses, 231 observations (82.500% of matched observations) were associated with an APS Case Number with at least one valid allegation of elder mistreatment, and 253 observations (90.357%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set.
 
 ```{r}
 n_cases <- matched %>%
@@ -1172,7 +1408,7 @@ nrow(n_subj)
 (nrow(n_subj) * 100) / nrow(matched)
 ```
 
-Of the unmatched responses, 25 observations (43.103%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+Of the unmatched responses, 25 observations (43.103%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set.
 
 ```{r}
 n_subj <- no_match %>%
@@ -1221,7 +1457,7 @@ no_unmatched
 (no_unmatched * 100) / nrow(checking)
 ```
 
-Of the matched responses, 139 observations (75.543% of matched observations) were associated with an APS Case Number with at least one valid allegation of elder mistreatment, and 153 observations (83.152%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+Of the matched responses, 139 observations (75.543% of matched observations) were associated with an APS Case Number with at least one valid allegation of elder mistreatment, and 153 observations (83.152%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set.
 
 ```{r}
 n_cases <- matched %>%
@@ -1239,7 +1475,7 @@ nrow(n_subj)
 (nrow(n_subj) * 100) / nrow(matched)
 ```
 
-Of the unmatched responses, 2,929 observations (12.483%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+Of the unmatched responses, 2,929 observations (12.483%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set.
 
 ```{r}
 n_subj <- no_match %>%
@@ -1288,7 +1524,7 @@ na_unmatched
 (na_unmatched * 100) / nrow(checking)
 ```
 
-Of the unmatched responses, 2 observations (9.091%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+Of the unmatched responses, 2 observations (9.091%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set.
 
 ```{r}
 n_subj <- no_match %>%
@@ -1392,7 +1628,7 @@ yes_unmatched
 (yes_unmatched * 100) / nrow(checking)
 ```
 
-Of the matched responses, 231 observations (82.500% of matched observations) were associated with an APS Case Number with at least one valid allegation of elder mistreatment, and 253 observations (90.357%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+Of the matched responses, 231 observations (82.500% of matched observations) were associated with an APS Case Number with at least one valid allegation of elder mistreatment, and 253 observations (90.357%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set.
 
 ```{r}
 n_cases <- matched %>%
@@ -1410,7 +1646,7 @@ nrow(n_subj)
 (nrow(n_subj) * 100) / nrow(matched)
 ```
 
-Of the unmatched responses, 54 observations (57.447%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+Of the unmatched responses, 54 observations (57.447%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set.
 
 ```{r}
 n_subj <- no_match %>%
@@ -1454,7 +1690,7 @@ no_unmatched
 (no_unmatched * 100) / nrow(checking)
 ```
 
-Of the matched responses, 23 observations (85.185% of matched observations) were associated with an APS Case Number with at least one valid allegation of elder mistreatment, and 23 observations (85.185%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+Of the matched responses, 23 observations (85.185% of matched observations) were associated with an APS Case Number with at least one valid allegation of elder mistreatment, and 23 observations (85.185%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set.
 
 ```{r}
 n_cases <- matched %>%
@@ -1472,7 +1708,7 @@ nrow(n_subj)
 (nrow(n_subj) * 100) / nrow(matched)
 ```
 
-Of the unmatched responses, 3,059 observations (12.951%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+Of the unmatched responses, 3,059 observations (12.951%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set.
 
 ```{r}
 n_subj <- no_match %>%
@@ -1516,7 +1752,7 @@ na_unmatched
 (na_unmatched * 100) / nrow(checking)
 ```
 
-Of the unmatched responses, 2 observations (9.091%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set. 
+Of the unmatched responses, 2 observations (9.091%) were associated with a subject with at least one valid allegation of elder mistreatment in the APS data set.
 
 ```{r}
 n_subj <- no_match %>%
@@ -1599,9 +1835,9 @@ nrow(screened_neg)
 
 (nrow(screened_neg) * 100) / nrow(screened)
 ```
- 
+
 Of the 871 positive screenings, 354 (40.643%) were associated with a subject that was not present in the APS data set, 460 (52.813%) were associated with a subject with at least one valid allegation of elder mistreatment across the APS data set (regardless of temporal or direct linkage between intake and response), and 57 (6.544%) were not.
- 
+
 ```{r}
 pos_subj_none <- screened_pos %>%
   filter(is.na(aps_subject_any_valid))
@@ -1627,9 +1863,9 @@ pos_subj_no <- nrow(pos_subj_neg)
 pos_subj_no
 (pos_subj_no * 100) / nrow(screened_pos)
 ```
- 
-Of the 23,136 positive screenings, 19,084 (82.486%) were associated with a subject that was not present in the APS data set, 2,902 (12.543%) were associated with a subject with at least one valid allegation of elder mistreatment across the APS data set (regardless of temporal or direct linkage between intake and response), and 1,150 (4.971%) were not.
- 
+
+Of the 23,136 negative screenings, 19,084 (82.486%) were associated with a subject that was not present in the APS data set, 2,902 (12.543%) were associated with a subject with at least one valid allegation of elder mistreatment across the APS data set (regardless of temporal or direct linkage between intake and response), and 1,150 (4.971%) were not.
+
 ```{r}
 neg_subj_none <- screened_neg %>%
   filter(is.na(aps_subject_any_valid))
@@ -1672,7 +1908,7 @@ nrow(neg_paired)
 (nrow(neg_paired)*100) / nrow(screened_neg)
 ```
 
-Of the 321 positive screenings with a directly paired APS Intake, 268 (83.489%) were associated with an APS Case with at least one valid allegation of elder mistreatment. Of the 143 negative screenings with a directly paired APS Intake, 102 (71.329%) were associated with an APS Case with at least one valid allegation of elder mistreatment. 
+Of the 321 positive screenings with a directly paired APS Intake, 268 (83.489%) were associated with an APS Case with at least one valid allegation of elder mistreatment. Of the 143 negative screenings with a directly paired APS Intake, 102 (71.329%) were associated with an APS Case with at least one valid allegation of elder mistreatment.
 
 ```{r}
 pos_paired_pos <- pos_paired %>%
@@ -1706,7 +1942,8 @@ nrow(neg_cases)
 (nrow(neg_cases)*100) / nrow(screened_neg)
 ```
 
-Of the 392 positive screenings with a temporally associated case number, 330 (84.184%) were associated with an APS case number with at least one valid allegation of elder mistreatment. Of the 1,096 positive screenings with a temporally associated case number, 756 (68.978%) were associated with an APS case number with at least one valid allegation of elder mistreatment. 
+Of the 392 positive screenings with a temporally associated case number, 330 (84.184%) were associated with an APS case number with at least one valid allegation of elder mistreatment. Of the 1,096 positive screenings with a temporally associated case number, 756 (68.978%) were associated with an APS case number with at least one valid allegation of elder mistreatment.
+
 ```{r}
 pos_cases_pos <- pos_cases %>%
   filter(aps_cases_any_valid)
@@ -1722,6 +1959,7 @@ nrow(neg_cases_pos)
 
 (nrow(neg_cases_pos) * 100) / nrow(neg_cases)
 ```
+
 ### EMS/EMT Direct Pairs
 
 Of the 871 positive DETECT Screenings, 609 (69.919%) were not linked to an intake with case-level determinations, 221 (25.373%) were directly paired with an APS Case Number with at least one valid allegation of elder mistreatment, and 41 (4.707%) were not. A total of 650 (74.627%) were either associated with an APS Case Number without a valid allegation of elder mistreatment, or failed to be linked to an APS Case Number with determinations through direct pairing.
@@ -2055,9 +2293,8 @@ kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
 kappa
 ```
 
-
 ### Temporally Linked Case Numbers
- 
+
 Of the 871 positive DETECT Screenings, 479 (54.994%) were not temporally linked to any APS Case Number, 330 (37.887%) were temporally linked to an APS Case Number with at least one valid allegation of elder mistreatment, and 62 (7.118%) were not. A total of 541 (62.113%) were either associated with an APS Case Number without a valid allegation of elder mistreatment, or failed to be temporally linked to an APS Case Number.
 
 ```{r}
@@ -2208,7 +2445,7 @@ kappa
 ```
 
 ### Subject-Level
- 
+
 Of the 871 positive DETECT Screenings, 354 (40.643%) were not linked to a subject with determination data in the APS data set, 460 (52.813%) were associated with a subject with at least one valid allegation of elder mistreatment, and 57 (6.544%) were not. A total of 411 (47.187%) were either associated with a subject without a valid allegation of elder mistreatment, or failed to be associated with a subject in the APS data set.
 
 ```{r}
@@ -2389,6 +2626,7 @@ n_neg
 (n_neg * 100) / n_screened
 
 ```
+
 Of the 871 positive screenings, 321 (33.854%) were matched to an intake within the APS data set (indicating they were reported) and 550 (63.145%) were not.
 
 ```{r}
@@ -2563,6 +2801,3 @@ kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
 
 kappa
 ```
-
-
-# BOTTOM
