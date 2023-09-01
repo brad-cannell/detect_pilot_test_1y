@@ -548,6 +548,9 @@ This continued to be true even after the missing values were omitted.
 chisq.test(demo_tab_sex %>% select(-Missing))
 ```
 
+
+
+
 The table of race values was transformed as required to be in the appropriate format for a chi-square test of homogeneity. The p-value of < 2.2e-16 indicated significant deviation from the expected population.
 
 ```{r}
@@ -615,6 +618,29 @@ chisq.test(screening_sex %>% select(-'<NA>'))
 fisher.test(screening_sex %>% select(-'<NA>'))
 ```
 
+When shifting any subject that had multiple values for sex/gender into a missing value, the p-vaule rose to 0.09043.
+
+```{r}
+screening_sex <- subj_lvl_data %>%
+  mutate(pt_gender = ifelse(multi_sex, NA, pt_gender)
+         ) %>%
+  group_by(pt_gender, detect_ever_screened) %>%
+  tally() %>%
+  spread(pt_gender, n)
+
+screening_sex
+chisq.test(screening_sex)
+fisher.test(screening_sex)
+```
+
+The p-value further decreased when any missing value observations were excluded (p=0.07212).
+
+```{r}
+screening_sex %>% select(-'<NA>')
+
+chisq.test(screening_sex %>% select(-'<NA>'))
+fisher.test(screening_sex %>% select(-'<NA>'))
+```
 
 We tested for independence of race and screening status (if a screening was ever performed). The p-value of < 0.001 indicated significant association between race and if a screening was ever performed.
 
