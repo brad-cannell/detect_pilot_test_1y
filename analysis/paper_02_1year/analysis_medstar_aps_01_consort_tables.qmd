@@ -1321,8 +1321,6 @@ sum(is.na(checking[is.na(checking$aps_subject_any_valid),]$aps_person_id)) ==
   sum(is.na(checking$aps_subject_any_valid))
 ```
 
-# PLACEHOLDER
-
 # Case-Based Temporal Matching
 
 ## Overview
@@ -1803,5 +1801,1139 @@ get_unique_value_summary(checking_subset,
 sum(!is.na(checking_subset[
   is.na(checking_subset$aps_subject_any_valid),]$aps_person_id))
 ```
+
+# Compliance Trends
+
+## Overall
+
+Overall, there were 5,490 observations (19.45%) with a subject that was present in the APS data set.
+
+```{r}
+checking <- case_data %>%
+  filter(!is.na(aps_person_id)
+         )
+
+nrow(checking)
+nrow(checking)*100/nrow(case_data)
+```
+
+1,789 (6.34%) observations had a temporally linked APS case number.
+
+```{r}
+checking <- case_data %>%
+  filter(!is.na(aps_case_num)
+         )
+
+nrow(checking)
+nrow(checking)*100/nrow(case_data)
+```
+
+492 (1.74%) observations had a broadly matched APS Intake.
+
+```{r}
+checking <- case_data %>%
+  filter(!is.na(aps_row)
+         )
+
+nrow(checking)
+nrow(checking)*100/nrow(case_data)
+```
+
+278 (1.16%) observations had an EMS/EMT matched APS Intake.
+
+```{r}
+checking <- case_data %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  filter(!is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(screened)
+```
+
+110 (0.46%) of observations were matched to MedStar Compliance data.
+
+```{r}
+checking <- case_data %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(screened)
+```
+
+#### Subject
+
+5,490 (19.49%) of observations were associated with a subject that was present in the APS data set.
+
+```{r}
+checking <- case_data %>%
+  filter(!is.na(aps_person_id))
+
+nrow(checking)
+nrow(checking)*100/nrow(case_data)
+```
+
+Of these, 106 (1.93%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+22,738 (80.55%) of observations were associated with a subject that was *not* present in the APS data set.
+
+```{r}
+checking <- case_data %>%
+  filter(is.na(aps_person_id))
+
+nrow(checking)
+nrow(checking)*100/nrow(case_data)
+```
+
+Of these, 4 (0.02%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+#### Temporally-Linked APS Case Number
+
+1,789 (6.34%) of observations had a temporally linked APS Case Number.
+
+```{r}
+checking <- case_data %>%
+  filter(!is.na(aps_case_num))
+
+nrow(checking)
+nrow(checking)*100/nrow(case_data)
+```
+
+Of these, 105 (5.90%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+26,439 (93.66%) of observations *did not have* a temporally linked APS Case Number.
+
+```{r}
+checking <- case_data %>%
+  filter(is.na(aps_case_num))
+
+nrow(checking)
+nrow(checking)*100/nrow(case_data)
+```
+
+Of these, 5 (0.02%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+#### Broad Direct-Pairs
+
+492 (1.74%) of observations had a broadly matched APS Intake.
+
+```{r}
+checking <- case_data %>%
+  filter(!is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(case_data)
+```
+
+Of these, 101 (20.53%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+27,736 (98.26%) of observations *did not have* a broadly matched APS Intake.
+
+```{r}
+checking <- case_data %>%
+  filter(is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(case_data)
+```
+
+Of these, 9 (0.03%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+#### EMS/EMT Direct-Pairs
+
+278 (0.98%) of observations had an EMS/EMT matched APS Intake.
+
+```{r}
+checking <- case_data %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  filter(!is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(case_data)
+```
+
+Of these, 93 (33.45%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+27,950 (99.02%) of observations *did not have* an EMS/EMT matched APS Intake.
+
+```{r}
+checking <- case_data %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  filter(is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(case_data)
+```
+
+Of these, 17 (0.06%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+## Screened
+
+We isolated the 24,007 observations, representing 15,212 subjects, that contained a DETECT screening.
+
+```{r}
+screened <- case_data %>%
+  filter(detect_screened)
+
+nrow(screened)
+length(unique(screened$id))
+```
+### Overall
+
+4,569 (19.03%) of the screenings were associated with a subject that was present in the APS data set.
+
+```{r}
+checking <- screened %>%
+  filter(!is.na(aps_person_id))
+
+nrow(checking)
+nrow(checking)*100/nrow(screened)
+```
+
+1,488 (6.198%) of the screenings had a temporally linked APS Case Number.
+
+```{r}
+checking <- screened %>%
+  filter(!is.na(aps_case_num))
+
+nrow(checking)
+nrow(checking)*100/nrow(screened)
+```
+
+464 (1.93%) of the screenings had a broadly matched APS Intake.
+
+```{r}
+checking <- screened %>%
+  filter(!is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(screened)
+```
+
+271 (1.13%) of the screenings had an EMS/EMT matched APS Intake.
+
+```{r}
+checking <- screened %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  filter(!is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(screened)
+```
+
+105 (0.44%) of the screenings were matched to MedStar Compliance data.
+
+```{r}
+checking <- screened %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(screened)
+```
+
+#### Subject
+
+4,596 (19.03%) of the screenings were associated with a subject that was present in the APS data set.
+
+```{r}
+checking <- screened %>%
+  filter(!is.na(aps_person_id))
+
+nrow(checking)
+nrow(checking)*100/nrow(screened)
+```
+
+Of these, 101 (2.21%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+19,438 (80.97%) of the screenings were associated with a subject that was *not* present in the APS data set.
+
+```{r}
+checking <- screened %>%
+  filter(is.na(aps_person_id))
+
+nrow(checking)
+nrow(checking)*100/nrow(screened)
+```
+
+Of these, 4 (0.02%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+#### Temporally-Linked APS Case Number
+
+1,488 (6.20%) of the screenings had a temporally linked APS Case Number.
+
+```{r}
+checking <- screened %>%
+  filter(!is.na(aps_case_num))
+
+nrow(checking)
+nrow(checking)*100/nrow(screened)
+```
+
+Of these, 100 (6.72%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+22,519 (93.80%) of the screenings *did not have* a temporally linked APS Case Number.
+
+```{r}
+checking <- screened %>%
+  filter(is.na(aps_case_num))
+
+nrow(checking)
+nrow(checking)*100/nrow(screened)
+```
+
+Of these, 5 (0.02%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+#### Broad Direct-Pairs
+
+464 (1.93%) of the screenings had a broadly matched APS Intake.
+
+```{r}
+checking <- screened %>%
+  filter(!is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(screened)
+```
+
+Of these, 97 (20.91%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+23,543 (98.07%) of the screenings *did not have* a broadly matched APS Intake.
+
+```{r}
+checking <- screened %>%
+  filter(is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(screened)
+```
+
+Of these, 8 (0.03%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+#### EMS/EMT Direct-Pairs
+
+271 (1.13%) of the screenings had an EMS/EMT matched APS Intake.
+
+```{r}
+checking <- screened %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  filter(!is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(screened)
+```
+
+Of these, 89 (32.84%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+23,736 (98.87%) of the screenings *did not have* an EMS/EMT matched APS Intake.
+
+```{r}
+checking <- screened %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  filter(is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(screened)
+```
+
+Of these, 16 (0.07%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+### Positive Screenings
+
+Of these screenings, 871 (3.63%) were positive ("YES" selected for at least one screening tool item).
+
+```{r}
+positives <- screened %>%
+  filter(detect_positive)
+
+nrow(positives)
+nrow(positives)*100/nrow(screened)
+```
+
+104 (11.94%) of the positive screenings were matched to MedStar Compliance data.
+
+```{r}
+checking <- positives %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(positives)
+```
+
+#### Subject
+
+517 (59.36%) of the positive screenings were associated with a subject that was present in the APS data set.
+
+```{r}
+checking <- positives %>%
+  filter(!is.na(aps_person_id))
+
+nrow(checking)
+nrow(checking)*100/nrow(positives)
+```
+
+Of these, 100 (19.34%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+354 (40.64%) of the positive screenings were associated with a subject that was *not* present in the APS data set.
+
+```{r}
+checking <- positives %>%
+  filter(is.na(aps_person_id))
+
+nrow(checking)
+nrow(checking)*100/nrow(positives)
+```
+
+Of these, 4 (1.13%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+#### Temporally-Linked APS Case Number
+
+392 (45.01%) of the positive screenings had a temporally linked APS Case Number.
+
+```{r}
+checking <- positives %>%
+  filter(!is.na(aps_case_num))
+
+nrow(checking)
+nrow(checking)*100/nrow(positives)
+```
+
+Of these, 99 (25.26%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+479 (54.99%) of the positive screenings *did not have* a temporally linked APS Case Number.
+
+```{r}
+checking <- positives %>%
+  filter(is.na(aps_case_num))
+
+nrow(checking)
+nrow(checking)*100/nrow(positives)
+```
+
+Of these, 5 (1.04%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+#### Broad Direct-Pairs
+
+321 (36.85%) of the positive screenings had a broadly matched APS Intake.
+
+```{r}
+checking <- positives %>%
+  filter(!is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(positives)
+```
+
+Of these, 5 (1.04%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+550 (63.15%) of the positive screenings *did not have* a broadly matched APS Intake.
+
+```{r}
+checking <- positives %>%
+  filter(is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(positives)
+```
+
+Of these, 7 (1.27%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+#### EMS/EMT Direct-Pairs
+
+262 (30.08%) of the positive screenings had an EMS/EMT matched APS Intake.
+
+```{r}
+checking <- positives %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  filter(!is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(positives)
+```
+
+Of these, 89 (33.97%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+609 (69.92%) of the positive screenings *did not have* an EMS/EMT matched APS Intake.
+
+```{r}
+checking <- positives %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  filter(is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(positives)
+```
+
+Of these, 15 (2.46%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+### Negative Screenings
+
+Of these screenings, 23,136 (96.37%) were negative ("YES" was not selected for any screening tool item).
+
+```{r}
+negatives <- screened %>%
+  filter(!detect_positive)
+
+nrow(negatives)
+nrow(negatives)*100/nrow(screened)
+```
+
+1 (0.004%) of the negative screenings were matched to MedStar Compliance data.
+
+```{r}
+checking <- negatives %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(negatives)
+```
+
+#### Subject
+
+4,052 (17.51%) of the negative screenings were associated with a subject that was present in the APS data set.
+
+```{r}
+checking <- negatives %>%
+  filter(!is.na(aps_person_id))
+
+nrow(checking)
+nrow(checking)*100/nrow(negatives)
+```
+
+Of these, 1 (0.02%) was matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+19,084 (82.49%) of the negative screenings were associated with a subject that was *not* present in the APS data set.
+
+```{r}
+checking <- negatives %>%
+  filter(is.na(aps_person_id))
+
+nrow(checking)
+nrow(checking)*100/nrow(negatives)
+```
+
+Of these, 0 (0%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+#### Temporally-Linked APS Case Number
+
+1096 (4.74%) of the negative screenings had a temporally linked APS Case Number.
+
+```{r}
+checking <- negatives %>%
+  filter(!is.na(aps_case_num))
+
+nrow(checking)
+nrow(checking)*100/nrow(negatives)
+```
+
+Of these, 1 (0.09%) was matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+22,040 (95.27%) of the negative screenings *did not have* a temporally linked APS Case Number.
+
+```{r}
+checking <- negatives %>%
+  filter(is.na(aps_case_num))
+
+nrow(checking)
+nrow(checking)*100/nrow(negatives)
+```
+
+Of these, 0 (0%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+#### Broad Direct-Pairs
+
+143 (0.62%) of the negative screenings had a broadly matched APS Intake.
+
+```{r}
+checking <- negatives %>%
+  filter(!is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(negatives)
+```
+
+Of these, 0 (0%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+22,993 (99.38%) of the negative screenings *did not have* a broadly matched APS Intake.
+
+```{r}
+checking <- negatives %>%
+  filter(is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(negatives)
+```
+
+Of these, 1 (0.004%) was matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+#### EMS/EMT Direct-Pairs
+
+9 (0.04%) of the negative screenings had an EMS/EMT matched APS Intake.
+
+```{r}
+checking <- negatives %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  filter(!is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(negatives)
+```
+
+Of these, 0 (0%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+23,127 (99.96%) of the negative screenings *did not have* an EMS/EMT matched APS Intake.
+
+```{r}
+checking <- negatives %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  filter(is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(negatives)
+```
+
+Of these, 1 (0.004%) was matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+## Not Screened
+
+We isolated the 4,221 observations, representing 2,769 subjects, that did not contain a DETECT screening.
+
+```{r}
+not_screened <- case_data %>%
+  filter(!detect_screened)
+
+nrow(not_screened)
+length(unique(not_screened$id))
+```
+
+### Overall
+
+921 (21.82%) of the non-screening observations were associated with a subject that was present in the APS data set.
+
+```{r}
+checking <- not_screened %>%
+  filter(!is.na(aps_person_id))
+
+nrow(checking)
+nrow(checking)*100/nrow(not_screened)
+```
+
+301 (7.13%) of the non-screening observations had a temporally linked APS Case Number.
+
+```{r}
+checking <- not_screened %>%
+  filter(!is.na(aps_case_num))
+
+nrow(checking)
+nrow(checking)*100/nrow(not_screened)
+```
+
+28 (0.66%) of the screenings had a broadly matched APS Intake.
+
+```{r}
+checking <- not_screened %>%
+  filter(!is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(not_screened)
+```
+
+7 (0.17%) of the non-screening observations had an EMS/EMT matched APS Intake.
+
+```{r}
+checking <- not_screened %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  filter(!is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(not_screened)
+```
+
+5 (0.12%) of the non-screening observations were matched to MedStar Compliance data.
+
+```{r}
+checking <- not_screened %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(not_screened)
+```
+
+### Subject
+
+921 (21.82%) of the non-screening observations were associated with a subject that was present in the APS data set.
+
+```{r}
+checking <- not_screened %>%
+  filter(!is.na(aps_person_id))
+
+nrow(checking)
+nrow(checking)*100/nrow(not_screened)
+```
+
+Of these, 5 (0.54%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+3,300 (78.18%) of the non-screening observations were associated with a subject that was *not* present in the APS data set.
+
+```{r}
+checking <- not_screened %>%
+  filter(is.na(aps_person_id))
+
+nrow(checking)
+nrow(checking)*100/nrow(not_screened)
+```
+
+Of these, 0 (0%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+### Temporally-Linked APS Case Number
+
+301 (7.13%) of the non-screening observations had a temporally linked APS Case Number.
+
+```{r}
+checking <- not_screened %>%
+  filter(!is.na(aps_case_num))
+
+nrow(checking)
+nrow(checking)*100/nrow(not_screened)
+```
+
+Of these, 5 (1.66%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+3,920 (92.87%) of the non-screening observations *did not have* a temporally linked APS Case Number.
+
+```{r}
+checking <- not_screened %>%
+  filter(is.na(aps_case_num))
+
+nrow(checking)
+nrow(checking)*100/nrow(not_screened)
+```
+
+Of these, 0 (0%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+### Broad Direct-Pairs
+
+28 (0.66%) of the non-screening observations had a broadly matched APS Intake.
+
+```{r}
+checking <- not_screened %>%
+  filter(!is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(not_screened)
+```
+
+Of these, 4 (14.29%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+4,193 (99.34%) of the non-screening observations *did not have* a broadly matched APS Intake.
+
+```{r}
+checking <- not_screened %>%
+  filter(is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(not_screened)
+```
+
+Of these, 1 (0.02%) was matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+### EMS/EMT Direct-Pairs
+
+7 (0.17%) of the non-screening observations had an EMS/EMT matched APS Intake.
+
+```{r}
+checking <- not_screened %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  filter(!is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(not_screened)
+```
+
+Of these, 4 (57.14%) were matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
+4,214 (99.83%) of the non-screening observations *did not have* an EMS/EMT matched APS Intake.
+
+```{r}
+checking <- not_screened %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  filter(is.na(aps_row))
+
+nrow(checking)
+nrow(checking)*100/nrow(not_screened)
+```
+
+Of these, 1 (0.024%) was matched with the MedStar Compliance data.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(ms_comp_row))
+
+nrow(checking_subset)
+nrow(checking_subset)*100/nrow(checking)
+```
+
 
 # BOTTOM
