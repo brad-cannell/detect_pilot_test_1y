@@ -113,10 +113,33 @@ get_unique_value_summary <- function(df,cols){
   }
 ```
 
+# Creating Uniform Subject Demographics
 
-# Analyses
+## Age
 
-# Subject Demographics
+Age was calculated as the average of ages (omitting missing values) for each subject.
+
+```{r}
+age_data <- case_data %>%
+  select(id, pt_age) %>%
+  distinct()
+
+nrow(age_data)
+length(unique(age_data$id))
+
+age_data <- age_data %>%
+  group_by(id) %>%
+  mutate(total_age = sum(pt_age, na.rm = TRUE),
+         num_obs = length(na.omit(pt_age))) %>%
+  mutate(avg_age = total_age/num_obs) %>%
+  ungroup() %>%
+  select(id, avg_age) %>%
+  rename_at('avg_age', ~'pt_age') %>%
+  distinct()
+
+nrow(age_data)
+length(unique(age_data$id))
+```
 
 ## Race and Ethnicity
 
@@ -468,12 +491,13 @@ sex_data <- rbind(sex_data, checking)
 nrow(sex_data)
 ```
 
-## Sex/Gender & Race Demographics
+## Combined Subject Level Demographics
 
-The two demographic data sets were then joined.
+The three demographic data sets were then joined.
 
 ```{r}
-demo_data <- left_join(race_data, sex_data, by="id")
+demo_data <- left_join(age_data, race_data, by="id")
+demo_data <- left_join(demo_data, sex_data, by="id")
 ```
 
 This merged data set contained 16,565 subjects, each represented by a single row.
@@ -517,509 +541,1821 @@ subj_lvl_data <- left_join(subj_lvl_data, demo_data, by = "id") %>%
   relocate(id, aps_person_id, ms_id, pt_race, pt_hispanic, pt_gender)
 ```
 
-### General Demographic Homogeniety
 
-We utilized this data in order to determine our exact observed counts:
+# Analyses
+
+## Check of Manual Assignments
+
+There were 105 subjects with manual assignment of sex/gender (0.63% of subjects). This resulted in 61 subjects (58.095%) assigned "Female" and 44 (41.905%) assigned "Male".
 
 ```{r}
-table(subj_lvl_data$pt_gender)
-table(subj_lvl_data$pt_race)
-table(subj_lvl_data$pt_hispanic)
+total_multi <- sum(subj_lvl_data$multi_sex)
+
+total_multi
+total_multi*100/nrow(subj_lvl_data)
+
+counts <- as.data.frame(table(subj_lvl_data %>%
+  select(pt_gender, multi_sex) %>%
+  filter(multi_sex))) 
+
+counts <- counts %>%
+  mutate(percent = Freq*100/total_multi) %>%
+  select(pt_gender, Freq, percent)
+
+counts
 ```
 
-Expected counts were manually calculated utilizing [US Census data for Fort Worth](https://www.census.gov/quickfacts/fact/table/fortworthcitytexas/POP060210). The tables with expected and observed counts were created as CSV files and imported. The table of sex/gender values was transformed as required to be in the appropriate format for a chi-square test of homogeneity. The p-value of < 2.2e-16 indicated significant deviation from the expected population.
+There were 248 subjects with manual assignment of race (1.497% of subjects). This resulted in 121 subjects (48.790%) assigned "White", and 45 (18.145%) assigned "Black or African American", 15 (6.048%) assigned "Asian", 6 (2.419%) assigned "Native Hawaiian or Other Pacific Islander", and 61 (24.597%) assigned "Multiracial". No subjects were assigned "American Indian or Alaska Native" or "Other Race".
 
 ```{r}
-demo_tab_sex <- read.csv(here("data", "02 Shared Folders", 
-                               "DETECT Shared GRAs", "analysis", "demographic_counts_sex.csv"))
+total_multi <- sum(subj_lvl_data$multi_race)
 
-demo_tab_sex <- as.data.frame(t(demo_tab_sex))
-colnames(demo_tab_sex) <- demo_tab_sex['value',]
-rownames(demo_tab_sex) <- NULL
-demo_tab_sex <- demo_tab_sex[2-3,] %>%
-   mutate(across(everything(), .fns = ~as.numeric(.x)))
+total_multi
+total_multi*100/nrow(subj_lvl_data)
 
-chisq.test(demo_tab_sex)
+counts <- as.data.frame(table(subj_lvl_data %>%
+  select(pt_race, multi_race) %>%
+  filter(multi_race))) 
+
+counts <- counts %>%
+  mutate(percent = Freq*100/total_multi) %>%
+  select(pt_race, Freq, percent)
+
+counts
 ```
 
-This continued to be true even after the missing values were omitted.
+There were 103 subjects with manual assignment of ethnicity (0.622% of subjects). This resulted in 86 subjects (83.495%) assigned "Hispanic or Latino" and 17 (16.505%) assigned "Not Hispanic or Latino"
 
 ```{r}
-chisq.test(demo_tab_sex %>% select(-Missing))
+total_multi <- sum(subj_lvl_data$multi_ethn)
+
+total_multi
+total_multi*100/nrow(subj_lvl_data)
+
+counts <- as.data.frame(table(subj_lvl_data %>%
+  select(pt_hispanic, multi_ethn) %>%
+  filter(multi_ethn))) 
+
+counts <- counts %>%
+  mutate(percent = Freq*100/total_multi) %>%
+  select(pt_hispanic, Freq, percent)
+
+counts
 ```
 
+## Comparison with Census Data
 
+### Age
 
-
-The table of race values was transformed as required to be in the appropriate format for a chi-square test of homogeneity. The p-value of < 2.2e-16 indicated significant deviation from the expected population.
+The age of the subjects in our data set ranged from 65 to 119 years, with a mean of 76.87 years with a standard deviation of 8.502 years. The quartile values for age were 69.50, 76.0, and 83.0 years, respectively. 
 
 ```{r}
-demo_tab_race <- read.csv(here("data", "02 Shared Folders", 
-                               "DETECT Shared GRAs", "analysis", "demographic_counts_race.csv"))
-
-demo_tab_race <- as.data.frame(t(demo_tab_race))
-colnames(demo_tab_race) <- demo_tab_race['value',]
-rownames(demo_tab_race) <- NULL
-demo_tab_race <- demo_tab_race[2-3,] %>%
-   mutate(across(everything(), .fns = ~as.numeric(.x)))
-
-chisq.test(demo_tab_race)
+summary(subj_lvl_data$pt_age)
+sd(subj_lvl_data$pt_age)
 ```
 
-This continued to be true even after the missing values were omitted.
+In examination of the distribution of ages in our subjects, we find the distribution is unimodal at the low range of values with significant right skew. It is not approximately normally distributed
 
 ```{r}
-chisq.test(demo_tab_race %>% select(-Missing, -`Other Race`))
+hist(subj_lvl_data$pt_age)
 ```
 
+### Sex/Gender
 
-The table of ethnicity values was transformed as required to be in the appropriate format for a chi-square test of homogeneity. The p-value of < 2.2e-16 indicated significant deviation from the expected population.
-
-```{r}
-demo_tab_ethnicity <- read.csv(here("data", "02 Shared Folders", 
-                               "DETECT Shared GRAs", "analysis", "demographic_counts_ethnicity.csv"))
-
-demo_tab_ethnicity <- as.data.frame(t(demo_tab_ethnicity))
-colnames(demo_tab_ethnicity) <- demo_tab_ethnicity['value',]
-rownames(demo_tab_ethnicity) <- NULL
-demo_tab_ethnicity <- demo_tab_ethnicity[2-3,] %>%
-   mutate(across(everything(), .fns = ~as.numeric(.x)))
-
-chisq.test(demo_tab_ethnicity)
-```
-
-This continued to be true even after the missing values were omitted.
+Observed counts of sex/gender were isolated. Expected counts were calculated utilizing [US Census data for Fort Worth](https://www.census.gov/quickfacts/fact/table/fortworthcitytexas/POP060210), which indicated 51.2% of the population were "Female", with "Male" and "Female" as the only selection options. Chi-Square and Fisher testing indicated a p-value > 0.05, indicating no statistically significant heterogeneity. 
 
 ```{r}
-chisq.test(demo_tab_ethnicity %>% select(-Missing))
-```
+obs <- as.data.frame(table(subj_lvl_data$pt_gender))
+t_total <- length(unique(subj_lvl_data$id))
+obs <- rbind(obs, tibble(Var1 = "Missing", Freq = t_total - sum(obs$Freq)))
 
-### Independence for Screening Status
-
-We tested for independence of sex/gender and screening status (if a screening was ever performed). The p-value was < 0.001 for both Chi-Square and Fishers, which indicated significant association between sex/gender and if a screening was ever performed.
-
-```{r}
-screening_sex <- subj_lvl_data %>%
-  group_by(pt_gender, detect_ever_screened) %>%
-  tally() %>%
-  spread(pt_gender, n)
-
-screening_sex
-chisq.test(screening_sex)
-fisher.test(screening_sex)
-```
-
-The p-value rose to 0.07299 after the exclusion of the subjects missing values for sex/gender.
-
-```{r}
-screening_sex %>% select(-'<NA>')
-
-chisq.test(screening_sex %>% select(-'<NA>'))
-fisher.test(screening_sex %>% select(-'<NA>'))
-```
-
-When shifting any subject that had multiple values for sex/gender into a missing value, the p-vaule rose to 0.09043.
-
-```{r}
-screening_sex <- subj_lvl_data %>%
-  mutate(pt_gender = ifelse(multi_sex, NA, pt_gender)
+obs <- obs %>%
+  add_column(expected = 0.0) %>%
+  mutate(expected = case_when (Var1 == "Female" ~ t_total*0.512,
+                               Var1 == "Male" ~ t_total*(1-0.512),
+                               Var1 == "Missing" ~ t_total*0
+                               )
          ) %>%
-  group_by(pt_gender, detect_ever_screened) %>%
-  tally() %>%
-  spread(pt_gender, n)
+  rename_at('Var1', ~'sex') %>%
+  rename_at('Freq', ~'observed')
 
-screening_sex
-chisq.test(screening_sex)
-fisher.test(screening_sex)
+obs
+
+chisq.test(obs$observed, obs$expected)
+fisher.test(obs$observed, obs$expected)
 ```
 
-The p-value further decreased when any missing value observations were excluded (p=0.07212).
+This was consistent when we omit subjects that were missing a value for sex/gender.
 
 ```{r}
-screening_sex %>% select(-'<NA>')
+t_omit <- subj_lvl_data %>%
+  filter(!is.na(pt_gender))
 
-chisq.test(screening_sex %>% select(-'<NA>'))
-fisher.test(screening_sex %>% select(-'<NA>'))
+obs <- as.data.frame(table(t_omit$pt_gender))
+t_total <- length(unique(t_omit$id))
+
+obs <- obs %>%
+  add_column(expected = 0.0) %>%
+  mutate(expected = case_when (Var1 == "Female" ~ t_total*0.512,
+                               Var1 == "Male" ~ t_total*(1-0.512)
+                               )
+         ) %>%
+  rename_at('Var1', ~'sex') %>%
+  rename_at('Freq', ~'observed')
+
+obs
+
+chisq.test(obs$observed, obs$expected)
+fisher.test(obs$observed, obs$expected)
 ```
 
-We tested for independence of race and screening status (if a screening was ever performed). The p-value of < 0.001 indicated significant association between race and if a screening was ever performed.
+It also remained consistent when we omitted the subjects with multiple values for sex.
 
 ```{r}
-screening_race <- subj_lvl_data %>%
-  group_by(pt_race, detect_ever_screened) %>%
-  tally() %>%
-  spread(pt_race, n) %>%
-  replace(is.na(.),0)
+t_omit <- subj_lvl_data %>%
+  filter(!multi_sex)
 
-screening_race
-chisq.test(screening_race)
-fisher.test(screening_race, simulate.p.value = TRUE)
+obs <- as.data.frame(table(t_omit$pt_gender))
+t_total <- length(unique(t_omit$id))
+obs <- rbind(obs, tibble(Var1 = "Missing", Freq = t_total - sum(obs$Freq)))
+
+obs <- obs %>%
+  add_column(expected = 0.0) %>%
+  mutate(expected = case_when (Var1 == "Female" ~ t_total*0.512,
+                               Var1 == "Male" ~ t_total*(1-0.512),
+                               Var1 == "Missing" ~ t_total*0)) %>%
+  rename_at('Var1', ~'sex') %>%
+  rename_at('Freq', ~'observed')
+
+obs
+
+chisq.test(obs$observed, obs$expected)
+fisher.test(obs$observed, obs$expected)
 ```
 
-This p-value rose to 0.1039 after exclusion of subjects missing a value for race.
+### Race
+
+Observed counts for each race value were isolated. Expected counts were calculated utilizing [US Census data for Fort Worth](https://www.census.gov/quickfacts/fact/table/fortworthcitytexas/POP060210), which indicated that single racial identifications of "White" were made by 55.8% of the population, "Black or African American" by 18.8% of the population, "American Indian and Alaska Native" by 0.5%, "Asian" by 4.9%, "Native Hawaiian and Other Pacific Islander" by 0.1%, and "Two or More Races" by 8.6%. The remaining 11.3% of the population should be assumed to have reported "Some other race" per Census documentation.
+
+Chi-Square and Fisher testing indicated a p-value > 0.05, indicating no statistically significant heterogeneity. 
+
 
 ```{r}
-screening_race %>% select(-'<NA>')
+obs <- as.data.frame(table(subj_lvl_data$pt_race))
+t_total <- length(unique(subj_lvl_data$id))
+obs <- rbind(obs, tibble(Var1 = "Missing", Freq = t_total - sum(obs$Freq)))
 
-chisq.test(screening_race %>% select(-'<NA>'))
-fisher.test(screening_race %>% select(-'<NA>'),
-           simulate.p.value = TRUE)
+obs <- obs %>%
+  add_column(expected = 0.0) %>%
+  mutate(expected = case_when (Var1 == "White" ~ t_total*(0.558),
+                               Var1 == "Black or African American" 
+                               ~ t_total*(0.188),
+                               Var1 == "American Indian or Alaska Native"
+                               ~ t_total*(0.005),
+                               Var1 == "Asian" ~ t_total*(0.049),
+                               Var1 == 
+                                 "Native Hawaiian or Other Pacific Islander" 
+                               ~ t_total*(0.001),
+                               Var1 == "Multiracial" ~ t_total*(0.086),
+                               Var1 == "Other Race" ~ t_total*(0.113),
+                               Var1 == "Missing" ~ t_total*0
+                               )
+         ) %>%
+  rename_at('Var1', ~'race') %>%
+  rename_at('Freq', ~'observed')
+
+obs
+
+chisq.test(obs$observed, obs$expected)
+fisher.test(obs$observed, obs$expected)
 ```
 
-We tested for independence of ethnicity and screening status (if a screening was ever performed). The p-value of < 0.001 indicated significant association between ethnicity and if a screening was ever performed.
+This was consistent when we omit subjects that were missing a value for race.
 
 ```{r}
-screening_ethnicity <- subj_lvl_data %>%
-  group_by(pt_hispanic, detect_ever_screened) %>%
-  tally() %>%
-  spread(pt_hispanic, n) %>%
-  replace(is.na(.),0)
+t_omit <- subj_lvl_data %>%
+  filter(!is.na(pt_race))
 
-screening_ethnicity
-fisher.test(screening_ethnicity)
-chisq.test(screening_ethnicity)
+obs <- as.data.frame(table(t_omit$pt_race))
+t_total <- length(unique(t_omit$id))
+
+obs <- obs %>%
+  add_column(expected = 0.0) %>%
+  mutate(expected = case_when (Var1 == "White" ~ t_total*(0.558),
+                               Var1 == "Black or African American" 
+                               ~ t_total*(0.188),
+                               Var1 == "American Indian or Alaska Native"
+                               ~ t_total*(0.005),
+                               Var1 == "Asian" ~ t_total*(0.049),
+                               Var1 == 
+                                 "Native Hawaiian or Other Pacific Islander" 
+                               ~ t_total*(0.001),
+                               Var1 == "Multiracial" ~ t_total*(0.086),
+                               Var1 == "Other Race" ~ t_total*(0.113)
+                               )
+         ) %>%
+  rename_at('Var1', ~'race') %>%
+  rename_at('Freq', ~'observed')
+
+obs
+
+chisq.test(obs$observed, obs$expected)
+fisher.test(obs$observed, obs$expected)
+
 ```
 
-The p-value rose to 0.5984 (Chi-Squared) or 0.3996 (Fisher's Exact) after the exclusion of subjects that lacked value for race or ethnicity.
+This was also consistent when we omit subjects that had more than one value for race.
 
 ```{r}
-screening_ethnicity %>% select(-'<NA>')
+t_omit <- subj_lvl_data %>%
+  filter(!multi_race)
 
-chisq.test(screening_ethnicity %>% select(-'<NA>'))
-fisher.test(screening_ethnicity %>% select(-'<NA>'))
+obs <- as.data.frame(table(t_omit$pt_race))
+t_total <- length(unique(t_omit$id))
+
+obs <- rbind(obs, tibble(Var1 = "Missing", Freq = t_total - sum(obs$Freq)))
+
+obs <- obs %>%
+  add_column(expected = 0.0) %>%
+  mutate(expected = case_when (Var1 == "White" ~ t_total*(0.558),
+                               Var1 == "Black or African American" 
+                               ~ t_total*(0.188),
+                               Var1 == "American Indian or Alaska Native"
+                               ~ t_total*(0.005),
+                               Var1 == "Asian" ~ t_total*(0.049),
+                               Var1 == 
+                                 "Native Hawaiian or Other Pacific Islander" 
+                               ~ t_total*(0.001),
+                               Var1 == "Multiracial" ~ t_total*(0.086),
+                               Var1 == "Other Race" ~ t_total*(0.113),
+                               Var1 == "Missing" ~ t_total*0
+                               )
+         ) %>%
+  rename_at('Var1', ~'race') %>%
+  rename_at('Freq', ~'observed')
+
+obs
+
+chisq.test(obs$observed, obs$expected)
+fisher.test(obs$observed, obs$expected)
+
 ```
 
-### Independence for Screening Outcomes
+### Ethnicity
 
-We tested for independence of sex/gender and screening result among screened subjects. The p-value was < 0.001 for both Chi-Square and Fishers, which indicated significant association between sex/gender and screening result.
+Observed counts of ethnicity were isolated. Expected counts were calculated utilizing [US Census data for Fort Worth](https://www.census.gov/quickfacts/fact/table/fortworthcitytexas/POP060210), which indicated 35.3% of the population were "Hispanic or Latino", with "Hispanic or Latino" and "Not Hispanic or Latino" as the only selection options. Chi-Square and Fisher testing indicated a p-value > 0.05, indicating no statistically significant heterogeneity. 
 
 ```{r}
-screened_subjs <- subj_lvl_data %>%
+obs <- as.data.frame(table(subj_lvl_data$pt_hispanic))
+t_total <- length(unique(subj_lvl_data$id))
+obs <- rbind(obs, tibble(Var1 = "Missing", Freq = t_total - sum(obs$Freq)))
+
+obs <- obs %>%
+  add_column(expected = 0.0) %>%
+  mutate(expected = case_when (Var1 == "TRUE" ~ t_total*0.353,
+                               Var1 == "FALSE" ~ t_total*(1-0.353),
+                               Var1 == "Missing" ~ t_total*0
+                               )
+         ) %>%
+  rename_at('Var1', ~'hispanic') %>%
+  rename_at('Freq', ~'observed')
+
+obs
+
+chisq.test(obs$observed, obs$expected)
+fisher.test(obs$observed, obs$expected)
+```
+
+This was consistent when we omit subjects that were missing a value for ethnicity.
+
+```{r}
+t_omit <- subj_lvl_data %>%
+  filter(!is.na(pt_hispanic))
+
+obs <- as.data.frame(table(t_omit$pt_hispanic))
+t_total <- length(unique(t_omit$id))
+
+obs <- obs %>%
+  add_column(expected = 0.0) %>%
+  mutate(expected = case_when (Var1 == "TRUE" ~ t_total*0.353,
+                               Var1 == "FALSE" ~ t_total*(1-0.353)
+                               )
+         ) %>%
+  rename_at('Var1', ~'hispanic') %>%
+  rename_at('Freq', ~'observed')
+
+obs
+
+chisq.test(obs$observed, obs$expected)
+fisher.test(obs$observed, obs$expected)
+```
+
+It also remained consistent when we omitted the subjects with multiple values for ethnicity.
+
+```{r}
+t_omit <- subj_lvl_data %>%
+  filter(!multi_ethn)
+
+obs <- as.data.frame(table(t_omit$pt_hispanic))
+t_total <- length(unique(t_omit$id))
+obs <- rbind(obs, tibble(Var1 = "Missing", Freq = t_total - sum(obs$Freq)))
+
+obs <- obs %>%
+  add_column(expected = 0.0) %>%
+  mutate(expected = case_when (Var1 == "TRUE" ~ t_total*0.353,
+                               Var1 == "FALSE" ~ t_total*(1-0.353),
+                               Var1 == "Missing" ~ t_total*0
+                               )
+         ) %>%
+  rename_at('Var1', ~'hispanic') %>%
+  rename_at('Freq', ~'observed')
+
+obs
+
+chisq.test(obs$observed, obs$expected)
+fisher.test(obs$observed, obs$expected)
+```
+
+
+
+## Independence for Screening Status
+
+### Age
+
+Subjects that had ever received a DETECT screening were aged between 65 and 119 years, with a mean age of 76.92 years and standard deviation of 8.470 years. Quartile values were 70.0, 76.0, and 83.00 years, respectively. The values were not approximately normally distributed.
+
+```{r}
+screened <- subj_lvl_data %>%
   filter(detect_ever_screened)
 
-nrow(screened_subjs)
+summary(screened$pt_age)
+sd(screened$pt_age)
+hist(screened$pt_age)
+```
 
-screening_sex <- screened_subjs %>%
+Subjects that did not receive a DETECT screening were aged between 65 and 119 years, with a mean age of 76.29 years and standard deviation of 8.834 years. Quartile values were 69.0, 74.0, and 82.00 years, respectively. The values were not approximately normally distributed.
+
+```{r}
+not_screened <- subj_lvl_data %>%
+  filter(!detect_ever_screened)
+
+summary(not_screened$pt_age)
+sd(not_screened$pt_age)
+hist(not_screened$pt_age)
+```
+
+The distribution of Patient Age was found to be statistically significant with Mann-Whitney U testing, with a p-value of 0.001. This indicated that those that never received a DETECT screening were slightly younger than the subjects that did receive at least one screening.
+
+```{r}
+wilcox.test(pt_age ~ detect_ever_screened, data = subj_lvl_data, na.rm = TRUE, paired = FALSE, conf.int = TRUE)
+```
+
+
+
+### Sex/Gender
+
+We tested for independence of sex/gender and screening status (if a screening was ever performed). The p-value was > 0.05 for both Chi-Square and Fishers, which indicated no significant association between sex/gender and if a screening was ever performed.
+
+```{r}
+screening <- subj_lvl_data %>%
+  group_by(pt_gender, detect_ever_screened) %>%
+  tally() %>%
+  spread(pt_gender, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'sex')
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+This remained consistent in testing when omitting subjects with missing values for sex/gender.
+
+```{r}
+screening <- subj_lvl_data %>%
+  filter(!is.na(pt_gender)) %>%
+  group_by(pt_gender, detect_ever_screened) %>%
+  tally() %>%
+  spread(pt_gender, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'sex')
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+This remained consistent in testing when omitting subjects with more than one value for sex/gender.
+
+```{r}
+screening <- subj_lvl_data %>%
+  filter(!multi_sex) %>%
+  group_by(pt_gender, detect_ever_screened) %>%
+  tally() %>%
+  spread(pt_gender, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'sex')
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+
+### Race
+
+We tested for independence of race and screening status (if a screening was ever performed). The p-value was > 0.05 for both Chi-Square and Fishers, which indicated no significant association between race and if a screening was ever performed.
+
+```{r}
+screening <- subj_lvl_data %>%
+  group_by(pt_race, detect_ever_screened) %>%
+  tally() %>%
+  spread(pt_race, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'race') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+This remained consistent in testing when omitting subjects with missing values for race.
+
+```{r}
+screening <- subj_lvl_data %>%
+  filter(!is.na(pt_race)) %>%
+  group_by(pt_race, detect_ever_screened) %>%
+  tally() %>%
+  spread(pt_race, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'race') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+
+This remained consistent in testing when omitting subjects with more than one value for race.
+
+```{r}
+screening <- subj_lvl_data %>%
+  filter(!multi_race) %>%
+  group_by(pt_race, detect_ever_screened) %>%
+  tally() %>%
+  spread(pt_race, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'race') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+### Ethnicity
+
+We tested for independence of ethnicity and screening status (if a screening was ever performed). The p-value was > 0.05 for both Chi-Square and Fishers, which indicated no significant association between ethnicity and if a screening was ever performed.
+
+```{r}
+screening <- subj_lvl_data %>%
+  group_by(pt_hispanic, detect_ever_screened) %>%
+  tally() %>%
+  spread(pt_hispanic, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'hispanic') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+This remained consistent in testing when omitting subjects with missing values for ethnicity.
+
+```{r}
+screening <- subj_lvl_data %>%
+  filter(!is.na(pt_hispanic)) %>%
+  group_by(pt_hispanic, detect_ever_screened) %>%
+  tally() %>%
+  spread(pt_hispanic, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'hispanic') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+
+This remained consistent in testing when omitting subjects with more than one value for ethnicity.
+
+```{r}
+screening <- subj_lvl_data %>%
+  filter(!multi_ethn) %>%
+  group_by(pt_hispanic, detect_ever_screened) %>%
+  tally() %>%
+  spread(pt_hispanic, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'hispanic') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+
+## Independence for Screening Outcomes
+
+### Age
+
+Subjects that had ever received a positive DETECT were aged between 65 and 103 years, with a mean age of 76.35 years and standard deviation of 8.627 years. Quartile values were 69.0, 75.0, and 83.00 years, respectively. The values were not approximately normally distributed.
+
+```{r}
+screened_pos <- subj_lvl_data %>%
+  filter(detect_ever_positive)
+
+summary(screened_pos$pt_age)
+sd(screened_pos$pt_age)
+hist(screened_pos$pt_age)
+```
+
+Subjects that never received a positive DETECT screening were aged between 65 and 119 years, with a mean age of 76.95 years and standard deviation of 8.461 years. Quartile values were 70.0, 76.0, and 83.00 years, respectively. The values were not approximately normally distributed.
+
+```{r}
+not_screened <- subj_lvl_data %>%
+  filter(!detect_ever_positive)
+
+summary(not_screened$pt_age)
+sd(not_screened$pt_age)
+hist(not_screened$pt_age)
+```
+
+The distribution of Patient Age was found to be statistically significant with Mann-Whitney U testing, with a p-value of 0.030. This indicated that those that never received a positive DETECT screening were slightly older than the subjects that did receive at least one positive screening.
+
+```{r}
+wilcox.test(pt_age ~ detect_ever_positive, data = subj_lvl_data, na.rm = TRUE, paired = FALSE, conf.int = TRUE)
+```
+
+### Sex/Gender
+
+We tested for independence of sex/gender and screening result (subject-level aggregate). The p-value was > 0.05 for both Chi-Square and Fishers, which indicated no significant association between sex/gender and if a screening result.
+
+```{r}
+screening <- subj_lvl_data %>%
+  filter(!is.na(detect_ever_positive)) %>%
   group_by(pt_gender, detect_ever_positive) %>%
   tally() %>%
   spread(pt_gender, n)
 
-screening_sex
-chisq.test(screening_sex)
-fisher.test(screening_sex)
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'sex')
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
 ```
 
-The p-value rose to 0.03223 after the exclusion of the subjects missing values for sex/gender.
+This remained consistent in testing when omitting subjects with missing values for sex/gender.
 
 ```{r}
-screening_sex %>% select(-'<NA>')
+screening <- subj_lvl_data %>%
+  filter(!is.na(detect_ever_positive)) %>%
+  filter(!is.na(pt_gender)) %>%
+  group_by(pt_gender, detect_ever_positive) %>%
+  tally() %>%
+  spread(pt_gender, n)
 
-chisq.test(screening_sex %>% select(-'<NA>'))
-fisher.test(screening_sex %>% select(-'<NA>'))
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'sex')
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
 ```
 
-We tested for independence of race and screening result. The p-value of < 0.001 indicated significant association between race and screening results.
+This remained consistent in testing when omitting subjects with more than one value for sex/gender.
 
 ```{r}
-screening_race <- screened_subjs %>%
+screening <- subj_lvl_data %>%
+  filter(!is.na(detect_ever_positive)) %>%
+  filter(!multi_sex) %>%
+  group_by(pt_gender, detect_ever_positive) %>%
+  tally() %>%
+  spread(pt_gender, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'sex')
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+
+### Race
+
+We tested for independence of race and screening result (subject-level aggregate). The p-value was > 0.05 for both Chi-Square and Fishers, which indicated no significant association between race and if a screening result.
+
+```{r}
+screening <- subj_lvl_data %>%
+  filter(!is.na(detect_ever_positive)) %>%
   group_by(pt_race, detect_ever_positive) %>%
   tally() %>%
-  spread(pt_race, n) %>%
+  spread(pt_race, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'race') %>%
   replace(is.na(.),0)
+  
 
-screening_race
-chisq.test(screening_race)
-fisher.test(screening_race, simulate.p.value = TRUE)
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
 ```
 
-This p-value rose to 0.005497 after exclusion of subjects missing a value for race.
+This remained consistent in testing when omitting subjects with missing values for race.
 
 ```{r}
-screening_race %>% select(-'<NA>')
+screening <- subj_lvl_data %>%
+  filter(!is.na(detect_ever_positive)) %>%
+  filter(!is.na(pt_race)) %>%
+  group_by(pt_race, detect_ever_positive) %>%
+  tally() %>%
+  spread(pt_race, n)
 
-chisq.test(screening_race %>% select(-'<NA>'))
-fisher.test(screening_race %>% select(-'<NA>'),
-           simulate.p.value = TRUE)
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'race') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
 ```
 
-We tested for independence of ethnicity and screening result. The p-value of < 0.001 indicated significant association between ethnicity and screening result.
+
+This remained consistent in testing when omitting subjects with more than one value for race.
 
 ```{r}
-screening_ethnicity <- screened_subjs %>%
+screening <- subj_lvl_data %>%
+  filter(!multi_race) %>%
+  group_by(pt_race, detect_ever_screened) %>%
+  tally() %>%
+  spread(pt_race, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'race') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+### Ethnicity
+
+We tested for independence of ethnicity and screening result (subject-level aggregate). The p-value was > 0.05 for both Chi-Square and Fishers, which indicated no significant association between ethnicity and if a screening result.
+
+```{r}
+screening <- subj_lvl_data %>%
+  filter(!is.na(detect_ever_positive)) %>%
   group_by(pt_hispanic, detect_ever_positive) %>%
   tally() %>%
-  spread(pt_hispanic, n) %>%
+  spread(pt_hispanic, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'hispanic') %>%
   replace(is.na(.),0)
+  
 
-screening_ethnicity
-fisher.test(screening_ethnicity)
-chisq.test(screening_ethnicity)
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
 ```
 
-The p-value rose to 0.003708 after the exclusion of subjects that lacked value for race or ethnicity.
+This remained consistent in testing when omitting subjects with missing values for ethnicity.
 
 ```{r}
-screening_ethnicity %>% select(-'<NA>')
-
-chisq.test(screening_ethnicity %>% select(-'<NA>'))
-fisher.test(screening_ethnicity %>% select(-'<NA>'))
-```
-
-### Independence for APS Determinations
-
-#### Counting Subjects Missing from APS Data as "No Valid Allegations"
-
-We tested for independence of sex/gender and the presence of at least one valid allegation of EM for the subject anywhere across the data set. When counting any subject that was missing in the APS data set as "no valid allegation" rather than omitting, the p-value was < 0.001 for both Chi-Square and Fishers, which indicated significant association between sex/gender and the presence of at least one valid APS determination.
-
-```{r}
-screening_sex <- subj_lvl_data %>%
-  mutate(aps_subject_any_valid = ifelse(is.na(aps_subject_any_valid), FALSE, aps_subject_any_valid)
-         ) %>%
-  group_by(pt_gender, aps_subject_any_valid) %>%
+screening <- subj_lvl_data %>%
+  filter(!is.na(detect_ever_positive)) %>%
+  filter(!is.na(pt_hispanic)) %>%
+  group_by(pt_hispanic, detect_ever_positive) %>%
   tally() %>%
-  spread(pt_gender, n) %>%
+  spread(pt_hispanic, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'hispanic') %>%
   replace(is.na(.),0)
+  
 
-screening_sex
-chisq.test(screening_sex)
-fisher.test(screening_sex, simulate.p.value = TRUE)
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
 ```
 
-The p-value rose to 0.001751 after the exclusion of the subjects missing values for sex/gender.
+
+This remained consistent in testing when omitting subjects with more than one value for ethnicity.
 
 ```{r}
-screening_sex %>% select(-'<NA>')
-
-chisq.test(screening_sex %>% select(-'<NA>'))
-fisher.test(screening_sex %>% select(-'<NA>'))
-```
-
-We tested for independence of race and the presence of at least one valid EM allegation determination in the APS data set. The p-value of < 0.001 indicated significant association between race and the presence of at least one valid EM allegation determination in the APS data set.
-
-```{r}
-screening_race <- subj_lvl_data %>%
-  mutate(aps_subject_any_valid = ifelse(is.na(aps_subject_any_valid), FALSE, aps_subject_any_valid)
-         ) %>%
-  group_by(pt_race, aps_subject_any_valid) %>%
+screening <- subj_lvl_data %>%
+  filter(!is.na(detect_ever_positive)) %>%
+  filter(!multi_ethn) %>%
+  group_by(pt_hispanic, detect_ever_positive) %>%
   tally() %>%
-  spread(pt_race, n) %>%
+  spread(pt_hispanic, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'hispanic') %>%
   replace(is.na(.),0)
+  
 
-screening_race
-chisq.test(screening_race)
-fisher.test(screening_race, simulate.p.value = TRUE)
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
 ```
 
-This p-value remained the same after exclusion of subjects missing a value for race.
+
+
+## Independence for APS Determinations
+
+Our subject pool included 1,331 subjects with at least one valid allegation of EM in the APS data set across any APS Case Number or Intake, 636 subjects that did not have even one valid allegation recorded in the APS data set, and 14,598 subjects that were entirely missing from the APS data set.
 
 ```{r}
-screening_race %>% select(-'<NA>')
+checking <- subj_lvl_data %>%
+  mutate(aps_subject_any_valid = ifelse(
+    is.na(aps_subject_any_valid), "Missing", aps_subject_any_valid)
+    )
 
-chisq.test(screening_race %>% select(-'<NA>'))
-fisher.test(screening_race %>% select(-'<NA>'),
-           simulate.p.value = TRUE)
+get_unique_value_summary(checking,'aps_subject_any_valid')
 ```
 
-We tested for independence of ethnicity and the presence of at least one valid EM allegation determination in the APS data set. The p-value of < 0.001 indicated significant association between ethnicity and the presence of at least one valid EM allegation determination in the APS data set.
+### Counting Subjects Missing from APS Data as "No Valid Allegations"
+
+For testing, we converted all subjects that lacked APS data to "FALSE" for the presence of any valid allegations in the APS data set.
 
 ```{r}
-screening_ethnicity <- subj_lvl_data %>%
-  mutate(aps_subject_any_valid = ifelse(is.na(aps_subject_any_valid), FALSE, aps_subject_any_valid)
-         ) %>%
-  group_by(pt_hispanic, aps_subject_any_valid) %>%
-  tally() %>%
-  spread(pt_hispanic, n) %>%
-  replace(is.na(.),0)
+checking <- subj_lvl_data %>%
+  mutate(aps_subject_any_valid = ifelse(
+    is.na(aps_subject_any_valid), FALSE, aps_subject_any_valid)
+    )
 
-screening_ethnicity
-fisher.test(screening_ethnicity)
-chisq.test(screening_ethnicity)
+get_unique_value_summary(checking,'aps_subject_any_valid')
 ```
 
-The p-value remained persistent after the exclusion of subjects that lacked value for race or ethnicity.
+
+#### Age
+
+Subjects that were associated with at least one valid allegation of elder mistreatment were aged between 65 and 102 years, with a mean age of 76.47 years and standard deviation of 7.969 years. Quartile values were 70.0, 75.0, and 82.25 years, respectively. The values were not approximately normally distributed.
 
 ```{r}
-screening_ethnicity %>% select(-'<NA>')
+any_valid <- checking %>%
+  filter(aps_subject_any_valid)
 
-chisq.test(screening_ethnicity %>% select(-'<NA>'))
-fisher.test(screening_ethnicity %>% select(-'<NA>'))
+summary(any_valid$pt_age)
+sd(any_valid$pt_age)
+hist(any_valid$pt_age)
 ```
 
-#### Excluding Subjects Missing from APS Data
-
-We tested for independence of sex/gender and the presence of at least one valid allegation of EM for the subject anywhere across the data set. When omitting any subject that was missing in the APS data set, the p-value was 0.091 for Fisher's, which did not indicate a significant association between sex/gender and the presence of any valid APS allegations.
+Subjects that were either missing from the APS data set or otherwise lacked even one valid allegation of EM in the APS data set were aged between 65 and 119 years, with a mean age of 76.9 years and standard deviation of 8.546 years. Quartile values were 69.5, 76.0, and 83.00 years, respectively. The values were not approximately normally distributed.
 
 ```{r}
-screening_sex <- subj_lvl_data %>%
-  filter(!is.na(aps_subject_any_valid)
-         ) %>%
+no_valid <- checking %>%
+  filter(!aps_subject_any_valid)
+
+summary(no_valid$pt_age)
+sd(no_valid$pt_age)
+hist(no_valid$pt_age)
+```
+
+The distribution of Patient Age was found to be statistically significant with Mann-Whitney U testing, with a p-value of 0.2651. This indicated that there was not a statistically significant difference in age between subjects that had at least one valid allegation of EM in the APS data set, and those that were either missing or otherwise lacked any valid allegations of EM in the APS data set.
+
+```{r}
+wilcox.test(pt_age ~ aps_subject_any_valid, data = checking, na.rm = TRUE, paired = FALSE, conf.int = TRUE)
+```
+
+#### Sex/Gender
+
+We tested for independence of sex/gender and the presence (or absence) of at least one positive allegation of EM in the APS data set. The p-value was > 0.05 for both Chi-Square and Fishers, which indicated no significant association between sex/gender and presence (or absence) of at least one positive allegation of EM in the APS data set.
+
+```{r}
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
   group_by(pt_gender, aps_subject_any_valid) %>%
   tally() %>%
   spread(pt_gender, n)
 
-screening_sex
-chisq.test(screening_sex)
-fisher.test(screening_sex, simulate.p.value = TRUE)
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'sex')
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
 ```
 
-The p-value rose to 0.1289 after the exclusion of the subjects missing values for sex/gender.
+This remained consistent in testing when omitting subjects with missing values for sex/gender.
 
 ```{r}
-screening_sex %>% select(-'<NA>')
-
-chisq.test(screening_sex %>% select(-'<NA>'))
-fisher.test(screening_sex %>% select(-'<NA>'))
-```
-
-We tested for independence of race and the presence of at least one valid EM allegation determination in the APS data set. The p-value of 0.758 indicated no significant association between race and the presence of at least one valid EM allegation determination in the APS data set.
-
-```{r}
-screening_race <- subj_lvl_data %>%
-  filter(!is.na(aps_subject_any_valid)
-         ) %>%
-  group_by(pt_race, aps_subject_any_valid) %>%
-  tally() %>%
-  spread(pt_race, n) %>%
-  replace(is.na(.),0)
-
-screening_race
-chisq.test(screening_race)
-fisher.test(screening_race, simulate.p.value = TRUE)
-```
-
-This p-value dropped to 0.6492 after exclusion of subjects missing a value for race.
-
-```{r}
-screening_race %>% select(-'<NA>')
-
-chisq.test(screening_race %>% select(-'<NA>'))
-fisher.test(screening_race %>% select(-'<NA>'),
-           simulate.p.value = TRUE)
-```
-
-We tested for independence of ethnicity and the presence of at least one valid EM allegation determination in the APS data set. The p-value of 0.790 indicated no significant association between ethnicity and the presence of at least one valid EM allegation determination in the APS data set.
-
-```{r}
-screening_ethnicity <- subj_lvl_data %>%
-  filter(!is.na(aps_subject_any_valid)
-         ) %>%
-  group_by(pt_hispanic, aps_subject_any_valid) %>%
-  tally() %>%
-  spread(pt_hispanic, n) %>%
-  replace(is.na(.),0)
-
-screening_ethnicity
-fisher.test(screening_ethnicity)
-chisq.test(screening_ethnicity)
-```
-
-The p-value reduced to 0.653 after the exclusion of subjects that lacked value for race or ethnicity.
-
-```{r}
-screening_ethnicity %>% select(-'<NA>')
-
-chisq.test(screening_ethnicity %>% select(-'<NA>'))
-fisher.test(screening_ethnicity %>% select(-'<NA>'))
-```
-
-#### Subjects Missing from APS as Third Category
-
-We tested for independence of sex/gender and the presence of at least one valid allegation of EM for the subject anywhere across the data set. When counting any subject that was missing in the APS data set as a separate category, the p-value was < 0.001 for both Chi-Square and Fishers, which indicated significant association between sex/gender and the presence of at least one valid APS determination.
-
-```{r}
-screening_sex <- subj_lvl_data %>%
-  mutate(aps_subject_any_valid = as.character(aps_subject_any_valid)
-         ) %>%
-  mutate(aps_subject_any_valid = ifelse(is.na(aps_subject_any_valid), "MISSING", aps_subject_any_valid)
-         ) %>%
-  mutate(aps_subject_any_valid = case_when(
-    aps_subject_any_valid == "MISSNG" ~ 0,
-    aps_subject_any_valid == "FALSE" ~ 1,
-    aps_subject_any_valid == "TRUE" ~2
-  )) %>%
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
+  filter(!is.na(pt_gender)) %>%
   group_by(pt_gender, aps_subject_any_valid) %>%
   tally() %>%
-  spread(pt_gender, n) %>%
-  replace(is.na(.),0)
+  spread(pt_gender, n)
 
-screening_sex
-chisq.test(screening_sex)
-fisher.test(screening_sex, simulate.p.value = TRUE)
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'sex')
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
 ```
 
-The p-value remained < 0.001 after the exclusion of the subjects missing values for sex/gender.
+This remained consistent in testing when omitting subjects with more than one value for sex/gender.
 
 ```{r}
-screening_sex %>% select(-'<NA>')
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
+  filter(!multi_sex) %>%
+  group_by(pt_gender, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_gender, n)
 
-chisq.test(screening_sex %>% select(-'<NA>'))
-fisher.test(screening_sex %>% select(-'<NA>'), simulate.p.value = TRUE)
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'sex')
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
 ```
 
-We tested for independence of race and the presence of at least one valid EM allegation determination in the APS data set. The p-value of < 0.001 indicated significant association between race and the presence of at least one valid EM allegation determination in the APS data set.
+
+#### Race
+
+We tested for independence of race and presence (or absence) of at least one positive allegation of EM in the APS data set. The p-value was > 0.05 for both Chi-Square and Fishers, which indicated no significant association between race and presence (or absence) of at least one positive allegation of EM in the APS data set.
 
 ```{r}
-screening_race <- subj_lvl_data %>%
-  mutate(aps_subject_any_valid = as.character(aps_subject_any_valid)
-         ) %>%
-  mutate(aps_subject_any_valid = ifelse(is.na(aps_subject_any_valid), "MISSING", aps_subject_any_valid)
-         ) %>%
-  mutate(aps_subject_any_valid = case_when(
-    aps_subject_any_valid == "MISSNG" ~ 0,
-    aps_subject_any_valid == "FALSE" ~ 1,
-    aps_subject_any_valid == "TRUE" ~2
-  )) %>%
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
   group_by(pt_race, aps_subject_any_valid) %>%
   tally() %>%
-  spread(pt_race, n) %>%
+  spread(pt_race, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'race') %>%
   replace(is.na(.),0)
+  
 
-screening_race
-chisq.test(screening_race)
-fisher.test(screening_race, simulate.p.value = TRUE)
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
 ```
 
-This p-value remained the same after exclusion of subjects missing a value for race.
+This remained consistent in testing when omitting subjects with missing values for race.
 
 ```{r}
-screening_race %>% select(-'<NA>')
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
+  filter(!is.na(pt_race)) %>%
+  group_by(pt_race, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_race, n)
 
-chisq.test(screening_race %>% select(-'<NA>'))
-fisher.test(screening_race %>% select(-'<NA>'),
-           simulate.p.value = TRUE)
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'race') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
 ```
 
-We tested for independence of ethnicity and the presence of at least one valid EM allegation determination in the APS data set. The p-value of < 0.001 indicated significant association between ethnicity and the presence of at least one valid EM allegation determination in the APS data set.
+
+This remained consistent in testing when omitting subjects with more than one value for race.
 
 ```{r}
-screening_ethnicity <- subj_lvl_data %>%
-  mutate(aps_subject_any_valid = as.character(aps_subject_any_valid)
-         ) %>%
-  mutate(aps_subject_any_valid = ifelse(is.na(aps_subject_any_valid), "MISSING", aps_subject_any_valid)
-         ) %>%
-  mutate(aps_subject_any_valid = case_when(
-    aps_subject_any_valid == "MISSNG" ~ 0,
-    aps_subject_any_valid == "FALSE" ~ 1,
-    aps_subject_any_valid == "TRUE" ~2
-  )) %>%
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
+  filter(!multi_race) %>%
+  group_by(pt_race, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_race, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'race') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+#### Ethnicity
+
+We tested for independence of ethnicity and presence (or absence) of at least one positive allegation of EM in the APS data set. The p-value was > 0.05 for both Chi-Square and Fishers, which indicated no significant association between ethnicity and presence (or absence) of at least one positive allegation of EM in the APS data set.
+
+```{r}
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
   group_by(pt_hispanic, aps_subject_any_valid) %>%
   tally() %>%
-  spread(pt_hispanic, n) %>%
-  replace(is.na(.),0)
+  spread(pt_hispanic, n)
 
-screening_ethnicity
-fisher.test(screening_ethnicity, simulate.p.value = TRUE)
-chisq.test(screening_ethnicity)
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'hispanic') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
 ```
 
-The p-value remained persistent after the exclusion of subjects that lacked value for race or ethnicity.
+This remained consistent in testing when omitting subjects with missing values for ethnicity.
 
 ```{r}
-screening_ethnicity %>% select(-'<NA>')
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
+  filter(!is.na(pt_hispanic)) %>%
+  group_by(pt_hispanic, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_hispanic, n)
 
-chisq.test(screening_ethnicity %>% select(-'<NA>'))
-fisher.test(screening_ethnicity %>% select(-'<NA>'), 
-            simulate.p.value = TRUE)
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'hispanic') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+
+This remained consistent in testing when omitting subjects with more than one value for ethnicity.
+
+```{r}
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
+  filter(!multi_ethn) %>%
+  group_by(pt_hispanic, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_hispanic, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'hispanic') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+### Excluding Subjects Missing from APS Data
+
+For testing, we omit all subjects that lacked APS data.
+
+```{r}
+checking <- subj_lvl_data %>%
+  filter(!is.na(aps_subject_any_valid))
+
+get_unique_value_summary(checking,'aps_subject_any_valid')
+```
+
+
+#### Age
+
+Subjects that were associated with at least one valid allegation of elder mistreatment were aged between 65 and 102 years, with a mean age of 76.47 years and standard deviation of 7.969 years. Quartile values were 70.0, 75.0, and 82.25 years, respectively. The values were not approximately normally distributed.
+
+```{r}
+any_valid <- checking %>%
+  filter(aps_subject_any_valid)
+
+summary(any_valid$pt_age)
+sd(any_valid$pt_age)
+hist(any_valid$pt_age)
+```
+
+Subjects that were were present in the APS data set without any valid allegations of EM were aged between 65 and 106 years, with a mean age of 77.98 years and standard deviation of 8.682 years. Quartile values were 70.0, 77.0, and 85.00 years, respectively. The values were not approximately normally distributed.
+
+```{r}
+no_valid <- checking %>%
+  filter(!aps_subject_any_valid)
+
+summary(no_valid$pt_age)
+sd(no_valid$pt_age)
+hist(no_valid$pt_age)
+```
+
+The distribution of Patient Age was found to be statistically significant with Mann-Whitney U testing, with a p-value < 0.001. This indicated that there was a statistically significant difference in age between subjects that had at least one valid allegation of EM in the APS data set, and those present in the APS data set without any valid allegations of EM, with subjects with at least one valid allegation being younger.
+
+```{r}
+wilcox.test(pt_age ~ aps_subject_any_valid, data = checking, na.rm = TRUE, paired = FALSE, conf.int = TRUE)
+```
+
+#### Sex/Gender
+
+We tested for independence of sex/gender and the presence (or absence) of at least one positive allegation of EM in the APS data set. The p-value was > 0.05 for both Chi-Square and Fishers, which indicated no significant association between sex/gender and presence (or absence) of at least one positive allegation of EM in the APS data set.
+
+```{r}
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
+  group_by(pt_gender, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_gender, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'sex')
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+This remained consistent in testing when omitting subjects with missing values for sex/gender.
+
+```{r}
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
+  filter(!is.na(pt_gender)) %>%
+  group_by(pt_gender, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_gender, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'sex')
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+This remained consistent in testing when omitting subjects with more than one value for sex/gender.
+
+```{r}
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
+  filter(!multi_sex) %>%
+  group_by(pt_gender, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_gender, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'sex')
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+
+#### Race
+
+We tested for independence of race and presence (or absence) of at least one positive allegation of EM in the APS data set. The p-value was > 0.05 for both Chi-Square and Fishers, which indicated no significant association between race and presence (or absence) of at least one positive allegation of EM in the APS data set.
+
+```{r}
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
+  group_by(pt_race, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_race, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'race') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+This remained consistent in testing when omitting subjects with missing values for race.
+
+```{r}
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
+  filter(!is.na(pt_race)) %>%
+  group_by(pt_race, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_race, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'race') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+
+This remained consistent in testing when omitting subjects with more than one value for race.
+
+```{r}
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
+  filter(!multi_race) %>%
+  group_by(pt_race, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_race, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'race') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+#### Ethnicity
+
+We tested for independence of ethnicity and presence (or absence) of at least one positive allegation of EM in the APS data set. The p-value was > 0.05 for both Chi-Square and Fishers, which indicated no significant association between ethnicity and presence (or absence) of at least one positive allegation of EM in the APS data set.
+
+```{r}
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
+  group_by(pt_hispanic, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_hispanic, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'hispanic') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+This remained consistent in testing when omitting subjects with missing values for ethnicity.
+
+```{r}
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
+  filter(!is.na(pt_hispanic)) %>%
+  group_by(pt_hispanic, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_hispanic, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'hispanic') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+
+This remained consistent in testing when omitting subjects with more than one value for ethnicity.
+
+```{r}
+screening <- checking %>%
+  filter(!is.na(aps_subject_any_valid)) %>%
+  filter(!multi_ethn) %>%
+  group_by(pt_hispanic, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_hispanic, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('0',~'false') %>%
+  rename_at('1', ~'true') %>%
+  rename_at('rowname',~'hispanic') %>%
+  replace(is.na(.),0)
+  
+
+screening
+
+chisq.test(screening$true, screening$false)
+fisher.test(screening$true, screening$false)
+```
+
+### Subjects Missing from APS as Third Category
+
+For testing, we shifted all subjects that lacked APS data to "Missing".
+
+```{r}
+checking <- subj_lvl_data %>%
+  mutate(aps_subject_any_valid = ifelse(
+    is.na(aps_subject_any_valid), 'Missing', aps_subject_any_valid)
+    )
+
+get_unique_value_summary(checking,'aps_subject_any_valid')
+```
+
+
+#### Age
+
+Subjects that were associated with at least one valid allegation of elder mistreatment were aged between 65 and 102 years, with a mean age of 76.47 years and standard deviation of 7.969 years. Quartile values were 70.0, 75.0, and 82.25 years, respectively. The values were not approximately normally distributed.
+
+```{r}
+any_valid <- checking %>%
+  filter(aps_subject_any_valid == "TRUE")
+
+summary(any_valid$pt_age)
+sd(any_valid$pt_age)
+hist(any_valid$pt_age)
+```
+
+Subjects that were were present in the APS data set without any valid allegations of EM were aged between 65 and 106 years, with a mean age of 77.98 years and standard deviation of 8.682 years. Quartile values were 70.0, 77.0, and 85.00 years, respectively. The values were not approximately normally distributed.
+
+```{r}
+no_valid <- checking %>%
+  filter(aps_subject_any_valid == "FALSE")
+
+summary(no_valid$pt_age)
+sd(no_valid$pt_age)
+hist(no_valid$pt_age)
+```
+
+Subjects that were missing from the APS data set were aged between 65 and 119 years, with a mean age of 76.85 years and standard deviation of 8.537 years. Quartile values were 69.0, 76.0, and 83.00 years, respectively. The values were not approximately normally distributed.
+
+```{r}
+no_valid <- checking %>%
+  filter(aps_subject_any_valid == "Missing")
+
+summary(no_valid$pt_age)
+sd(no_valid$pt_age)
+hist(no_valid$pt_age)
+```
+
+We visualize the distribution of subject age in the three groups, and find that they have approximately equal variance and distribution
+
+```{r}
+ggplot(checking, aes(x=aps_subject_any_valid, y=pt_age)) + 
+    geom_boxplot()
+```
+
+In Kruskal-Wallis testing, we achieve a p of 0.0022, indicating a statistically significant difference in the distribution of age in at least one of the three groups.
+
+
+```{r}
+kruskal.test(pt_age ~ aps_subject_any_valid, data = checking)
+```
+
+Pairwise testing reveals this to be the "FALSE" group: those present in the APS data set, but without a single valid allegation of EM. This group had a statistically significant difference in the distribution of age between both the "TRUE" group and those missing from the APS data set, with p = 0.002 and p = 0.003 respectively. This "FALSE" group was older than the other two groups.
+
+```{r}
+pairwise.wilcox.test(checking$pt_age, checking$aps_subject_any_valid,
+                     p.adjust.method = "bonferroni")
+```
+
+#### Sex/Gender
+
+We tested for independence of sex/gender and the presence (or absence) of at least one positive allegation of EM in the APS data set. The p-value was < 0.01 for both Chi-Square and Fishers, which indicated a statistically significant association between sex/gender and presence (or absence) of at least one positive allegation of EM in the APS data set. Subjects missing a value for sex/gender were disproportionately associated with being absent in the APS data set, while having a value for sex/gender was associated with being disproportionally present.
+
+```{r}
+screening <- checking %>%
+  group_by(pt_gender, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_gender, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('rowname',~'sex') %>%
+  replace(is.na(.),0) %>%
+  column_to_rownames('sex') %>%
+  mutate(across(c("FALSE","Missing","TRUE"), as.numeric))
+
+screening
+
+chisq.test(screening)
+fisher.test(screening, simulate.p.value = TRUE)
+```
+
+In exploring the individual categories for sex/gender, we identify that the difference exists in that subjects missing data for sex/gender are disproportionately likely to be absent from the APS data set.
+
+```{r}
+for (i in 1:length(rownames(screening))){
+  chisq_vals <- chisq.test(screening[i,])
+  
+  statement <- paste("Cat: ", rownames(screening[i,]), 
+                     "; p-value: ", chisq_vals$p.value,
+                     sep = "")
+  print(statement)
+  print(colnames(screening))
+  print(chisq_vals$expected-chisq_vals$observed)
+}
+```
+
+
+This remained consistent in testing when omitting subjects with missing values for sex/gender.
+
+```{r}
+screening <- checking %>%
+  filter(!is.na(pt_gender)) %>%
+  group_by(pt_gender, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_gender, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('rowname',~'sex') %>%
+  replace(is.na(.),0) %>%
+  column_to_rownames('sex') %>%
+  mutate(across(c("FALSE","Missing","TRUE"), as.numeric))
+
+screening
+
+chisq.test(screening)
+fisher.test(screening)
+```
+
+In exploring the individual categories for sex/gender, we identify that the difference exists in that subjects were disproportionately likely to be *present* in the APS data set.
+
+```{r}
+for (i in 1:length(rownames(screening))){
+  chisq_vals <- chisq.test(screening[i,])
+  
+  statement <- paste("Cat: ", rownames(screening[i,]), 
+                     "; p-value: ", chisq_vals$p.value,
+                     sep = "")
+  print(statement)
+  print(colnames(screening))
+  print(chisq_vals$expected-chisq_vals$observed)
+}
+```
+
+This remained consistent in testing when omitting subjects with more than one value for sex/gender.
+
+```{r}
+screening <- checking %>%
+  filter(!multi_sex) %>%
+  group_by(pt_gender, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_gender, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('rowname',~'sex') %>%
+  replace(is.na(.),0) %>%
+  column_to_rownames('sex') %>%
+  mutate(across(c("FALSE","Missing","TRUE"), as.numeric))
+
+screening
+
+chisq.test(screening)
+fisher.test(screening, simulate.p.value = TRUE)
+```
+
+In exploring the individual categories for sex/gender, we identify that the difference exists in that subjects missing data for sex/gender are disproportionately likely to be absent from the APS data set.
+
+```{r}
+for (i in 1:length(rownames(screening))){
+  chisq_vals <- chisq.test(screening[i,])
+  
+  statement <- paste("Cat: ", rownames(screening[i,]), 
+                     "; p-value: ", chisq_vals$p.value,
+                     sep = "")
+  print(statement)
+  print(colnames(screening))
+  print(chisq_vals$expected-chisq_vals$observed)
+}
+```
+
+#### Race
+
+We tested for independence of race and presence (or absence) of at least one positive allegation of EM in the APS data set. The p-value was < 0.001 for both Chi-Square and Fishers, which indicated a statistically significant association between race and presence (or absence) of at least one positive allegation of EM in the APS data set. Subjects missing a value for race were disproportionately associated with being absent in the APS data set, while having a value for race was associated with being disproportionately present.
+
+```{r}
+screening <- checking %>%
+  group_by(pt_race, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_race, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('rowname',~'race') %>%
+  replace(is.na(.),0) %>%
+  column_to_rownames('race') %>%
+  mutate(across(c("FALSE","Missing","TRUE"), as.numeric))
+  
+
+screening
+
+chisq.test(screening)
+fisher.test(screening, simulate.p.value = TRUE)
+```
+
+In exploring the individual categories for race, we identify that the difference exists in that subjects missing data for race are disproportionately likely to be absent from the APS data set.
+
+```{r}
+for (i in 1:length(rownames(screening))){
+  chisq_vals <- chisq.test(screening[i,])
+  
+  statement <- paste("Cat: ", rownames(screening[i,]), 
+                     "; p-value: ", chisq_vals$p.value,
+                     sep = "")
+  print(statement)
+  print(colnames(screening))
+  print(chisq_vals$expected-chisq_vals$observed)
+}
+```
+
+This remained consistent in testing when omitting subjects with missing values for race.
+
+```{r}
+screening <- checking %>%
+  filter(!is.na(pt_race)) %>%
+  group_by(pt_race, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_race, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('rowname',~'race') %>%
+  replace(is.na(.),0) %>%
+  column_to_rownames('race') %>%
+  mutate(across(c("FALSE","Missing","TRUE"), as.numeric))
+  
+
+screening
+
+chisq.test(screening)
+fisher.test(screening, simulate.p.value = TRUE)
+```
+
+In exploring the individual categories for race, we identify that the difference exists in that subjects with values for race are disproportionately likely to be *present* in the APS data set.
+
+```{r}
+for (i in 1:length(rownames(screening))){
+  chisq_vals <- chisq.test(screening[i,])
+  
+  statement <- paste("Cat: ", rownames(screening[i,]), 
+                     "; p-value: ", chisq_vals$p.value,
+                     sep = "")
+  print(statement)
+  print(colnames(screening))
+  print(chisq_vals$expected-chisq_vals$observed)
+}
+```
+
+This remained consistent in testing when omitting subjects with more than one value for race.
+
+```{r}
+screening <- checking %>%
+  filter(!multi_race) %>%
+  group_by(pt_race, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_race, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('rowname',~'race') %>%
+  replace(is.na(.),0) %>%
+  column_to_rownames('race') %>%
+  mutate(across(c("FALSE","Missing","TRUE"), as.numeric))
+  
+
+screening
+
+chisq.test(screening)
+fisher.test(screening, simulate.p.value = TRUE)
+```
+
+In exploring the individual categories for race, we identify that the difference exists in that subjects missing data for race are disproportionately likely to be absent from the APS data set.
+
+```{r}
+for (i in 1:length(rownames(screening))){
+  chisq_vals <- chisq.test(screening[i,])
+  
+  statement <- paste("Cat: ", rownames(screening[i,]), 
+                     "; p-value: ", chisq_vals$p.value,
+                     sep = "")
+  print(statement)
+  print(colnames(screening))
+  print(chisq_vals$expected-chisq_vals$observed)
+}
+```
+
+#### Ethnicity
+
+We tested for independence of ethnicity and presence (or absence) of at least one positive allegation of EM in the APS data set. The p-value was < 0.01 for both Chi-Square and Fishers, which indicated statistically significant association between ethnicity and presence (or absence) of at least one positive allegation of EM in the APS data set. Subjects missing a value for ethnicity were disproportionately associated with being absent in the APS data set, while having a value for ethnicity was associated with being disproportionately present.
+
+```{r}
+screening <- checking %>%
+  group_by(pt_hispanic, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_hispanic, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('rowname',~'hispanic') %>%
+  replace(is.na(.),0) %>%
+  column_to_rownames('hispanic') %>%
+  mutate(across(c("FALSE","Missing","TRUE"), as.numeric))
+  
+
+screening
+
+chisq.test(screening)
+fisher.test(screening, simulate.p.value = TRUE)
+```
+
+In exploring the individual categories for ethnicity, we identify that the difference exists in that subjects missing data for ethnicity are disproportionately likely to be absent from the APS data set.
+
+```{r}
+for (i in 1:length(rownames(screening))){
+  chisq_vals <- chisq.test(screening[i,])
+  
+  statement <- paste("Cat: ", rownames(screening[i,]), 
+                     "; p-value: ", chisq_vals$p.value,
+                     sep = "")
+  print(statement)
+  print(colnames(screening))
+  print(chisq_vals$expected-chisq_vals$observed)
+}
+```
+
+This remained consistent in testing when omitting subjects with missing values for ethnicity.
+
+```{r}
+screening <- checking %>%
+  filter(!is.na(pt_hispanic)) %>%
+  group_by(pt_hispanic, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_hispanic, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('rowname',~'hispanic') %>%
+  replace(is.na(.),0) %>%
+  column_to_rownames('hispanic') %>%
+  mutate(across(c("FALSE","Missing","TRUE"), as.numeric))
+  
+
+screening
+
+chisq.test(screening)
+fisher.test(screening, simulate.p.value = TRUE)
+```
+
+In exploring the individual categories for ethnicity, we identify that the difference exists in that subjects with data for ethnicity are disproportionately likely to be *present* in the APS data set.
+
+```{r}
+for (i in 1:length(rownames(screening))){
+  chisq_vals <- chisq.test(screening[i,])
+  
+  statement <- paste("Cat: ", rownames(screening[i,]), 
+                     "; p-value: ", chisq_vals$p.value,
+                     sep = "")
+  print(statement)
+  print(colnames(screening))
+  print(chisq_vals$expected-chisq_vals$observed)
+}
+```
+
+This remained consistent in testing when omitting subjects with more than one value for ethnicity.
+
+```{r}
+screening <- checking %>%
+  filter(!multi_ethn) %>%
+  group_by(pt_hispanic, aps_subject_any_valid) %>%
+  tally() %>%
+  spread(pt_hispanic, n)
+
+screening <- rownames_to_column(data.frame(t(screening)) %>% 
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]) %>%
+  rename_at('rowname',~'hispanic') %>%
+  replace(is.na(.),0) %>%
+  column_to_rownames('hispanic') %>%
+  mutate(across(c("FALSE","Missing","TRUE"), as.numeric))
+  
+
+screening
+
+chisq.test(screening)
+fisher.test(screening, simulate.p.value = TRUE)
+```
+
+In exploring the individual categories for ethnicity, we identify that the difference exists in that subjects missing data for ethnicity are disproportionately likely to be absent from the APS data set.
+
+```{r}
+for (i in 1:length(rownames(screening))){
+  chisq_vals <- chisq.test(screening[i,])
+  
+  statement <- paste("Cat: ", rownames(screening[i,]), 
+                     "; p-value: ", chisq_vals$p.value,
+                     sep = "")
+  print(statement)
+  print(colnames(screening))
+  print(chisq_vals$expected-chisq_vals$observed)
+}
 ```
 
 # Response Pattern Demographics
@@ -1037,6 +2373,22 @@ updated_subj_cases <- case_data %>%
 
 updated_subj_cases <- rows_update(updated_subj_cases, demo_updater, by="id")
 ```
+
+We also identified the variables for our DETECT screening items.
+
+```{r}
+detect_items <- case_data %>%
+  select(detect_env_odor, detect_env_hoarding, detect_env_concern, 
+         detect_env_isolated, detect_cond_hygiene, detect_cond_clothes, 
+         detect_cond_needs, detect_cond_anxious ,detect_meds_hoarding, 
+         detect_meds_difficulty, detect_caregiver_lack, 
+         detect_caregiver_inattentive, detect_caregiver_frustrated, 
+         detect_caregiver_anxious) %>%
+  names()
+```
+
+
+## Overall Responses
 
 We had 9,682 screenings performed on a "Male" subject and 14,145 screenings performed on a "Female" subject, of which 401 screenings were performed on subjects that had multiple values listed for sex/gender. There were 180 screenings that lacked a subject sex/gender value.
 
@@ -1085,6 +2437,10 @@ updated_subj_cases %>%
   spread(multi_ethn, n) %>%
   replace(is.na(.),0)
 ```
+
+### Item Completions
+
+#### Overall
 
 We calculated the total number of times any specific DETECT screening item was completed, broken down by demographics.
 
@@ -1177,8 +2533,16 @@ for (i in 1:length(detect_items)){
   completed_demos <- rbind(completed_demos, completed_row)
 
 }
-
 ```
+
+```{r}
+completed_demos
+```
+
+
+### "Yes" Responses to Items
+
+#### Overall
 
 We calculated the total number of times any specific DETECT screening item was completed with "YES", broken down by demographics.
 
@@ -1274,9 +2638,255 @@ for (i in 1:length(detect_items)){
 }
 ```
 
+
+
+## Study-Month Trends
+
+We modified our data set to include designation of study month, the number of screenings in each month, and the number of positive screenings in each month.
+
 ```{r}
-yes_demos
+month_trend_data <- updated_subj_cases %>%
+  mutate(study_month = case_when(
+    response_dt %within% interval(start = date('2017-02-01'),
+                                  end = date('2017-03-01')-dseconds(x=1)) ~ 1,
+    response_dt %within% interval(start = date('2017-03-01'),
+                                  end = date('2017-04-01')-dseconds(x=1)) ~ 2,
+    response_dt %within% interval(start = date('2017-04-01'),
+                                  end = date('2017-05-01')-dseconds(x=1)) ~ 3,
+    response_dt %within% interval(start = date('2017-05-01'),
+                                  end = date('2017-06-01')-dseconds(x=1)) ~ 4,
+    response_dt %within% interval(start = date('2017-06-01'),
+                                  end = date('2017-07-01')-dseconds(x=1)) ~ 5,
+    response_dt %within% interval(start = date('2017-07-01'),
+                                  end = date('2017-08-01')-dseconds(x=1)) ~ 6,
+    response_dt %within% interval(start = date('2017-08-01'),
+                                  end = date('2017-09-01')-dseconds(x=1)) ~ 7,
+    response_dt %within% interval(start = date('2017-09-01'),
+                                  end = date('2017-10-01')-dseconds(x=1)) ~ 8,
+    response_dt %within% interval(start = date('2017-10-01'),
+                                  end = date('2017-11-01')-dseconds(x=1)) ~ 9,
+    response_dt %within% interval(start = date('2017-11-01'),
+                                  end = date('2017-12-01')-dseconds(x=1)) ~ 10,
+    response_dt %within% interval(start = date('2017-12-01'),
+                                  end = date('2018-01-01')-dseconds(x=1)) ~ 11,
+    response_dt %within% interval(start = date('2018-01-01'),
+                                  end = date('2018-02-01')-dseconds(x=1)) ~ 12,
+    response_dt %within% interval(start = date('2018-02-01'),
+                                  end = date('2018-03-01')-dseconds(x=1)) ~ 13
+    )) %>%
+  group_by(study_month) %>%
+  mutate(month_screenings = sum(detect_screened),
+         month_positives = sum(detect_positive, na.rm=TRUE)
+         ) %>%
+  ungroup()
 ```
 
+We initiated our completion trend data frame, and added the overall month-by-month data.
+
+```{r}
+trend_cols <- c("study_month", "completed_num", 
+                          "completed_per", "yes_num", "yes_per", "detect_item")
+
+completed_trends <- tibble::tibble(!!!trend_cols, .rows = 0, 
+                               .name_repair = ~trend_cols)
+
+base_trend <- month_trend_data %>%
+  select(study_month, month_screenings) %>%
+  distinct() %>%
+  add_column(completed_per = 1, yes_num = NA, yes_per = NA, 
+             detect_item = "total screenings")
+
+colnames(base_trend)[2] <- "completed_num"
+
+completed_trends <- rbind(completed_trends, base_trend)
+
+base_trend <- month_trend_data %>%
+  select(study_month, month_screenings, month_positives) %>%
+  distinct() %>%
+  mutate(completed_per = month_positives/month_screenings) %>%
+  add_column(yes_num = NA, yes_per = NA, detect_item = "positive screenings") %>%
+  select(-month_screenings)
+
+colnames(base_trend)[2] <- "completed_num"
+
+completed_trends <- rbind(completed_trends, base_trend)
+```
+
+We completed the additional rows for each DETECT screening item.
+
+```{r}
+for (i in 1:length(detect_questions)){
+
+  item_trend <- month_trend_data %>%
+    select(study_month, month_screenings, detect_questions[i])
+  
+  colnames(item_trend)[3] <- "detect_item" 
+  
+  item_trend <- item_trend %>% 
+    group_by(study_month) %>%
+    mutate(completed_num = sum(!is.na(detect_item)),
+           yes_num = sum(detect_item == "YES", na.rm = TRUE)
+           ) %>%
+    mutate(completed_per = completed_num / month_screenings,
+           yes_per = yes_num / completed_num) %>%
+    ungroup() %>%
+    select(-detect_item) %>%
+    distinct()
+  
+  colnames(item_trend)[3] <- "completed_num"
+  
+  item_trend <- item_trend %>%
+    select(-month_screenings) %>%
+    add_column(detect_item = detect_questions[i])
+
+  completed_trends <- rbind(completed_trends, item_trend)
+}
+```
+
+The number of screenings performed appeared to increase over the study period, while the number of positive screenings appeared to remain fairly constant, though the percentage of positive screenings appeared to decrease over the study period.
+
+```{r}
+completed_trends %>%
+  filter(detect_item %in% c("total screenings", "positive screenings")) %>%
+  relocate(study_month, detect_item) %>%
+  arrange(detect_item, study_month)
+```
+
+Completion percentages appear to increase while "YES" percentages appear to decrease over the study months for each DETECT Item.
+
+```{r}
+completed_trends %>% 
+  relocate(study_month, detect_item) %>%
+  arrange(detect_item,study_month)
+```
+
+### Plots
+
+#### Overall Completion and "YES" Percentage
+
+We plotted the trend in the number of screenings, and the trend in the number of positive screenings. We saw that the number of screenings completed increased over time, though the number of positive screenings remained fairly constant.
+
+```{r}
+plotting_data <- completed_trends %>%
+  filter(detect_item %in% c("total screenings", "positive screenings"))
+
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=completed_num)) + geom_line(aes(colour=detect_item))
+```
+
+We plotted the trend in the percentage of positive screenings. We saw that the percentage of positive screenings experienced a negative trend over time.
+
+```{r}
+plotting_data <- completed_trends %>%
+  filter(detect_item %in% c("positive screenings"))
+
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=completed_per)) + geom_line(aes(colour=detect_item))
+```
+
+We plotted the completion percentage rates. We see that the most commonly completed items were fairly constant in their completion rates, while the less frequently completed items (primarily caregiver related questions) increased over time.
+
+```{r}
+plotting_data <- completed_trends %>%
+  filter(!(detect_item %in% c("positive screenings", "total screenings")))
+
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=completed_per)) + geom_line(aes(colour=detect_item))
+```
+
+We plotted the "YES" percentage rates. We see that the most commonly completed items wildly fluctuated in their "YES" rates, though overall trends appeared to indicate a decrease in "YES" response frequencies.
+
+```{r}
+plotting_data <- completed_trends %>%
+  filter(!(detect_item %in% c("positive screenings", "total screenings")))
+
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=yes_per)) + geom_line(aes(colour=detect_item))
+```
+
+#### Plots for Specific Questions
+
+##### Caregiver Questions
+
+The completion rate of the caregiver DETECT items appeared to have a notable increase at the 5-month mark.
+
+```{r}
+plotting_data <- completed_trends %>%
+  filter((detect_item %in% 
+            c("detect_caregiver_inattentive", "detect_caregiver_lack",
+              "detect_caregiver_frustrated", "detect_caregiver_anxious")))
+
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=completed_per)) + geom_line(aes(colour=detect_item))
+```
+
+The decline in the "YES" percentage for the caregiver DETECT screening items had a consistent negative trend, most notably in the "If caregiver is present, they appear to lack knowledge of the patient or older adult's medical needs" item.
+
+```{r}
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=yes_per)) + geom_line(aes(colour=detect_item))
+```
+
+##### Environment Questions
+
+The completion rate of the environment DETECT items appeared to be fairly consistent, and nearly absolute across screenings.
+
+```{r}
+plotting_data <- completed_trends %>%
+  filter((detect_item %in% 
+            c("detect_env_odor", "detect_env_hoarding", "detect_env_concern",
+              "detect_env_isolated")))
+
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=completed_per)) + geom_line(aes(colour=detect_item))
+```
+
+The decline in the "YES" percentage for the environment DETECT screening items appeared to be fairly consistent, with "Unusual odor (e.g., urine, feces)" consistently having the highest rate of "YES" responses and "Is the patient or older adult isolated in the home?" the least. There was a notable down-tick in "YES" responses to all of these items in the 11th study month.
+
+```{r}
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=yes_per)) + geom_line(aes(colour=detect_item))
+```
+
+##### Medication Questions
+
+The completion rate of the medication DETECT items appeared to have nearly identical completion rates, a positive trend in completion percentage, and notable down-tick in completion in the 4th study month.
+
+```{r}
+plotting_data <- completed_trends %>%
+  filter((detect_item %in% 
+            c("detect_meds_difficulty", "detect_meds_hoarding")))
+
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=completed_per)) + geom_line(aes(colour=detect_item))
+```
+
+The decline in the "YES" percentage for the medication DETECT screening items appeared to be fairly consistent, with "Does the patient or older adult have difficulties taking their prescribed medications as directed?" consistently having the highest rate of "YES" responses and "Does the patient or older adult appear to be hoarding or saving old medications?" the least. There was a notable down-tick in "YES" responses to both of these items in the 9th and 11th study month, and up-tick in "YES" responses to both of these items around the 5th study month.
+
+```{r}
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=yes_per)) + geom_line(aes(colour=detect_item))
+```
+
+##### Patient Condition Questions
+
+The completion rate of the patient condition DETECT items appeared to fairly consistent completion rates, a positive trend in completion percentage, nearly identical completion rates after the 5th study month, and notable down-tick in completion in the 5th and 8th study month.
+
+```{r}
+plotting_data <- completed_trends %>%
+  filter((detect_item %in% 
+            c("detect_cond_needs", "detect_cond_hygiene", 
+              "detect_cond_clothes", "detct_cond_anxious")))
+
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=completed_per)) + geom_line(aes(colour=detect_item))
+```
+
+The decline in the "YES" percentage for the patient condition DETECT screening items appeared to have a general downtrend, with "Does the patient or older adult have poor personal hygiene (including soiled in urine or feces)?" consistently having the highest rate of "YES" responses and "Is the patient or older adult inadequately clothed or wearing dirty, torn, or soiled clothing?" the least. There was a notable down-tick in "YES" responses to both of these items in the 8th and 11th study month.
+
+```{r}
+ggplot(data = plotting_data, 
+       aes(x=study_month, y=yes_per)) + geom_line(aes(colour=detect_item))
+```
 
 # BOTTOM
