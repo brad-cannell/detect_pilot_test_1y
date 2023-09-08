@@ -860,6 +860,36 @@ ggplot(data = plotting_data,
        aes(x=study_month, y=yes_per)) + geom_line(aes(colour=detect_item))
 ```
 
+
+We examined the relationship between completion and "Yes" responses for each DETECT screening tool item over the course of the study months. We discovered that the overall trend of increasing counts of completion with steady "Yes" counts was consistent with the aggregrate trend across all DETECT screening tool items.
+
+```{r}
+for (i in 1:length(detect_questions)){
+  
+  item_data <- completed_trends %>%
+    filter(detect_item == detect_questions[i])
+  
+  completed_num <- item_data %>%
+    select(study_month, completed_num) %>%
+    add_column(count_type = "Completed (Count)") %>%
+    rename_at('completed_num', ~'count')
+  
+  yes_num <- item_data %>%
+    select(study_month, yes_num) %>%
+    add_column(count_type = "'Yes' Responses (Count)") %>%
+    rename_at('yes_num', ~'count')
+  
+  plotting_data <- rbind(completed_num, yes_num)
+  
+  plot <- ggplot(data = plotting_data, 
+         aes(x=study_month, y=count)) + geom_line(aes(colour=count_type)) +
+         xlab("Study Month") + ylab("Count") + 
+         labs(title = detect_questions[i])
+
+  print(plot)
+}
+```
+
 #### Plots for Specific Questions
 
 ##### Caregiver Questions
@@ -944,3 +974,213 @@ The decline in the "YES" percentage for the patient condition DETECT screening i
 ggplot(data = plotting_data, 
        aes(x=study_month, y=yes_per)) + geom_line(aes(colour=detect_item))
 ```
+
+## Multiple Logistic Regression of APS Determination by DETECT Item "YES"
+
+We re-imported our case-based data set, and modified the recorded responses to the DETECT screening items such that "YES" responses would correspond to "TRUE", any other response would correspond to "FALSE", and no response would remain a missing value.
+
+```{r}
+case_data <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs",
+                            "merge_aps_medstar",
+                            "medstar_aps_merged_04_temporal_case_nums.rds"))
+
+checking <- case_data %>%
+  mutate(across(all_of(detect_questions), .fns = ~case_when(
+    is.na(.x) ~ NA,
+    .x == "YES" ~ TRUE,
+    .x != "YES" ~ FALSE
+  )))
+```
+
+### Including Unmatched as "Negative" for APS Status
+
+#### Subject-Level
+
+We performed multiple logistic regression to determine the association between a "Yes" response to the DETECT screening items and a determination of at least one valid allegation of EM at the subject level.
+
+```{r}
+checking_subset <- checking %>%
+  mutate(aps_subject_any_valid = ifelse(is.na(aps_subject_any_valid), FALSE,
+                                        aps_subject_any_valid))
+
+testing <- glm(aps_subject_any_valid ~ detect_env_odor + detect_env_hoarding + 
+                 detect_env_concern + detect_env_isolated + 
+                 detect_cond_hygiene + detect_cond_clothes + 
+                 detect_cond_needs + detect_cond_anxious + 
+                 detect_meds_hoarding + detect_meds_difficulty + 
+                 detect_caregiver_lack + detect_caregiver_inattentive + 
+                 detect_caregiver_frustrated + detect_caregiver_anxious,
+               data = checking_subset, family = "binomial")
+
+summary(testing)
+exp(cbind(OR = coef(testing), confint(testing)))
+```
+
+#### Temporal-Case Level
+
+We performed multiple logistic regression to determine the association between a "Yes" response to the DETECT screening items and a determination of at least one valid allegation of EM at the APS Case level using Temporal matching.
+
+```{r}
+checking_subset <- checking %>%
+  mutate(aps_cases_any_valid = ifelse(is.na(aps_cases_any_valid), FALSE,
+                                        aps_cases_any_valid))
+
+testing <- glm(aps_cases_any_valid ~ detect_env_odor + detect_env_hoarding + 
+                 detect_env_concern + detect_env_isolated + 
+                 detect_cond_hygiene + detect_cond_clothes + 
+                 detect_cond_needs + detect_cond_anxious + 
+                 detect_meds_hoarding + detect_meds_difficulty + 
+                 detect_caregiver_lack + detect_caregiver_inattentive + 
+                 detect_caregiver_frustrated + detect_caregiver_anxious,
+               data = checking_subset, family = "binomial")
+
+summary(testing)
+exp(cbind(OR = coef(testing), confint(testing)))
+```
+
+#### Broad Matching Level
+
+We performed multiple logistic regression to determine the association between a "Yes" response to the DETECT screening items and a determination of at least one valid allegation of EM at the APS Case level using Broad Matching.
+
+```{r}
+checking_subset <- checking %>%
+  mutate(aps_cases_any_valid = ifelse(is.na(aps_cases_any_valid), FALSE,
+                                        aps_cases_any_valid)
+         ) %>%
+  mutate(aps_cases_any_valid =ifelse(is.na(aps_row), FALSE, aps_cases_any_valid)
+         ) 
+
+testing <- glm(aps_cases_any_valid ~ detect_env_odor + detect_env_hoarding + 
+                 detect_env_concern + detect_env_isolated + 
+                 detect_cond_hygiene + detect_cond_clothes + 
+                 detect_cond_needs + detect_cond_anxious + 
+                 detect_meds_hoarding + detect_meds_difficulty + 
+                 detect_caregiver_lack + detect_caregiver_inattentive + 
+                 detect_caregiver_frustrated + detect_caregiver_anxious,
+               data = checking_subset, family = "binomial")
+
+summary(testing)
+exp(cbind(OR = coef(testing), confint(testing)))
+```
+
+#### EMS/EMT Specific Matching Level
+
+We performed multiple logistic regression to determine the association between a "Yes" response to the DETECT screening items and a determination of at least one valid allegation of EM at the APS Case level using EMT/EMS specific matching.
+
+```{r}
+checking_subset <- checking %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  mutate(aps_cases_any_valid = ifelse(is.na(aps_cases_any_valid), FALSE,
+                                        aps_cases_any_valid)
+         ) %>%
+  mutate(aps_cases_any_valid =ifelse(is.na(aps_row), FALSE, aps_cases_any_valid)
+         ) 
+
+testing <- glm(aps_cases_any_valid ~ detect_env_odor + detect_env_hoarding + 
+                 detect_env_concern + detect_env_isolated + 
+                 detect_cond_hygiene + detect_cond_clothes + 
+                 detect_cond_needs + detect_cond_anxious + 
+                 detect_meds_hoarding + detect_meds_difficulty + 
+                 detect_caregiver_lack + detect_caregiver_inattentive + 
+                 detect_caregiver_frustrated + detect_caregiver_anxious,
+               data = checking_subset, family = "binomial")
+
+summary(testing)
+exp(cbind(OR = coef(testing), confint(testing)))
+```
+
+### Excluding Unmatched
+
+#### Subject-Level
+
+We performed multiple logistic regression to determine the association between a "Yes" response to the DETECT screening items and a determination of at least one valid allegation of EM at the subject level.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(aps_subject_any_valid))
+
+testing <- glm(aps_subject_any_valid ~ detect_env_odor + detect_env_hoarding + 
+                 detect_env_concern + detect_env_isolated + 
+                 detect_cond_hygiene + detect_cond_clothes + 
+                 detect_cond_needs + detect_cond_anxious + 
+                 detect_meds_hoarding + detect_meds_difficulty + 
+                 detect_caregiver_lack + detect_caregiver_inattentive + 
+                 detect_caregiver_frustrated + detect_caregiver_anxious,
+               data = checking_subset, family = "binomial")
+
+summary(testing)
+exp(cbind(OR = coef(testing), confint(testing)))
+```
+
+#### Temporal-Case Level
+
+We performed multiple logistic regression to determine the association between a "Yes" response to the DETECT screening items and a determination of at least one valid allegation of EM at the APS Case level using Temporal matching.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(aps_case_num))
+
+testing <- glm(aps_cases_any_valid ~ detect_env_odor + detect_env_hoarding + 
+                 detect_env_concern + detect_env_isolated + 
+                 detect_cond_hygiene + detect_cond_clothes + 
+                 detect_cond_needs + detect_cond_anxious + 
+                 detect_meds_hoarding + detect_meds_difficulty + 
+                 detect_caregiver_lack + detect_caregiver_inattentive + 
+                 detect_caregiver_frustrated + detect_caregiver_anxious,
+               data = checking_subset, family = "binomial")
+
+summary(testing)
+exp(cbind(OR = coef(testing), confint(testing)))
+```
+
+#### Broad Matching Level
+
+We performed multiple logistic regression to determine the association between a "Yes" response to the DETECT screening items and a determination of at least one valid allegation of EM at the APS Case level using Broad Matching.
+
+```{r}
+checking_subset <- checking %>%
+  filter(!is.na(aps_row))
+
+testing <- glm(aps_cases_any_valid ~ detect_env_odor + detect_env_hoarding + 
+                 detect_env_concern + detect_env_isolated + 
+                 detect_cond_hygiene + detect_cond_clothes + 
+                 detect_cond_needs + detect_cond_anxious + 
+                 detect_meds_hoarding + detect_meds_difficulty + 
+                 detect_caregiver_lack + detect_caregiver_inattentive + 
+                 detect_caregiver_frustrated + detect_caregiver_anxious,
+               data = checking_subset, family = "binomial")
+
+summary(testing)
+exp(cbind(OR = coef(testing), confint(testing)))
+```
+
+#### EMS/EMT Specific Matching Level
+
+We performed multiple logistic regression to determine the association between a "Yes" response to the DETECT screening items and a determination of at least one valid allegation of EM at the APS Case level using EMT/EMS specific matching.
+
+```{r}
+checking_subset <- checking %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  filter(!is.na(aps_row))
+
+testing <- glm(aps_cases_any_valid ~ detect_env_odor + detect_env_hoarding + 
+                 detect_env_concern + detect_env_isolated + 
+                 detect_cond_hygiene + detect_cond_clothes + 
+                 detect_cond_needs + detect_cond_anxious + 
+                 detect_meds_hoarding + detect_meds_difficulty + 
+                 detect_caregiver_lack + detect_caregiver_inattentive + 
+                 detect_caregiver_frustrated + detect_caregiver_anxious,
+               data = checking_subset, family = "binomial")
+
+summary(testing)
+exp(cbind(OR = coef(testing), confint(testing)))
+```
+# BOTTOM

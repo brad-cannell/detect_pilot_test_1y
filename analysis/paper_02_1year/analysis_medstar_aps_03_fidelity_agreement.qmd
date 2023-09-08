@@ -2801,3 +2801,538 @@ kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
 
 kappa
 ```
+
+## Agreement of DETECT Screening Items and APS Determinations
+
+We re-imported the temporal-case matching data set, and isolated our DETECT screening item variables and APS determination outcome variables.
+
+```{r}
+case_data <- readRDS(here("data", "02 Shared Folders", "DETECT Shared GRAs",
+                            "merge_aps_medstar",
+                            "medstar_aps_merged_04_temporal_case_nums.rds"))
+
+aps_outcome_vars <- case_data %>%
+  select(aps_person_id, aps_case_num, aps_row, aps_reporter, 
+         aps_subject_any_valid, aps_cases_any_valid) %>%
+  names()
+```
+
+### Including Unmatched APS as "Negative"
+
+#### Subject-Level
+
+We calculated the Kappa agreement between a "Yes" response to each DETECT variable and the presence of at least one valid allegation of EM in the APS data set at the subject level, with subjects missing from the APS data set considered "negative" for the APS outcome. The highest agreement was with `detect_cond_hygiene` (0.317, fair), and the lowest was with `detect_caregiver_anxious` (0.274, slight). Overall, the caregiver questions had the lowest agreement. 
+
+```{r}
+checking <- case_data %>%
+  select(all_of(detect_questions), all_of(aps_outcome_vars)) %>%
+  mutate(aps_subject_any_valid = ifelse(is.na(aps_subject_any_valid), FALSE, 
+                                               aps_subject_any_valid))
+
+kappa_cols <- c("detect_item", "observed_perc", "expected_perc", "kappa")
+
+kappa_table <- tibble::tibble(!!!kappa_cols, .rows = 0, 
+                               .name_repair = ~kappa_cols)
+
+for (i in 1:length(detect_questions)){
+  checking_subset <- checking %>%
+    filter(!is.na(detect_questions[i])) %>%
+    select(detect_questions[i], all_of(aps_outcome_vars)) %>%
+    rename_at(detect_questions[i], ~'detect_item')
+  
+  n_yes_apspos <- nrow(checking_subset %>%
+    filter(detect_item == "YES" & aps_subject_any_valid))
+  
+  n_yes_apsneg <- nrow(checking_subset %>%
+    filter(detect_item == "YES" & !aps_subject_any_valid))
+  
+  n_no_apspos <- nrow(checking_subset %>%
+    filter(detect_item != "YES" & aps_subject_any_valid))
+  
+  n_no_apsneg <- nrow(checking_subset %>%
+    filter(detect_item != "YES" & !aps_subject_any_valid))
+  
+  
+  observed_aggr <- (n_yes_apspos + n_no_apsneg) / nrow(checking_subset)
+  observed_aggr * 100
+
+  expected_p_y <- ((n_yes_apspos + 
+                      n_yes_apsneg) * (n_yes_apspos + 
+                                         n_no_apspos)) / nrow(checking_subset)
+  expected_n_n <- ((n_no_apspos + 
+                      n_no_apsneg) * (n_yes_apsneg + 
+                                        n_no_apsneg)) / nrow(checking_subset)
+  expected_aggr <- (expected_p_y + expected_n_n) / nrow(checking_subset)
+  expected_aggr * 100
+  
+  kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+  
+  kappa
+
+  temp_tibb <- tibble::tibble("detect_item" = detect_questions[i],
+                              "observed_perc" = observed_aggr*100,
+                              "expected_perc" = expected_aggr*100,
+                              "kappa" = kappa)
+  
+  kappa_table <- rbind(kappa_table, temp_tibb)
+}
+
+kappa_table %>% 
+  arrange(kappa)
+```
+
+#### Temporal-Case Level
+
+We calculated the Kappa agreement between a "Yes" response to each DETECT variable and the presence of at least one valid allegation of EM in the APS data set at the temporal-case level, with responses unmatched or missing from the APS data set considered "negative" for the APS outcome. The highest agreement was with `detect_cond_needs` (0.417, moderate), and the lowest was with `detect_caregiver_inattentive` (0.312, fair). Overall, the caregiver questions had the lowest agreement. 
+
+```{r}
+checking <- case_data %>%
+  select(all_of(detect_questions), all_of(aps_outcome_vars)) %>%
+  mutate(aps_cases_any_valid = ifelse(is.na(aps_cases_any_valid), FALSE, 
+                                               aps_cases_any_valid))
+
+kappa_cols <- c("detect_item", "observed_perc", "expected_perc", "kappa")
+
+kappa_table <- tibble::tibble(!!!kappa_cols, .rows = 0, 
+                               .name_repair = ~kappa_cols)
+
+for (i in 1:length(detect_questions)){
+  checking_subset <- checking %>%
+    filter(!is.na(detect_questions[i])) %>%
+    select(detect_questions[i], all_of(aps_outcome_vars)) %>%
+    rename_at(detect_questions[i], ~'detect_item')
+  
+  n_yes_apspos <- nrow(checking_subset %>%
+    filter(detect_item == "YES" & aps_cases_any_valid))
+  
+  n_yes_apsneg <- nrow(checking_subset %>%
+    filter(detect_item == "YES" & !aps_cases_any_valid))
+  
+  n_no_apspos <- nrow(checking_subset %>%
+    filter(detect_item != "YES" & aps_cases_any_valid))
+  
+  n_no_apsneg <- nrow(checking_subset %>%
+    filter(detect_item != "YES" & !aps_cases_any_valid))
+  
+  
+  observed_aggr <- (n_yes_apspos + n_no_apsneg) / nrow(checking_subset)
+  observed_aggr * 100
+
+  expected_p_y <- ((n_yes_apspos + 
+                      n_yes_apsneg) * (n_yes_apspos + 
+                                         n_no_apspos)) / nrow(checking_subset)
+  expected_n_n <- ((n_no_apspos + 
+                      n_no_apsneg) * (n_yes_apsneg + 
+                                        n_no_apsneg)) / nrow(checking_subset)
+  expected_aggr <- (expected_p_y + expected_n_n) / nrow(checking_subset)
+  expected_aggr * 100
+  
+  kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+  
+  kappa
+
+  temp_tibb <- tibble::tibble("detect_item" = detect_questions[i],
+                              "observed_perc" = observed_aggr*100,
+                              "expected_perc" = expected_aggr*100,
+                              "kappa" = kappa)
+  
+  kappa_table <- rbind(kappa_table, temp_tibb)
+}
+
+kappa_table %>% 
+  arrange(kappa)
+```
+
+#### Broad Direct Pairing Level
+
+We calculated the Kappa agreement between a "Yes" response to each DETECT variable and the presence of at least one valid allegation of EM in the APS data set at the broad direct-pairing level, with responses unmatched or missing from the APS data set considered "negative" for the APS outcome. The highest agreement was with `detect_env_concern` (0.455, moderate), and the lowest was with `detect_caregiver_inattentive` (0.324, fair). Overall, the caregiver questions had the lowest agreement. 
+
+```{r}
+checking <- case_data %>%
+  select(all_of(detect_questions), all_of(aps_outcome_vars)) %>%
+  mutate(aps_cases_any_valid = ifelse(is.na(aps_cases_any_valid), FALSE, 
+                                               aps_cases_any_valid)) %>%
+  mutate(aps_cases_any_valid = ifelse(is.na(aps_row), FALSE,
+                                      aps_cases_any_valid))
+
+kappa_cols <- c("detect_item", "observed_perc", "expected_perc", "kappa")
+
+kappa_table <- tibble::tibble(!!!kappa_cols, .rows = 0, 
+                               .name_repair = ~kappa_cols)
+
+for (i in 1:length(detect_questions)){
+  checking_subset <- checking %>%
+    filter(!is.na(detect_questions[i])) %>%
+    select(detect_questions[i], all_of(aps_outcome_vars)) %>%
+    rename_at(detect_questions[i], ~'detect_item')
+  
+  n_yes_apspos <- nrow(checking_subset %>%
+    filter(detect_item == "YES" & aps_cases_any_valid))
+  
+  n_yes_apsneg <- nrow(checking_subset %>%
+    filter(detect_item == "YES" & !aps_cases_any_valid))
+  
+  n_no_apspos <- nrow(checking_subset %>%
+    filter(detect_item != "YES" & aps_cases_any_valid))
+  
+  n_no_apsneg <- nrow(checking_subset %>%
+    filter(detect_item != "YES" & !aps_cases_any_valid))
+  
+  
+  observed_aggr <- (n_yes_apspos + n_no_apsneg) / nrow(checking_subset)
+  observed_aggr * 100
+
+  expected_p_y <- ((n_yes_apspos + 
+                      n_yes_apsneg) * (n_yes_apspos + 
+                                         n_no_apspos)) / nrow(checking_subset)
+  expected_n_n <- ((n_no_apspos + 
+                      n_no_apsneg) * (n_yes_apsneg + 
+                                        n_no_apsneg)) / nrow(checking_subset)
+  expected_aggr <- (expected_p_y + expected_n_n) / nrow(checking_subset)
+  expected_aggr * 100
+  
+  kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+  
+  kappa
+
+  temp_tibb <- tibble::tibble("detect_item" = detect_questions[i],
+                              "observed_perc" = observed_aggr*100,
+                              "expected_perc" = expected_aggr*100,
+                              "kappa" = kappa)
+  
+  kappa_table <- rbind(kappa_table, temp_tibb)
+}
+
+kappa_table %>% 
+  arrange(kappa)
+```
+
+#### EMS/EMT Specific Direct Pairing Level
+
+We calculated the Kappa agreement between a "Yes" response to each DETECT variable and the presence of at least one valid allegation of EM in the APS data set at the broad direct-pairing level, with responses unmatched or missing from the APS data set considered "negative" for the APS outcome. The highest agreement was with `detect_env_concern` (0.460, moderate), and the lowest was with `detect_caregiver_inattentive` (0.326, fair). Overall, the caregiver questions had the lowest agreement. 
+
+```{r}
+checking <- case_data %>%
+  select(all_of(detect_questions), all_of(aps_outcome_vars)) %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  mutate(aps_cases_any_valid = ifelse(is.na(aps_cases_any_valid), FALSE, 
+                                               aps_cases_any_valid)) %>%
+  mutate(aps_cases_any_valid = ifelse(is.na(aps_row), FALSE,
+                                      aps_cases_any_valid))
+
+kappa_cols <- c("detect_item", "observed_perc", "expected_perc", "kappa")
+
+kappa_table <- tibble::tibble(!!!kappa_cols, .rows = 0, 
+                               .name_repair = ~kappa_cols)
+
+for (i in 1:length(detect_questions)){
+  checking_subset <- checking %>%
+    filter(!is.na(detect_questions[i])) %>%
+    select(detect_questions[i], all_of(aps_outcome_vars)) %>%
+    rename_at(detect_questions[i], ~'detect_item')
+  
+  n_yes_apspos <- nrow(checking_subset %>%
+    filter(detect_item == "YES" & aps_cases_any_valid))
+  
+  n_yes_apsneg <- nrow(checking_subset %>%
+    filter(detect_item == "YES" & !aps_cases_any_valid))
+  
+  n_no_apspos <- nrow(checking_subset %>%
+    filter(detect_item != "YES" & aps_cases_any_valid))
+  
+  n_no_apsneg <- nrow(checking_subset %>%
+    filter(detect_item != "YES" & !aps_cases_any_valid))
+  
+  
+  observed_aggr <- (n_yes_apspos + n_no_apsneg) / nrow(checking_subset)
+  observed_aggr * 100
+
+  expected_p_y <- ((n_yes_apspos + 
+                      n_yes_apsneg) * (n_yes_apspos + 
+                                         n_no_apspos)) / nrow(checking_subset)
+  expected_n_n <- ((n_no_apspos + 
+                      n_no_apsneg) * (n_yes_apsneg + 
+                                        n_no_apsneg)) / nrow(checking_subset)
+  expected_aggr <- (expected_p_y + expected_n_n) / nrow(checking_subset)
+  expected_aggr * 100
+  
+  kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+  
+  kappa
+
+  temp_tibb <- tibble::tibble("detect_item" = detect_questions[i],
+                              "observed_perc" = observed_aggr*100,
+                              "expected_perc" = expected_aggr*100,
+                              "kappa" = kappa)
+  
+  kappa_table <- rbind(kappa_table, temp_tibb)
+}
+
+kappa_table %>% 
+  arrange(kappa)
+```
+
+### Excluding Unmatched APS
+
+#### Subject-Level
+
+We calculated the Kappa agreement between a "Yes" response to each DETECT variable and the presence of at least one valid allegation of EM in the APS data set at the subject level, with subjects missing from the APS data set excluded. The highest agreement was with `detect_caregiver_lack` (0.088, slight), and the lowest was with `detect_meds_hoarding` (0.052, slight). Overall, the caregiver questions had the lowest agreement. 
+
+```{r}
+checking <- case_data %>%
+  select(all_of(detect_questions), all_of(aps_outcome_vars)) %>%
+  filter(!is.na(aps_subject_any_valid))
+
+kappa_cols <- c("detect_item", "observed_perc", "expected_perc", "kappa")
+
+kappa_table <- tibble::tibble(!!!kappa_cols, .rows = 0, 
+                               .name_repair = ~kappa_cols)
+
+for (i in 1:length(detect_questions)){
+  checking_subset <- checking %>%
+    filter(!is.na(detect_questions[i])) %>%
+    select(detect_questions[i], all_of(aps_outcome_vars)) %>%
+    rename_at(detect_questions[i], ~'detect_item')
+  
+  n_yes_apspos <- nrow(checking_subset %>%
+    filter(detect_item == "YES" & aps_subject_any_valid))
+  
+  n_yes_apsneg <- nrow(checking_subset %>%
+    filter(detect_item == "YES" & !aps_subject_any_valid))
+  
+  n_no_apspos <- nrow(checking_subset %>%
+    filter(detect_item != "YES" & aps_subject_any_valid))
+  
+  n_no_apsneg <- nrow(checking_subset %>%
+    filter(detect_item != "YES" & !aps_subject_any_valid))
+  
+  
+  observed_aggr <- (n_yes_apspos + n_no_apsneg) / nrow(checking_subset)
+  observed_aggr * 100
+
+  expected_p_y <- ((n_yes_apspos + 
+                      n_yes_apsneg) * (n_yes_apspos + 
+                                         n_no_apspos)) / nrow(checking_subset)
+  expected_n_n <- ((n_no_apspos + 
+                      n_no_apsneg) * (n_yes_apsneg + 
+                                        n_no_apsneg)) / nrow(checking_subset)
+  expected_aggr <- (expected_p_y + expected_n_n) / nrow(checking_subset)
+  expected_aggr * 100
+  
+  kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+  
+  kappa
+
+  temp_tibb <- tibble::tibble("detect_item" = detect_questions[i],
+                              "observed_perc" = observed_aggr*100,
+                              "expected_perc" = expected_aggr*100,
+                              "kappa" = kappa)
+  
+  kappa_table <- rbind(kappa_table, temp_tibb)
+}
+
+kappa_table %>% 
+  arrange(kappa)
+```
+
+#### Temporal-Case Level
+
+We calculated the Kappa agreement between a "Yes" response to each DETECT variable and the presence of at least one valid allegation of EM in the APS data set at the temporal-case level, with responses unmatched or missing from the APS data set excluded. The highest agreement was with `detect_env_odor` (0.111, slight), and the lowest was with `detect_cond_anxious` (0.059, slight).  
+
+```{r}
+checking <- case_data %>%
+  select(all_of(detect_questions), all_of(aps_outcome_vars)) %>%
+  filter(!is.na(aps_case_num)
+         ) %>%
+  mutate(aps_cases_any_valid = ifelse(is.na(aps_cases_any_valid), FALSE, 
+                                               aps_cases_any_valid))
+
+kappa_cols <- c("detect_item", "observed_perc", "expected_perc", "kappa")
+
+kappa_table <- tibble::tibble(!!!kappa_cols, .rows = 0, 
+                               .name_repair = ~kappa_cols)
+
+for (i in 1:length(detect_questions)){
+  checking_subset <- checking %>%
+    filter(!is.na(detect_questions[i])) %>%
+    select(detect_questions[i], all_of(aps_outcome_vars)) %>%
+    rename_at(detect_questions[i], ~'detect_item')
+  
+  n_yes_apspos <- nrow(checking_subset %>%
+    filter(detect_item == "YES" & aps_cases_any_valid))
+  
+  n_yes_apsneg <- nrow(checking_subset %>%
+    filter(detect_item == "YES" & !aps_cases_any_valid))
+  
+  n_no_apspos <- nrow(checking_subset %>%
+    filter(detect_item != "YES" & aps_cases_any_valid))
+  
+  n_no_apsneg <- nrow(checking_subset %>%
+    filter(detect_item != "YES" & !aps_cases_any_valid))
+  
+  
+  observed_aggr <- (n_yes_apspos + n_no_apsneg) / nrow(checking_subset)
+  observed_aggr * 100
+
+  expected_p_y <- ((n_yes_apspos + 
+                      n_yes_apsneg) * (n_yes_apspos + 
+                                         n_no_apspos)) / nrow(checking_subset)
+  expected_n_n <- ((n_no_apspos + 
+                      n_no_apsneg) * (n_yes_apsneg + 
+                                        n_no_apsneg)) / nrow(checking_subset)
+  expected_aggr <- (expected_p_y + expected_n_n) / nrow(checking_subset)
+  expected_aggr * 100
+  
+  kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+  
+  kappa
+
+  temp_tibb <- tibble::tibble("detect_item" = detect_questions[i],
+                              "observed_perc" = observed_aggr*100,
+                              "expected_perc" = expected_aggr*100,
+                              "kappa" = kappa)
+  
+  kappa_table <- rbind(kappa_table, temp_tibb)
+}
+
+kappa_table %>% 
+  arrange(kappa)
+```
+
+#### Broad Direct Pairing Level
+
+We calculated the Kappa agreement between a "Yes" response to each DETECT variable and the presence of at least one valid allegation of EM in the APS data set at the broad direct-pairing level, with responses unmatched or missing from the APS data set excluded. The highest agreement was with `detect_env_concern` (0.144, slight), and the lowest was with `detect_cond_anxious` (0.016, slight). 
+
+```{r}
+checking <- case_data %>%
+  select(all_of(detect_questions), all_of(aps_outcome_vars)) %>%
+  filter(!is.na(aps_row)) %>%
+  mutate(aps_cases_any_valid = ifelse(is.na(aps_cases_any_valid), FALSE, 
+                                               aps_cases_any_valid)) %>%
+  mutate(aps_cases_any_valid = ifelse(is.na(aps_row), FALSE,
+                                      aps_cases_any_valid))
+
+kappa_cols <- c("detect_item", "observed_perc", "expected_perc", "kappa")
+
+kappa_table <- tibble::tibble(!!!kappa_cols, .rows = 0, 
+                               .name_repair = ~kappa_cols)
+
+for (i in 1:length(detect_questions)){
+  checking_subset <- checking %>%
+    filter(!is.na(detect_questions[i])) %>%
+    select(detect_questions[i], all_of(aps_outcome_vars)) %>%
+    rename_at(detect_questions[i], ~'detect_item')
+  
+  n_yes_apspos <- nrow(checking_subset %>%
+    filter(detect_item == "YES" & aps_cases_any_valid))
+  
+  n_yes_apsneg <- nrow(checking_subset %>%
+    filter(detect_item == "YES" & !aps_cases_any_valid))
+  
+  n_no_apspos <- nrow(checking_subset %>%
+    filter(detect_item != "YES" & aps_cases_any_valid))
+  
+  n_no_apsneg <- nrow(checking_subset %>%
+    filter(detect_item != "YES" & !aps_cases_any_valid))
+  
+  
+  observed_aggr <- (n_yes_apspos + n_no_apsneg) / nrow(checking_subset)
+  observed_aggr * 100
+
+  expected_p_y <- ((n_yes_apspos + 
+                      n_yes_apsneg) * (n_yes_apspos + 
+                                         n_no_apspos)) / nrow(checking_subset)
+  expected_n_n <- ((n_no_apspos + 
+                      n_no_apsneg) * (n_yes_apsneg + 
+                                        n_no_apsneg)) / nrow(checking_subset)
+  expected_aggr <- (expected_p_y + expected_n_n) / nrow(checking_subset)
+  expected_aggr * 100
+  
+  kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+  
+  kappa
+
+  temp_tibb <- tibble::tibble("detect_item" = detect_questions[i],
+                              "observed_perc" = observed_aggr*100,
+                              "expected_perc" = expected_aggr*100,
+                              "kappa" = kappa)
+  
+  kappa_table <- rbind(kappa_table, temp_tibb)
+}
+
+kappa_table %>% 
+  arrange(kappa)
+```
+
+#### EMS/EMT Specific Direct Pairing Level
+
+We calculated the Kappa agreement between a "Yes" response to each DETECT variable and the presence of at least one valid allegation of EM in the APS data set at the broad direct-pairing level, with responses unmatched or missing from the APS data set excluded. The highest agreement was with `detect_env_concern` (0.191, slight), and the lowest was with `detect_cond_anxious` (0.002, slight). 
+
+```{r}
+checking <- case_data %>%
+  select(all_of(detect_questions), all_of(aps_outcome_vars)) %>%
+  mutate(aps_row = ifelse(
+    aps_reporter != "Health Care Providers/Staff -- EMS/EMT", 
+    NA_integer_, 
+    aps_row)
+    ) %>%
+  filter(!is.na(aps_row)) %>%
+  mutate(aps_cases_any_valid = ifelse(is.na(aps_cases_any_valid), FALSE, 
+                                               aps_cases_any_valid))
+
+kappa_cols <- c("detect_item", "observed_perc", "expected_perc", "kappa")
+
+kappa_table <- tibble::tibble(!!!kappa_cols, .rows = 0, 
+                               .name_repair = ~kappa_cols)
+
+for (i in 1:length(detect_questions)){
+  checking_subset <- checking %>%
+    filter(!is.na(detect_questions[i])) %>%
+    select(detect_questions[i], all_of(aps_outcome_vars)) %>%
+    rename_at(detect_questions[i], ~'detect_item')
+  
+  n_yes_apspos <- nrow(checking_subset %>%
+    filter(detect_item == "YES" & aps_cases_any_valid))
+  
+  n_yes_apsneg <- nrow(checking_subset %>%
+    filter(detect_item == "YES" & !aps_cases_any_valid))
+  
+  n_no_apspos <- nrow(checking_subset %>%
+    filter(detect_item != "YES" & aps_cases_any_valid))
+  
+  n_no_apsneg <- nrow(checking_subset %>%
+    filter(detect_item != "YES" & !aps_cases_any_valid))
+  
+  
+  observed_aggr <- (n_yes_apspos + n_no_apsneg) / nrow(checking_subset)
+  observed_aggr * 100
+
+  expected_p_y <- ((n_yes_apspos + 
+                      n_yes_apsneg) * (n_yes_apspos + 
+                                         n_no_apspos)) / nrow(checking_subset)
+  expected_n_n <- ((n_no_apspos + 
+                      n_no_apsneg) * (n_yes_apsneg + 
+                                        n_no_apsneg)) / nrow(checking_subset)
+  expected_aggr <- (expected_p_y + expected_n_n) / nrow(checking_subset)
+  expected_aggr * 100
+  
+  kappa <- (observed_aggr - expected_aggr) / (1 - expected_aggr)
+  
+  kappa
+
+  temp_tibb <- tibble::tibble("detect_item" = detect_questions[i],
+                              "observed_perc" = observed_aggr*100,
+                              "expected_perc" = expected_aggr*100,
+                              "kappa" = kappa)
+  
+  kappa_table <- rbind(kappa_table, temp_tibb)
+}
+
+kappa_table %>% 
+  arrange(kappa)
+```
+

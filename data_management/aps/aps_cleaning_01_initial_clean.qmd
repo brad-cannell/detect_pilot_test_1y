@@ -1338,7 +1338,7 @@ We expected values for Close Reason to be standardized and selected from a pre-d
 get_unique_value_summary(aps,'aps_inv_close_reason')
 ```
 
-As closure reasons extend to the entire investigation (Case Number), these were consolidated to be identical across all occurrences of the same APS Case Number. Occurrences with only values of "Closed to Merge" were considered still ongoing, as no full closure reason was located in our Data Set. 
+As closure reasons extend to the entire investigation (Case Number), these were consolidated to be identical across all occurrences of the same APS Case Number. Occurrences with only values of "Closed to Merge" were considered still ongoing, as no full closure reason was located in our Data Set.
 
 Closures of both "Progress to Maintenance" and "Progress to ICS" indicated continued following by APS Services; as such, these were consolidated into "Progress to Maintenance or ICS" as there were Case Numbers with both closure reasons.
 
